@@ -58,7 +58,7 @@
 .atlas-home .gantt-row{border-bottom:1px solid var(--line);padding:7px 0}
 .atlas-home .gantt-row:hover{background:var(--paper)}
 [data-theme=dark] .atlas-home{background:#14161b}
-.atlas-home{--lunar-cover:url("data:image/webp;base64,__ATLAS_LUNAR_COVER__")}
+:root{--lunar-cover:url("data:image/webp;base64,__ATLAS_LUNAR_COVER__")}
 @media(max-width:720px){
  .atlas-home .head{align-items:start;flex-direction:column;justify-content:flex-start;gap:10px;min-height:232px;padding:18px 20px}
  .atlas-home .head::before{inset:0;background-size:auto 45%;mask-image:none}
@@ -160,6 +160,28 @@ html:has(#metricDialog[open]){overflow:hidden}
 i.crew-portrait{background-color:#050505;background-image:var(--crew-sheet);background-size:400% 1200%;background-repeat:no-repeat}
 .crew-person{display:inline-flex;align-items:center;gap:6px;min-width:0;max-width:100%;vertical-align:middle}
 .crew-person>span{min-width:0;text-overflow:ellipsis;white-space:nowrap;overflow:hidden}
+.profile-link{font:inherit;color:inherit;background:none;border:0;padding:0;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-align:start}
+.profile-link:hover{text-decoration:underline;text-underline-offset:3px}.profile-link:focus-visible{outline:2px solid #5a95df;outline-offset:2px}
+.queue-person-chip{display:inline-flex;align-items:center;gap:5px;padding:2px 3px 2px 8px;border-radius:12px;border:1px solid var(--line)}
+.queue-person-chip>.chip{margin:0;padding:4px 9px}
+#profileDialog{box-sizing:border-box;width:min(540px,calc(100vw - 24px));max-height:90dvh;padding:0;background:var(--white);color:var(--ink);border:1px solid var(--line);border-radius:22px;box-shadow:0 22px 90px #0005;overflow-x:hidden;overflow-y:auto;scrollbar-width:none;overscroll-behavior:contain}
+#profileDialog::-webkit-scrollbar{display:none}html:has(#profileDialog[open]){overflow:hidden;scrollbar-gutter:stable}
+#profileDialog::backdrop{background:#080e1a66;backdrop-filter:blur(9px)}
+@media(prefers-reduced-motion:no-preference){#profileDialog[open]::backdrop{animation:metric-focus-in 720ms cubic-bezier(.38,.03,.22,1) both}}
+.profile-cover{height:102px;background:#060708 var(--lunar-cover) no-repeat right 14% bottom 28%/auto 180%;position:relative}
+#profileClose{position:absolute;right:14px;top:12px;background:#24262cda;border:1px solid #ffffff38;color:#fff;font-size:23px;border-radius:50%;width:32px;height:32px;line-height:1}
+.profile-body{padding:0 clamp(16px,5vw,28px) 22px}.profile-body h2{font-size:clamp(23px,5vw,30px);line-height:1.2;margin:8px 0 5px;overflow-wrap:anywhere}
+#profilePortrait{--crew-size:64px;position:relative;margin-top:-33px;display:table;border:3px solid var(--white);background:var(--white);border-radius:50%;line-height:0}
+#profileBio{font-size:14px;color:var(--soft);min-height:30px}#profileBio p{white-space:pre-wrap;overflow-wrap:anywhere;margin:0 0 3px}#profileBio .link{font-size:13px}
+#bioDraft{box-sizing:border-box;width:100%;padding:9px 12px;font:inherit;color:var(--ink);background:var(--paper);border:1px solid var(--line);border-radius:9px;resize:vertical}
+.profile-edit-tools,.profile-heading,.profile-result{display:flex;align-items:center;gap:10px}.profile-edit-tools small{margin-right:auto}
+.profile-section{margin-top:16px;border-top:1px solid var(--line);padding-top:16px}.profile-heading{justify-content:space-between;flex-wrap:wrap;margin-bottom:13px}.profile-heading h3{font-size:17px;margin:0}
+.profile-metrics,#profileInventory{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+#profileStats{min-height:92px}#profileInventory{min-height:40px;align-content:start}
+.profile-metrics>div{padding:10px clamp(6px,2vw,13px);background:var(--paper);border-radius:10px}.profile-body small{color:var(--soft);font-size:12px}
+.profile-metrics strong,#profileInventory strong{display:block;font-size:clamp(15px,3.7vw,20px);font-weight:600;font-variant-numeric:tabular-nums}
+#profileInventory>small{grid-column:1/-1}#profileInventory>div+div{border-left:1px solid var(--line);padding-left:12px}
+.profile-result{font-size:13px;margin-top:12px;flex-wrap:wrap}.profile-result>i{height:5px;min-width:24px;flex:1;background:var(--line);border-radius:4px}.profile-result i i{display:block;height:100%;background:#28a687;border-radius:inherit}
 .crew-edit{display:inline-grid;place-items:center;flex:none;border:0;padding:0;border-radius:50%;background:none;color:inherit;cursor:pointer}
 .crew-edit:focus-visible,.crew-upload:focus-within{outline:2px solid #4e98f3;outline-offset:3px}
 #initials{--crew-size:33px;min-width:33px;min-height:33px}

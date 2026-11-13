@@ -17,7 +17,7 @@ import tempfile
 import threading
 import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
-from urllib.parse import urlsplit
+from urllib.parse import parse_qs, urlsplit
 
 ROOT = Path(__file__).resolve().parent.parent.parent
 CURRENT = ROOT / 'current'
@@ -32,6 +32,7 @@ attempts = collections.defaultdict(list)
 guard = threading.Lock()
 auth_slots = threading.BoundedSemaphore(6)
 AVATARS = Path.home()/'.local/share/h800-atlas/avatars'
+PROFILES = AVATARS.parent/'profiles'
 
 
 def avatar_catalog():
@@ -53,15 +54,23 @@ def save_avatar(user, body):
         avatar = 'data:image/jpeg;base64,' + base64.b64encode(output.getvalue()).decode('ascii')
     else:
         raise ValueError('invalid avatar')
-    AVATARS.mkdir(mode=0o700, parents=True, exist_ok=True)
-    with tempfile.NamedTemporaryFile(dir=AVATARS, mode='w', delete=False) as temp:
+    save_json(AVATARS/(user+'.json'), avatar)
+    return avatar
+
+
+def save_json(path, value):
+    path.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
+    with tempfile.NamedTemporaryFile(dir=path.parent, mode='w', delete=False) as temp:
         try:
-            json.dump(avatar, temp)
+            json.dump(value, temp)
             temp.flush()
-            os.replace(temp.name, AVATARS/(user+'.json'))
+            os.replace(temp.name, path)
         finally:
             Path(temp.name).unlink(missing_ok=True)
-    return avatar
+
+def profile_value(user, field, default):
+    try:return json.loads((PROFILES/field/(user+'.json')).read_bytes())
+    except FileNotFoundError:return default
 
 
 class Release(NamedTuple):
@@ -230,7 +239,7 @@ class Handler(BaseHTTPRequestHandler):
             if worker and path!='/api/version':worker.seen=now
         body={}
         if self.command=='POST':
-            action={'/auth/login':'login','/auth/logout':'logout','/api/upload':'upload','/api/remove-local':'remove-local','/api/avatar':'avatar'}.get(path)
+            action={'/auth/login':'login','/auth/logout':'logout','/api/upload':'upload','/api/remove-local':'remove-local','/api/avatar':'avatar','/api/profile':'bio'}.get(path)
             origin=('https://' if self.secure else 'http://')+host
             if not action or self.headers.get('Origin')!=origin or self.headers.get('X-Atlas-Action')!=action:
                 return self.reply(403,{'error':'请求来源无效'})
@@ -253,6 +262,20 @@ class Handler(BaseHTTPRequestHandler):
             data=data.replace(b'__ATLAS_TEAM_HTTP__',b'yes' if self.team_http else b'no')
             return self.reply(200,data.replace(b'__ATLAS_RELEASE__',current.version.encode()),'text/html;charset=utf-8')
         if not worker:return self.reply(401,{'error':'请先登录 H800'})
+        if path=='/api/profile':
+            if self.command=='POST':
+                bio=body.get('bio')
+                if set(body)!={'bio'} or not isinstance(bio,str) or len(bio)>240:
+                    return self.reply(400,{'error':'简介最多 240 字'})
+                save_json(PROFILES/'bios'/(worker.user+'.json'),bio.strip())
+                return self.reply(200,{'bio':bio.strip()})
+            user=parse_qs(urlsplit(self.path).query).get('user',[''])[0]
+            if not re.fullmatch(r'[a-zA-Z0-9_][a-zA-Z0-9_.-]{0,63}',user):
+                return self.reply(400,{'error':'账号无效'})
+            return self.reply(200,dict(bio=profile_value(user,'bios',''),inventory=profile_value(user,'inventory',None)))
+        if self.command=='GET' and path=='/api/profile-inventory':
+            last=profile_value(worker.user,'inventory',None)
+            if last and time.time()-last['stamp']<1800:return self.reply(200,last)
         if self.command=='GET' and path=='/api/avatars':return self.reply(200,avatar_catalog())
         if self.command=='POST' and path=='/api/avatar':
             try:avatar=save_avatar(worker.user,body)
@@ -267,6 +290,12 @@ class Handler(BaseHTTPRequestHandler):
             if removed:removed.close()
             return self.reply(401,{'error':'SSH 会话已断开，请重新登录'},cookie='')
         if type(code) is not int or not 200<=code<=599:raise ValueError()
+        if path=='/api/profile-inventory' and code==200:
+            fields=('datasets','checkpoints','tasks','stamp')
+            if not isinstance(data,dict) or not all(type(data.get(k)) is int and data[k]>=0 for k in fields):
+                return self.reply(502,{'error':'资源统计不可用'})
+            data={k:data[k] for k in fields}
+            save_json(PROFILES/'inventory'/(worker.user+'.json'),data)
         self.reply(code,data)
 
     def login(self, body, token):

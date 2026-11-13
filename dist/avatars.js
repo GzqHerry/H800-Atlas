@@ -26,11 +26,12 @@ function userAvatar(user,editable=false){
   '<button class="crew-edit" data-editavatar aria-label="更换我的头像">'+image+'</button>':image;
 }
 function personLabel(user,editable=true){
- return '<span class="crew-person">'+userAvatar(user,editable)+'<span>'+esc(user)+'</span></span>';
+ return '<span class="crew-person">'+userAvatar(user,editable)+button('profile',user,esc(user),'profile-link','aria-haspopup="dialog"')+'</span>';
 }
 function paintAvatars(){
  if(!overview.user)return;
  $('initials').innerHTML=userAvatar(overview.user);
+ if($('profileDialog').open)$('profilePortrait').innerHTML=userAvatar($('profileName').textContent);
  document.querySelectorAll('.crew-person').forEach(el=>{
   const name=el.lastElementChild.textContent;
   const host=el.firstElementChild.matches('button')?el.firstElementChild:el;
@@ -61,6 +62,7 @@ function showCrewEdition(group){
 function openAvatarPicker(){
  if(!overview.user||avatarSaving)return;
  $('avatarUser').textContent=overview.user;
+ $('avatarUser').dataset.profile=overview.user;
  previewAvatar(avatarChoices.get(overview.user)??assignedAvatar(overview.user));
  showCrewEdition(Number.isInteger(avatarDraft)?Math.floor(avatarDraft/16):0);
  $('avatarDialog').showModal();
@@ -110,3 +112,103 @@ $('avatarSave').onclick=async()=>{
 document.addEventListener('click',e=>{if(e.target.closest('[data-editavatar]'))openAvatarPicker()});
 setInterval(syncAvatars,60000);
 document.addEventListener('visibilitychange',()=>{if(!document.hidden)syncAvatars()});
+
+const profileDialog=$('profileDialog');
+let member=null, inventoryRequest=null, inventoryFetched=0;
+function refreshMyInventory(){
+ if(!inventoryRequest&&Date.now()-inventoryFetched>1800000){
+  inventoryRequest=api('profile-inventory').then(data=>{
+   inventoryFetched=Date.now();
+   if(member?.user===overview.user){member.inventory=data;showInventory(data)}
+  }).catch(()=>{
+   if(member?.user===overview.user&&!member.inventory)$('profileInventory').textContent='资源统计暂时不可用';
+  }).finally(()=>{inventoryRequest=null});
+ }
+ return inventoryRequest;
+}
+function showInventory(data){
+ $('profileStamp').textContent=data?chartTime(data.stamp)+' 更新':'';
+ $('profileInventory').innerHTML=data?
+  [['数据集',data.datasets],['训练任务目录',data.tasks],['Checkpoints',data.checkpoints]].map(([label,n])=>'<div><strong>'+usageNumber.format(n)+'</strong><small>'+label+'</small></div>').join(''):
+  '<small>暂无资源统计，首次同步该账号的工作台后显示。</small>';
+}
+function showBio(view){
+ const mine=view.user===overview.user;
+ $('profileBio').innerHTML='<p>'+esc(view.bio||'尚未填写个人简介')+'</p>'+(mine?button('editbio',1,view.bio?'编辑简介':'添加简介','link'):'');
+}
+async function loadMember(view){
+ try{
+  const data=await api('profile',{user:view.user});
+  if(member!==view)return;
+  view.bio=data.bio;view.inventory=view.inventory||data.inventory;showBio(view);showInventory(view.inventory);
+  if(view.user===overview.user&&!view.inventory)refreshMyInventory();
+ }catch{if(member===view){$('profileBio').innerHTML=button('retryprofile',1,'简介读取失败 · 重试','link');if(!view.inventory)$('profileInventory').textContent='暂时无法读取资源统计'}}
+}
+async function showProfileStats(view,days){
+ const request=++view.request;
+ $('profilePeriods').innerHTML=[7,30].map(n=>control('profiledays',n,'近 '+n+' 天',n===days)).join('');
+ $('profileStats').textContent='正在读取 Slurm 记账…';
+ try{
+  let data=usageView.cache.get(days);
+  if(!data||Date.now()/1000-data.stamp>=300){data=await api('training-usage',{days});usageView.cache.set(days,data)}
+  if(member!==view||view.request!==request)return;
+  const r=data.users.find(row=>row.user===view.user);
+  if(!r){$('profileStats').innerHTML='<small>近 '+days+' 天没有可见的训练记录。</small>';return}
+  const rate=usageValue(r,'success');
+  const metrics=[['GPU 卡时',usageFormat(usageValue(r,'gpu'),'gpu')],['累计时长',usageFormat(usageValue(r,'time'),'time')],['训练次数',r.jobs+' 次']];
+  $('profileStats').innerHTML='<div class="profile-metrics">'+metrics.map(([label,value])=>'<div><small>'+label+'</small><strong>'+value+'</strong></div>').join('')+'</div>'+
+   '<div class="profile-result"><span>成功率 <b>'+usageFormat(rate,'success')+'</b></span><i aria-hidden="true"><i style="width:'+(rate||0)+'%"></i></i><small>'+r.completed+' 成功 / '+r.ended+' 已结束</small></div>';
+ }catch{if(member===view&&view.request===request)$('profileStats').innerHTML=button('profiledays',days,'训练统计读取失败 · 重试','link')}
+}
+function openMember(trigger){
+ const user=trigger.dataset.profile, source=trigger.getBoundingClientRect();
+ const view={user,trigger,request:0};member=view;
+ $('profileName').textContent=user;$('profilePortrait').innerHTML=userAvatar(user);
+ $('profileBio').textContent='正在读取简介…';$('profileStamp').textContent='';$('profileInventory').textContent='正在读取资源统计…';
+ showProfileStats(view,7);
+ profileDialog.showModal();
+ if(!matchMedia('(prefers-reduced-motion: reduce)').matches){
+  const target=profileDialog.getBoundingClientRect();
+  const dx=source.left+source.width/2-target.left-target.width/2;
+  const dy=source.top+source.height/2-target.top-target.height/2;
+  const scale=Math.max(.035,Math.min(.25,source.width/target.width));
+  profileDialog.animate([{transform:'translate('+dx+'px,'+dy+'px) scale('+scale+')',opacity:.4},{transform:'none',opacity:1}],{duration:720,easing:'cubic-bezier(.38,.03,.22,1)'});
+ }
+ loadMember(view);
+}
+document.addEventListener('click',e=>{
+ const link=e.target.closest('[data-profile]');
+ if(link&&!profileDialog.open)openMember(link);
+});
+profileDialog.addEventListener('click',async e=>{
+ const b=e.target.closest('button'),view=member;
+ if(!view)return;
+ if(e.target===profileDialog){
+  const r=profileDialog.getBoundingClientRect();
+  if(e.clientX<r.left||e.clientX>r.right||e.clientY<r.top||e.clientY>r.bottom)profileDialog.close();
+ }
+ if(!b)return;
+ const d=b.dataset;
+ if(b.id==='profileClose')profileDialog.close();
+ else if(d.profiledays)showProfileStats(view,Number(d.profiledays));
+ else if(d.retryprofile)loadMember(view);
+ else if(d.editbio){
+  $('profileBio').innerHTML='<textarea id="bioDraft" maxlength="240" rows="3" aria-label="个人简介" placeholder="写下你的研究方向或正在做的事">'+esc(view.bio)+'</textarea><div class="profile-edit-tools"><small>团队成员可见 · 最多 240 字</small>'+button('cancelbio',1,'取消','link')+button('savebio',1,'保存','outline')+'</div><small role="status" id="bioError"></small>';
+  $('bioDraft').focus();
+ }else if(d.cancelbio)showBio(view);
+ else if(d.savebio){
+  const editor=$('bioDraft');b.disabled=true;editor.disabled=true;b.previousElementSibling.disabled=true;
+  try{
+   const response=await atlasFetch('/api/profile',{method:'POST',headers:{'Content-Type':'application/json','X-Atlas-Action':'bio'},body:JSON.stringify({bio:editor.value})});
+   if(response.status===401){loginPage();return}
+   if(!response.ok)throw Error();
+   const result=await response.json();
+   if(member===view){view.bio=result.bio;showBio(view)}
+  }catch{if(member===view){$('bioError').textContent='保存失败，请重试。';editor.disabled=false;b.disabled=false;b.previousElementSibling.disabled=false}}
+ }
+});
+profileDialog.addEventListener('close',()=>{
+ const link=member?.trigger;member=null;
+ profileDialog.getAnimations().forEach(a=>a.cancel());
+ if(link?.isConnected)link.focus({preventScroll:true});
+});

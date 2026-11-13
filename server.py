@@ -356,6 +356,14 @@ def detail(job,focus=None):
         note+=' 已识别 SwanLab 实验，尚未读到支持的本地记录。'
     return dict(result,summary=summary,attempt=attempt,points=loss,source=source,sampled=int(time.time()),note=note)
 
+def personal_datasets():
+    return discover(H,[D/'lerobot_v3',W/'datasets',W/'training_assets',W/'data_episode'])
+
+def profile_inventory():
+    _, rows=personal_datasets()
+    groups=checkpoint_groups(H)
+    return dict(datasets=len(rows),checkpoints=sum(map(len,groups.values())),tasks=len(groups),stamp=int(time.time()))
+
 def assets():
     inv=H/'nas-archive-20261112/inventory.json'; ck=[]
     if inv.exists():
@@ -363,7 +371,7 @@ def assets():
         for p,v in d.items():
             if re.fullmatch(r'(checkpoint-\d+|global_step_\d+|\d+)',Path(p).name):
                 ck.append(dict(name=Path(p).name,path=p,bytes=v[1],present=Path(p).is_dir()))
-    robots,ds=discover(H,[D/'lerobot_v3',W/'datasets',W/'training_assets',W/'data_episode'])
+    robots,ds=personal_datasets()
     archive=S/'nas-archive-20261112/events.jsonl'
     return dict(ck=ck,datasets=ds,robots=robots,stamp=int(inv.stat().st_mtime) if inv.exists() else None,archive=[json.loads(i) for i in tail(archive,50000).splitlines()[-2:] if i.startswith('{')] if archive.exists() else [])
 size_lock=threading.Lock()
@@ -447,6 +455,7 @@ def route(method, target, body):
     routes={'/api/job-command':lambda:lookup_command(q.get('id','')),'/api/nas':nas.catalog,'/api/uploads':nas.job_list,'/api/cluster':cluster,'/api/checkpoint-groups':lambda:checkpoint_index(H),'/api/checkpoints':lambda:checkpoint_detail(H,q.get('group',''),safe),'/api/size':lambda:measure(q),'/api/overview':overview,'/api/jobs':jobs,'/api/files':lambda:files(q),'/api/detail':lambda:detail(q.get('id',''),(q.get('metric'),q.get('axis')))}
     routes['/api/checkpoint-sources']=checkpoint_sources
     routes['/api/training-summary']=lambda:charts.training_summary(H,safe)
+    routes['/api/profile-inventory']=profile_inventory
     routes['/api/training-usage']=lambda:charts.training_usage(int(q.get('days', '7')), int(time.monotonic()//300))
     routes['/api/training-charts']=lambda:charts.training_charts(H,safe)
     routes['/api/node-history']=charts.read_history
