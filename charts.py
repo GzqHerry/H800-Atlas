@@ -11,6 +11,50 @@ from insights import gpu_counts
 
 HISTORY = Path(__file__).resolve().parents[2] / 'samples' / 'nodes.json'
 
+TRAINING_NAME = re.compile(r'train|fine[-_]?tun|(?:^|[^a-z])(?:sft|rlt|rlhf|grpo|dpo)(?![a-z])|训练', re.I)
+OTHER_WORK = re.compile(r'eval|benchmark|preflight|smoke|probe|debug|(?:^|[^a-z])(?:test|infer|inference|convert|export|audit)(?![a-z])|评测|测试', re.I)
+SCRIPT_NAME = re.compile(r'''(?:^|[\s/"'])([^\s/"']+\.(?:sbatch|slurm|sh|py))(?=$|[\s"'])''', re.I)
+FINISHED = {'COMPLETED', 'FAILED', 'CANCELLED', 'TIMEOUT', 'OUT_OF_MEMORY', 'NODE_FAIL',
+            'BOOT_FAIL', 'DEADLINE', 'PREEMPTED', 'REVOKED', 'SPECIAL_EXIT'}
+
+
+def training_usage_rows(lines):
+    users = {}
+    seen = set()
+    for line in lines:
+        fields = line.split('|', 6)
+        if len(fields) != 7:
+            continue
+        job, user, name, state, elapsed, tres, submit = fields
+        if not user or job in seen or not elapsed.isdigit() or int(elapsed) == 0:
+            continue
+        labels = ' '.join([name, *SCRIPT_NAME.findall(submit)])
+        if OTHER_WORK.search(labels) or not TRAINING_NAME.search(labels):
+            continue
+        seen.add(job)
+        row = users.setdefault(user, dict(user=user, jobs=0, seconds=0, gpuSeconds=0, completed=0, ended=0))
+        state = state.partition(' ')[0].rstrip('+')
+        seconds = int(elapsed)
+        allocation = dict(item.split('=', 1) for item in tres.split(',') if '=' in item)
+        cards = allocation.get('gres/gpu')
+        if cards is None:
+            cards = sum(int(v) for k, v in allocation.items() if k.startswith('gres/gpu:') and v.isdigit())
+        row['gpuSeconds'] += seconds * int(cards)
+        row['seconds'] += seconds
+        row['jobs'] += 1
+        row['completed'] += state == 'COMPLETED'
+        row['ended'] += state in FINISHED
+    return list(users.values())
+
+
+@lru_cache(maxsize=4)
+def training_usage(days, bucket):
+    if days not in (7, 30):
+        raise ValueError('unsupported period')
+    lines = slurm('sacct', '-a', '-X', '-T', '-nP', '-S', f'now-{days}days', '-E', 'now',
+                  '-o', 'JobIDRaw,User,JobName,State,ElapsedRaw,AllocTRES,SubmitLine')
+    return dict(users=training_usage_rows(lines), stamp=int(time.time()), days=days)
+
 
 def read_history():
     try:

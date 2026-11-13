@@ -154,5 +154,21 @@ html:has(#metricDialog[open]){overflow:hidden}
 
 .job-name-resources{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:baseline;column-gap:12px;margin:6px 0}
 .job-name-resources .node-job-name{margin:0}
+.usage-title,.usage-icon,.usage-finish{display:flex;align-items:center;gap:12px}
+.usage-icon{width:40px;height:40px;box-sizing:border-box;justify-content:center;align-items:flex-end;padding-bottom:10px;gap:3px;border-radius:12px;background:linear-gradient(145deg,#105790,#2479ae 55%,#198b91);box-shadow:inset 0 1px 1px #ffffff50}
+.usage-icon i{width:4px;border-radius:3px;background:#fff;height:9px}.usage-icon i:nth-child(2){height:15px;background:#ace5ff}.usage-icon i:last-child{height:21px;background:#a4f2df}
+.usage-layout{display:grid;grid-template-columns:minmax(180px,1fr) minmax(0,2.3fr);gap:clamp(20px,4vw,70px)}
+.usage-summary{align-self:start;display:grid;align-content:start;gap:6px;border-radius:14px;padding:clamp(16px,2vw,26px);background:linear-gradient(130deg,color-mix(in srgb,#4397d3 11%,var(--white)),color-mix(in srgb,#3ab7a1 7%,var(--white)))}
+.usage-summary>strong{font-size:clamp(32px,3.8vw,54px);line-height:1.12;letter-spacing:-.045em;font-variant-numeric:tabular-nums}
+.usage-summary>span,.usage-finish,.usage-note{font-size:13px;color:var(--soft)}.usage-finish{margin-top:14px;padding-top:14px;border-top:1px solid var(--line)}.usage-finish b{color:var(--ink)}.usage-finish small,.usage-value small{display:block;color:var(--soft);font-weight:400}
+.usage-finish>i{width:32px;height:32px;flex:none;border-radius:50%;background:conic-gradient(#26a994 var(--share),var(--line) 0);mask:radial-gradient(circle,transparent 49%,#000 52%)}
+.usage-plot{min-width:0}.usage-plot>.studio-switch{max-width:100%;flex-wrap:wrap}.usage-list{list-style:none;padding:0;margin:10px 0 6px}
+.usage-row{display:grid;grid-template-columns:2ch minmax(78px,1fr) minmax(36px,2.2fr) minmax(8ch,auto);align-items:center;gap:12px;padding:7px 9px;border-radius:8px;font-size:14px;line-height:1.35;font-variant-numeric:tabular-nums}
+.usage-rank{color:var(--soft);font-size:12px}.usage-name{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:550}.usage-value{text-align:right;white-space:nowrap}.usage-value small{font-size:11px}
+.usage-track{display:block;height:7px;border-radius:6px;background:var(--line);overflow:hidden}.usage-track i{display:block;height:100%;border-radius:inherit;background:linear-gradient(90deg,#73a8ed,#4e8cdc)}
+.usage-mine{background:color-mix(in srgb,#2ba995 10%,var(--white))}.usage-mine .usage-track i{background:linear-gradient(90deg,#62c9bf,#209e8c)}.usage-mine .usage-name:after{content:'我';font-size:10px;margin-left:5px;color:var(--soft)}
+.usage-note{margin:15px 0 0;line-height:1.55}
+@media(max-width:680px){.usage-layout{grid-template-columns:1fr;gap:14px}.usage-summary{grid-template-columns:auto 1fr;align-items:center;column-gap:14px}.usage-summary>small,.usage-summary>strong,.usage-summary>span{grid-column:1}.usage-finish{grid-column:2;grid-row:1/4;justify-self:end;border:0;margin:0;padding:0}.usage-row{gap:7px;padding-inline:3px}}
+@media(max-width:400px){.usage-row{font-size:12px}.usage-plot .studio-pick{padding-inline:8px}.usage-finish{gap:5px}.usage-finish>i{width:22px;height:22px}}
 .job-name-resources .job-resources{justify-content:flex-end;max-width:100%;text-align:right}
 @media(max-width:520px){.job-name-resources{grid-template-columns:minmax(0,1fr) minmax(0,1fr);column-gap:8px}.job-name-resources .job-resources{gap:2px 7px}}

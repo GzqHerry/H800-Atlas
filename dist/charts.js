@@ -114,8 +114,74 @@ function dashboardOverview(){
  }).join('');
  return '<div class="summary" aria-label="我的作业与权重">'+cards+'</div><section class="surface volume-panel"><div class="line"><h2>存储余量</h2><small>个人配额与共享卷余量</small></div><div class="volume-grid">'+(volumes||chartEmpty('暂未读取到存储卷容量'))+'</div></section>';
 }
+const usageView={days:7, metric:'gpu', all:false, cache:new Map(), pending:new Set(), errors:new Set()};
+const usageMetrics={gpu:'GPU 卡时', time:'训练时长', jobs:'训练次数', success:'成功率'};
+const usageNumber=new Intl.NumberFormat('zh-CN',{maximumFractionDigits:1});
+
+function usageValue(row,metric){
+ switch(metric){
+  case 'gpu':return row.gpuSeconds/3600;
+  case 'time':return row.seconds/3600;
+  case 'jobs':return row.jobs;
+  case 'success':return row.ended?100*row.completed/row.ended:null;
+ }
+}
+function usageFormat(value,metric){
+ if(value==null)return '—';
+ const n=value>0&&value<0.1?'＜0.1':usageNumber.format(value);
+ return n+({gpu:' 卡时',time:' 小时',jobs:' 次',success:'%'}[metric]);
+}
+function usageRanking(data){
+ const {metric,all}=usageView, me=overview.user;
+ const sorted=data.users.map(r=>({...r,value:usageValue(r,metric)})).sort((a,b)=>
+  (b.value??-1)-(a.value??-1)||b.ended-a.ended||a.user.localeCompare(b.user));
+ sorted.forEach((r,i)=>{r.rank=r.value==null?'—':i&&r.value===sorted[i-1].value?sorted[i-1].rank:i+1});
+ const visible=all?sorted:sorted.slice(0,5),mine=sorted.find(r=>r.user===me);
+ if(!all&&mine&&!visible.includes(mine))visible.push(mine);
+ const scale=metric==='success'?100:sorted[0]?.value||1;
+ const rows=visible.map(r=>{
+  const personal=r.user===me, value=usageFormat(r.value,metric);
+  return '<li class="usage-row'+(personal?' usage-mine':'')+'"><span class="usage-rank">'+r.rank+'</span><span class="usage-name" title="'+attr(r.user)+'">'+esc(r.user)+'</span>'+
+   '<span class="usage-track" aria-hidden="true"><i style="width:'+100*(r.value||0)/scale+'%"></i></span>'+
+   '<span class="usage-value">'+value+(metric==='success'?'<small>'+r.completed+' / '+r.ended+' 已结束</small>':'')+'</span></li>';
+ }).join('');
+ const total=data.users.reduce((t,r)=>({gpu:t.gpu+r.gpuSeconds/3600,jobs:t.jobs+r.jobs,ok:t.ok+r.completed,ended:t.ended+r.ended}),{gpu:0,jobs:0,ok:0,ended:0});
+ const success=total.ended?100*total.ok/total.ended:null;
+ const tabs=Object.entries(usageMetrics).map(([key,label])=>control('usagemetric',key,label,metric===key)).join('');
+ return '<div class="usage-layout"><div class="usage-summary"><small>累计 GPU 卡时</small><strong>'+usageNumber.format(total.gpu)+'</strong>'+
+  '<span>'+sorted.length+' 位用户 · '+usageNumber.format(total.jobs)+' 次训练</span><div class="usage-finish"><i aria-hidden="true" style="--share:'+(success||0)+'%"></i><div>作业成功率 <b>'+usageFormat(success,'success')+'</b><small>'+total.ok+' 成功 / '+total.ended+' 已结束</small></div></div></div>'+
+  '<div class="usage-plot"><div class="studio-switch" role="group" aria-label="排行指标">'+tabs+'</div>'+
+  (rows?'<ol class="usage-list" aria-label="'+usageMetrics[metric]+'排行">'+rows+'</ol>':chartEmpty('此时段没有可识别的训练作业'))+
+  (sorted.length>5?button('usageall','1',all?'收起排行':'查看全部 '+sorted.length+' 位用户','link','aria-expanded="'+all+'"'):'')+'</div></div>'+
+  '<p class="usage-note">按作业名或提交脚本识别训练。时长只计所选时段内的运行时间，卡时按分配卡数累计。成功率按已结束作业计算，取消和超时计入分母。</p>';
+}
+function usageCard(){
+ const {days,cache,errors}=usageView, data=cache.get(days), failed=errors.has(days);
+ const period=[7,30].map(n=>control('usagedays',n,'近 '+n+' 天',days===n)).join('');
+ const hint=failed?'暂时无法更新':data?'采样于 '+chartTime(data.stamp):'读取 Slurm 记账数据中…';
+ return '<div class="studio-heading"><div class="usage-title"><i class="usage-icon" aria-hidden="true"><i></i><i></i><i></i></i><div><h2>集群训练用量</h2><small>当前账号可见的用户 · '+hint+'</small></div></div><div class="studio-switch" role="group" aria-label="统计周期">'+period+'</div></div>'+
+  (data?usageRanking(data):chartEmpty(failed?'Slurm 记账数据暂时不可用。':'正在汇总训练记录…'))+
+  (failed?button('usageretry','1','重新读取','link'):'');
+}
+function refreshUsageCard(){
+ const panel=$('trainingUsage');if(page!==0||!panel)return;
+ const active=document.activeElement;
+ const key=panel.contains(active)?Object.entries(active.dataset).find(([k])=>k.startsWith('usage')):null;
+ panel.innerHTML=usageCard();
+ if(key)panel.querySelector('[data-'+key[0]+'="'+key[1]+'"]')?.focus({preventScroll:true});
+}
+async function loadUsage(){
+ const {days,cache,pending,errors}=usageView;
+ if(pending.has(days)||Date.now()/1000-(cache.get(days)?.stamp||0)<300&&!errors.has(days))return;
+ pending.add(days);
+ try{cache.set(days,await api('training-usage',{days}));errors.delete(days)}
+ catch{errors.add(days)}
+ finally{pending.delete(days);if(days===usageView.days)refreshUsageCard()}
+}
 function dashboard(){
+ loadUsage();
  return dashboardOverview()+(studio.issues.length?'<p class="feedback">'+esc(studio.issues.join(' · '))+'</p>':'')+'<div class="studio-board">'+
+ '<section id="trainingUsage" class="surface studio-card studio-wide" aria-label="集群训练用量">'+usageCard()+'</section>'+
  studioPanel('我的作业时间线','最近 6 个作业 · 活跃作业优先',button('page','2','训练记录 →','link'),gantt(),true)+
  studioPanel('节点空闲窗口','近 12 小时 · 每小时最后一次采样','',heatmap())+
  studioPanel('我的 GPU 时间','近 7 天 · 已分配 GPU 卡时','',gpuHours())+
@@ -137,6 +203,12 @@ async function loadStudio(){
 }
 document.addEventListener('click',e=>{
  const b=e.target.closest('button');if(!b||page!==0)return;const d=b.dataset;
+ if(d.usagedays||d.usagemetric||d.usageall||d.usageretry){
+  if(d.usagedays){usageView.days=Number(d.usagedays);usageView.all=false}
+  if(d.usagemetric)usageView.metric=d.usagemetric;
+  if(d.usageall)usageView.all=!usageView.all;
+  refreshUsageCard();if(d.usagedays||d.usageretry)loadUsage();return;
+ }
  if(d.metric==='ck'){ckStore='H800';setResource('ck');return}
  else if(d.metric){selectedState=d.metric==='all'?'':d.metric;selectedJob='';navigate(2);return}
  else if(d.heat)studio.sample=d.heat;

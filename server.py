@@ -447,6 +447,7 @@ def route(method, target, body):
     routes={'/api/job-command':lambda:lookup_command(q.get('id','')),'/api/nas':nas.catalog,'/api/uploads':nas.job_list,'/api/cluster':cluster,'/api/checkpoint-groups':lambda:checkpoint_index(H),'/api/checkpoints':lambda:checkpoint_detail(H,q.get('group',''),safe),'/api/size':lambda:measure(q),'/api/overview':overview,'/api/jobs':jobs,'/api/files':lambda:files(q),'/api/detail':lambda:detail(q.get('id',''),(q.get('metric'),q.get('axis')))}
     routes['/api/checkpoint-sources']=checkpoint_sources
     routes['/api/training-summary']=lambda:charts.training_summary(H,safe)
+    routes['/api/training-usage']=lambda:charts.training_usage(int(q.get('days', '7')), int(time.monotonic()//300))
     routes['/api/training-charts']=lambda:charts.training_charts(H,safe)
     routes['/api/node-history']=charts.read_history
     routes['/api/assets']=assets
