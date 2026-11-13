@@ -1,0 +1,8 @@
+[Unit]
+Description=Sample H800 Slurm node availability for the workbench
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/python3 -E -s -B /workspace/gzqherry/h800-atlas-team/current/charts.py
+UMask=0027
+TimeoutStartSec=55

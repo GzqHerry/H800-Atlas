@@ -1,0 +1,14 @@
+[Unit]
+Description=H800 Atlas SSH login gateway
+After=network.target
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/python3 -E -s -B -u /workspace/gzqherry/h800-atlas-team/current/gateway.py
+UMask=0077
+Restart=on-failure
+RestartSec=2
+LimitCORE=0
+
+[Install]
+WantedBy=default.target

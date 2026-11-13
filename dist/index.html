@@ -1,0 +1,725 @@
+<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="atlas-release" content="__ATLAS_RELEASE__"><title>H800 Atlas · 个人训练工作台</title><style>:root{--ink:#20241f;--soft:#686d63;--paper:#f5f4ee;--line:#dcded3;--white:#fffefa;--orange:#c74c25;--dark:#242a24;--mono:"IBM Plex Mono",Consolas,monospace;--sans:"Instrument Sans","Segoe UI","Microsoft YaHei",sans-serif}*{box-sizing:border-box}body{margin:0;background:var(--paper);color:var(--ink);font:14px/1.55 var(--sans)}button,input{font:inherit;color:inherit}button,a{touch-action:manipulation}button{cursor:pointer}button:focus-visible,a:focus-visible,input:focus-visible{outline:3px solid #d4812e;outline-offset:2px}button{border:0;background:none}a{color:inherit;text-underline-offset:4px}header{background:var(--dark);color:#f8f8f2}.top,main{max-width:1550px;margin:auto;padding-inline:clamp(16px,4vw,68px)}.top,.brand,nav,.right,.head,.line,.tools,.crumb,.tags{display:flex;align-items:center;gap:14px}.top{min-height:68px;justify-content:space-between}.brand{font-size:24px;letter-spacing:-1.5px;font-weight:750;white-space:nowrap;gap:10px}.mark{width:25px;height:25px;background:repeating-linear-gradient(116deg,#ff9568 0 4px,transparent 4px 7px);transform:skew(-7deg)}nav{align-self:stretch;gap:8px}nav button{color:#cbd0c5;padding:0 17px;position:relative}nav button[aria-current=page]{color:white}nav button[aria-current=page]:after{content:'';position:absolute;bottom:0;left:16px;right:16px;height:3px;background:#fd9263}.right,.muted,small{color:var(--soft)}.top .right{color:#d6dacf;font:12px var(--mono)}.dot{width:8px;height:8px;background:#a4c680;border-radius:50%;display:inline-block}.dot.off{background:#efa870}.head,.line{justify-content:space-between}.head{margin:25px 0 20px;flex-wrap:wrap}.head h1{font-size:clamp(32px,3.5vw,53px);letter-spacing:-2.5px;line-height:1.1;margin:0}.right{gap:10px}.outline,.link,.tab,.chip,.crumb button{border:1px solid var(--line);background:var(--white);border-radius:5px;padding:5px 11px}.link,.crumb button{background:transparent;border:0;padding:3px 0;color:var(--orange)}.outline:hover,.tab:hover,.chip:hover{background:#e9e9df}h2,h3,p{margin:0}h2{font-size:21px;letter-spacing:-.7px}h3{font-size:15px}code,.mono{font:12px/1.5 var(--mono);overflow-wrap:anywhere}.summary{display:grid;grid-template-columns:repeat(4,1fr);border-block:1px solid #c8cbbd;margin-bottom:20px}.stat{padding:13px 20px 13px 0}.stat+.stat{padding-left:22px;border-left:1px solid var(--line)}.stat small{display:block}.stat strong{font:600 clamp(27px,3vw,43px)/1.3 var(--sans);font-variant-numeric:tabular-nums;letter-spacing:-1.8px}.panels,.split,.library{display:grid;grid-template-columns:minmax(0,1.45fr) minmax(0,1fr);gap:18px;align-items:start}.split{grid-template-columns:minmax(280px,.84fr) minmax(0,1.5fr)}.library{grid-template-columns:repeat(2,minmax(0,1fr))}.surface,.hero{background:var(--white);border:1px solid var(--line);border-radius:9px;padding:20px;min-width:0}.hero{background:#252d28;border-color:#252d28;color:#fafbf3;position:relative;overflow:hidden}.hero .muted,.hero small{color:#c0c8bb}.charthead{display:flex;justify-content:space-between;gap:12px;align-items:start}.hero h2{font-size:24px}.loss{font:500 37px/1.1 var(--mono);letter-spacing:-2px;margin:13px 0 3px}.plot{width:100%;height:167px;display:block;margin-top:8px}.below{margin-top:18px}.mount{display:grid;grid-template-columns:minmax(65px,.7fr) 1fr auto;gap:12px;align-items:center;margin:18px 0}.track{background:#e8e9df;height:7px;border-radius:5px;overflow:hidden}.fill{height:100%;background:#849782}.hot{background:#d27646}.disk-note,.foot{font-size:12px;color:var(--soft);margin-top:16px}.foot{border-top:1px solid var(--line);padding:14px 0 26px;display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap}.scroll{overflow:auto}table{border-collapse:collapse;width:100%;text-align:left}th{font-size:12px;color:var(--soft);font-weight:500}th,td{border-bottom:1px solid var(--line);padding:9px 7px}td:first-child,th:first-child{padding-left:0}.name{font-weight:600;text-align:left;padding:0;overflow-wrap:anywhere}.name:hover{text-decoration:underline}.badge{display:inline-block;border-radius:4px;font-size:12px;padding:2px 8px;background:#edeee8;color:#555b53;white-space:nowrap}.pending{background:#f7e9c8;color:#775314}.failed{background:#fbe3d9;color:#9f3c19}.completed,.running{background:#e1ecdf;color:#3e6042}.tools,.crumb,.tags{gap:7px;flex-wrap:wrap}.tools{margin:14px 0}input{min-width:0;flex:1;border:1px solid var(--line);border-radius:5px;background:#fff;padding:7px 10px}.chip[aria-pressed=true],.tab[aria-pressed=true]{background:#303830;color:#fff;border-color:#303830}.scrolllist{max-height:68vh;overflow:auto;scrollbar-width:thin}.job,.entry{display:grid;width:100%;text-align:left;grid-template-columns:1fr auto;align-items:center;gap:8px;padding:10px;border-bottom:1px solid var(--line)}.job:hover,.entry:hover{background:#f3f3eb}.chosen{background:#f1efde;box-shadow:inset 3px 0 #d66e40}.job b,.entry b{overflow-wrap:anywhere}.job small,.entry small{display:block}.sticky{position:sticky;top:14px}.metrics{display:flex;gap:20px;flex-wrap:wrap;margin:13px 0}.metrics small,.facts dt{display:block;color:var(--soft);font-size:12px}.metrics b{font:600 14px var(--mono)}.section{margin-top:18px;padding-top:15px;border-top:1px solid var(--line)}.section h3{margin-bottom:7px}.facts{display:grid;grid-template-columns:70px minmax(0,1fr);gap:9px}.facts dd{margin:0;overflow-wrap:anywhere}.empty{color:var(--soft);padding:16px 0}.path{display:block;margin:5px 0;overflow-wrap:anywhere}.asset{padding:11px 0;border-bottom:1px solid var(--line)}.asset b{overflow-wrap:anywhere}.asset .path{color:var(--soft)}.pager{display:flex;gap:10px;align-items:center;justify-content:flex-end;margin-top:10px}.crumb{margin-bottom:12px}.split.filegrid{grid-template-columns:minmax(0,1.55fr) minmax(250px,.8fr)}.filegrid .entry{grid-template-columns:minmax(0,1fr) 70px 90px}.ico{display:inline-block;width:14px;height:11px;background:#d9a46a;border-radius:2px;margin-right:8px;position:relative}.ico:before{content:'';position:absolute;top:-2px;width:6px;height:3px;background:inherit}.ico.file{width:10px;height:13px;background:#bdc8c4}.ico.file:before{display:none}.inspect-title{font-size:24px;overflow-wrap:anywhere}.jobid{font:12px var(--mono);color:var(--soft)}.feedback{color:#984b2d}main{padding-bottom:12px}.desktop-label{font-size:12px}.panels{align-items:stretch}.panels>.surface{display:flex;flex-direction:column;justify-content:space-between}.panels>.surface .mount{margin:9px 0}.storage-wide{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));column-gap:30px}.storage-wide .mount{margin:10px 0}.copy{margin-top:12px}@media(max-width:900px){nav button{padding:0 8px}.top{gap:6px}.split,.split.filegrid{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}.surface,.hero{padding:15px}.top .right{display:none}.mount{gap:5px}.desktop-label{display:none}}@media(max-width:700px){.top{align-items:flex-start;flex-direction:column;gap:1px;padding-top:9px}.brand{font-size:21px}nav{width:100%;justify-content:space-between;gap:0}nav button{padding:10px 3px}.head{margin:17px 0}.summary{grid-template-columns:repeat(2,1fr)}.stat{padding:8px 12px!important}.stat:nth-child(3){border-left:0}.stat:nth-child(n+3){border-top:1px solid var(--line)}.panels,.split,.split.filegrid,.library,.storage-wide{grid-template-columns:1fr}.sticky{position:static}.scrolllist{max-height:280px}.split .sticky,.filegrid .sticky{grid-row:1}.plot{height:150px}.surface,.hero{padding:14px}.library,.panels,.split{gap:12px}.line{gap:8px;flex-wrap:wrap}.filegrid .entry{grid-template-columns:minmax(0,1fr) 36px 64px}.scroll td{min-width:65px}.scroll td:first-child{min-width:135px}.head .right{font-size:12px}.foot{font-size:11px}}
+:root{
+  color-scheme:light;
+  --paper:#f5f5f7;--ink:#1d1d1f;--soft:#62656d;--line:#e1e3e8;--white:#fff;
+  --orange:#0068c9;--dark:#f9f9fb;--sans:-apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;
+  --mono:ui-monospace,"SFMono-Regular",Consolas,monospace;
+}
+body{background:linear-gradient(160deg,#f0f3f9 0,#f6f6f8 38%,#f5f5f7 80%);min-height:100vh;-webkit-font-smoothing:antialiased}
+header{position:sticky;top:0;z-index:5;background:rgba(249,250,252,.88);color:var(--ink);border-bottom:1px solid #d9dce3;backdrop-filter:saturate(150%) blur(22px)}
+.top,main{max-width:1480px;padding-inline:clamp(18px,4.4vw,70px)}.top{min-height:62px}
+.brand{font-size:20px;letter-spacing:-.85px;gap:9px}
+.mark{position:relative;display:inline-block;width:29px;height:29px;transform:none;border-radius:8px;background:linear-gradient(152deg,#7fcfff 0,#3687fb 45%,#3a55ce);box-shadow:inset 0 1px 1px #b2e3ff,0 2px 5px #33519128}
+.mark::before,.mark::after{content:'';position:absolute;bottom:7px;width:4px;border-radius:3px;background:white;transform:skew(-13deg)}.mark::before{height:10px;left:8px}.mark::after{height:16px;left:16px}
+.top .right{color:#414751;font:500 13px var(--sans);gap:8px}.avatar{display:grid;place-items:center;width:27px;height:27px;border-radius:50%;background:#e1e8f2;color:#43526e;font:600 10px var(--sans)}
+nav{align-self:center;gap:2px;border-radius:10px;background:#e8e9ed;padding:3px}
+nav button{color:#41444d;min-width:78px;font-size:13px;font-weight:550;padding:6px 13px;border-radius:8px;line-height:1.5}
+nav button[aria-current=page]{color:#191b20;background:white;box-shadow:0 1px 4px #1c253c24}
+nav button[aria-current=page]:after{display:none}nav button:hover:not([aria-current=page]){background:#dde1e9}
+.head{margin:29px 0 20px}.head h1{font-size:clamp(33px,3.2vw,46px);font-weight:690;letter-spacing:-1.8px}
+.head .right{gap:8px;color:#51555d}.dot{background:#29905b}.dot.off{background:#b37224}
+.outline,.tab,.chip{border-radius:8px;background:#f9fafc;border-color:#d4d7de}.outline:hover,.tab:hover,.chip:hover{background:#edf1f6}
+#refresh{margin-left:6px;background:white;box-shadow:0 1px 2px #1f263410}#refresh::before{content:'↻';margin-right:5px;font-size:14px}
+.summary{gap:12px;border:0;margin-bottom:15px}.summary .stat{position:relative;border:1px solid #e3e5ea;border-radius:15px;background:#fff;padding:15px 18px!important;box-shadow:0 2px 7px #172d5105;overflow:hidden}
+.stat small:first-child{font-size:13px;font-weight:600;color:#4b505a}.stat strong{display:block;font-size:clamp(30px,3vw,41px);line-height:1.17;margin:5px 0 2px;font-weight:640;color:#1d1d1f}.stat small:last-child{font-size:12px}
+.stat-symbol{position:absolute;top:14px;right:15px;display:grid;place-items:center;width:27px;height:27px;border-radius:9px;background:#e7f1ff;color:#176ac8;font:600 16px/1 var(--sans)}
+.stat:nth-child(2) .stat-symbol{color:#258456;background:#e5f5eb}.stat:nth-child(3) .stat-symbol{color:#a95b00;background:#fff1d9}.stat:nth-child(4) .stat-symbol{color:#8252b4;background:#f0e9fc}
+.surface,.hero{border:1px solid #e1e3e9;border-radius:18px;background:white;box-shadow:0 3px 12px rgba(36,42,66,.045);padding:21px 23px}
+.hero{background:linear-gradient(153deg,#fff 15%,#f6f9ff 78%,#eff5ff);color:#20232a;border-color:#dbe3f0}
+.hero small,.hero .muted{color:#556373}.hero .charthead .mono{color:#59677b;font:600 11px var(--sans);letter-spacing:1.2px}
+.loss{color:#17263d;font:600 41px/1.1 var(--sans);font-variant-numeric:tabular-nums;letter-spacing:-1.7px;margin:11px 0 3px}
+h2,.hero h2{font-size:21px;font-weight:650;letter-spacing:-.7px}.plot{margin-top:15px}.panels,.split,.library{gap:15px}
+.mount{grid-template-columns:minmax(74px,.6fr) 1fr auto}.mount code{color:#333b47}.mount .mono{color:#425165;font-weight:550}.track{background:#edf0f5;height:7px}.fill{background:linear-gradient(90deg,#82bbff,#4388f5);border-radius:8px}.fill.hot{background:linear-gradient(90deg,#ffbc77,#e98b37)}
+.link,.crumb button{color:#0069ca}.chip[aria-pressed=true],.tab[aria-pressed=true]{background:#e2efff;color:#075daa;border-color:#bfd7f5}
+input{background:#f2f3f6;border:1px solid #e1e3e8;border-radius:9px;padding:8px 12px}
+.crumb{gap:7px;color:#858992}.crumb button{color:#36678e}.entry,.job{border-bottom:1px solid #eceef2;border-radius:6px}.entry:hover,.job:hover{background:#f1f5fa}.chosen,.chosen:hover{background:#e2eeff;box-shadow:inset 3px 0 #468bf0}
+.ico{background:linear-gradient(#72c8ff,#359dec);box-shadow:inset 0 -1px 1px #197fbb45;border-radius:2px}.ico:before{background:#86d1ff}.ico.file{background:#eef1f6;border:1px solid #adb7c5;box-shadow:none}
+.file-emblem{position:relative;display:block;width:41px;height:30px;background:linear-gradient(#88d8ff,#3a9eea);border-radius:5px;margin:6px 0 14px}.file-emblem:before{content:'';position:absolute;width:18px;height:5px;top:-4px;left:0;background:#81cefa;border-radius:4px 4px 0 0}.file-emblem.doc{width:28px;height:33px;background:linear-gradient(#fff,#e3eaf3);border:1px solid #b6c0ce}.file-emblem.doc:before{top:9px;left:5px;width:16px;height:2px;background:#adbaca;box-shadow:0 5px #adbaca,0 10px #adbaca}
+.badge{border-radius:20px}.completed,.running{background:#e3f3e9;color:#1d7245}.pending{background:#fff0d5;color:#855300}.failed{background:#ffe6e5;color:#ab3934}
+th{background:#fafafb}th:first-child,td:first-child{padding-left:8px}.foot{border-color:#dedfe5}.sticky{top:76px}.inspect-title{letter-spacing:-.6px}
+button:focus-visible,a:focus-visible,input:focus-visible{outline:3px solid #007aff;outline-offset:2px}
+@media(max-width:900px){.surface,.hero{padding:17px}.top .right{display:none}}
+@media(max-width:700px){.top{align-items:center;padding-top:8px;padding-bottom:8px;gap:7px}.brand{align-self:flex-start;font-size:18px}.mark{width:25px;height:25px}.mark::before,.mark::after{bottom:5px}.mark::before{left:6px}.mark::after{left:14px}nav{align-self:stretch;gap:1px}nav button{flex:1;min-width:0;padding:5px 2px}.head{margin:18px 0 14px}.summary{gap:8px}.summary .stat{padding:10px 12px!important;border-radius:12px}.stat-symbol{width:21px;height:21px;top:9px;right:9px;font-size:13px}.stat strong{font-size:29px}.surface,.hero{padding:15px;border-radius:15px}.loss{font-size:34px}.head .right{gap:5px}.sticky{top:auto;scroll-margin-top:103px}.avatar{display:none}}
+.node-grid{display:grid;align-items:stretch;grid-template-columns:repeat(2,minmax(0,1fr));gap:15px}.node table,.node th{font-size:12px}.node .scroll{margin-top:10px}.cluster-time{margin-bottom:12px}.long-title{overflow-wrap:anywhere;margin-top:15px}.sample-step{display:block;overflow-wrap:anywhere}.asset-tabs{margin:0 0 12px}.copy-path{font-size:12px;padding:2px 7px;margin:4px 0}.path{max-width:100%}.theme{font:inherit;background:var(--white);color:var(--ink);border:1px solid var(--line);border-radius:8px;padding:5px}.scroll td{overflow-wrap:anywhere}.surface:has(.copy-path) table{min-width:730px}.surface:has(.copy-path) td:first-child{max-width:300px}.cluster-time+.summary strong{margin-top:8px}
+html[data-theme=dark]{color-scheme:dark;--paper:#17181c;--ink:#ecedf2;--soft:#b1b6c1;--line:#3a3d46;--white:#25272d;--orange:#82baff}
+[data-theme=dark] body{background:linear-gradient(145deg,#191d27,#17181c 52%);color:var(--ink)}
+[data-theme=dark] header{background:#202228ed;color:var(--ink);border-color:#393c45}
+[data-theme=dark] :is(.surface,.summary .stat,.outline,.theme,#refresh){background:#25272d;border-color:#3c404a;color:var(--ink)}
+[data-theme=dark] .hero{background:linear-gradient(150deg,#272c36,#1d283a);border-color:#394456;color:var(--ink)}
+[data-theme=dark] :is(.loss,.stat strong,.head .right,.top .right,.mount code,.mount .mono,.stat small:first-child,.hero small,.hero .charthead .mono){color:#d6deec}
+[data-theme=dark] :is(nav,input,.tab,.chip,th,.track){background:#31343c;color:#d4d9e4;border-color:#424856}
+[data-theme=dark] nav button{color:#c2c8d4}[data-theme=dark] nav button[aria-current=page]{background:#4b505c;color:white}
+[data-theme=dark] :is(.link,.crumb button){color:#85bcff}[data-theme=dark] :is(.chosen,.chosen:hover,.chip[aria-pressed=true],.tab[aria-pressed=true]){background:#253f5e;color:#bfddff;border-color:#415775}
+[data-theme=dark] :is(.job,.entry,.asset,td,th,.section,.foot){border-color:#3b404a}
+[data-theme=dark] :is(.job:hover,.entry:hover,.outline:hover,.tab:hover,.chip:hover,nav button:hover:not([aria-current=page])){background:#3b414c}
+[data-theme=dark] .badge{background:#414550;color:#dfe3ef}[data-theme=dark] .pending{background:#55402a;color:#ffcf8a}[data-theme=dark] :is(.running,.completed){background:#29493b;color:#a9e1ba}[data-theme=dark] .failed{background:#553332;color:#ffb8b3}[data-theme=dark] .feedback{color:#ffb997}
+@media(max-width:750px){.node-grid{grid-template-columns:1fr}.top nav button{min-width:0;font-size:12px}.head .right{flex-wrap:wrap}.theme{font-size:12px}.cluster-time+.summary{margin-top:7px}}
+.badge:is(.progress,.completing,.configuring,.resizing){background:#e1eeff;color:#175996}
+.badge.suspended{background:#fff0d5;color:#855300}.badge.timeout{background:#ffe6e5;color:#ab3934}
+[data-theme=dark] .badge:is(.progress,.completing,.configuring,.resizing){background:#293f60;color:#afd2ff}
+[data-theme=dark] .badge.suspended{background:#55402a;color:#ffcf8a}[data-theme=dark] .badge.timeout{background:#553332;color:#ffb8b3}
+.gpu-strip,.eta-pair{display:flex;gap:22px;margin:12px 0}.gpu-strip span,.eta-pair>div{display:grid}.gpu-strip b{font-size:22px}.eta{margin-bottom:15px}.estimate{border-top:1px solid var(--line);margin-top:10px;padding-top:10px}.eta-pair{gap:40px;flex-wrap:wrap}.eta-pair strong{font-size:20px}.mine td{background:#e9f2ff}.mine td:first-child{box-shadow:inset 3px 0 #007aff;padding-left:10px}.mine-tag,.mine-chip{font-weight:650;color:#0062b8}.mine-tag{background:#d3e7ff;border-radius:5px;padding:1px 5px;margin-left:5px;font-size:11px}[data-theme=dark] .mine td{background:#203954}[data-theme=dark] :is(.mine-chip,.mine-tag){color:#b8dcff;background:#27486b}@media(max-width:700px){.eta-pair{gap:8px;display:grid}}
+@media(max-width:700px){nav{flex-wrap:wrap}nav button{flex:1 1 auto}}.top nav button{min-width:0}.res-graphics{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.25fr);gap:15px;margin:15px 0}.graphic{min-width:0}.visual-flex{display:flex;gap:22px;align-items:center;margin-top:14px}.donut{width:95px;height:95px;border-radius:50%;background:conic-gradient(#4088f2 0 var(--portion),#9272cb var(--portion) 100%);display:grid;place-items:center}.donut strong{width:73px;height:73px;display:grid;place-items:center;border-radius:50%;background:var(--white);font-size:25px}.key-dot{display:inline-block;width:9px;height:9px;border-radius:50%;background:#4088f2}.key-dot.alt{background:#9272cb}.graph-row{display:grid;grid-template-columns:minmax(72px,1fr) minmax(45px,1.4fr) auto;align-items:center;gap:12px;margin:12px 0}.graph-row span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.violet .fill{background:linear-gradient(90deg,#bfa4ed,#9473c6)}.metric-big{font-size:46px;letter-spacing:-2px}.cpu-panel,.transfer-line{border-top:1px solid var(--line);margin-top:12px;padding-top:10px}.cpu-panel .track{margin:6px 0;max-width:340px}.transfer-box{margin:12px 0}.asset .copy-path{margin-right:10px}.asset [data-upload]{margin-left:8px}@media(max-width:700px){.res-graphics{grid-template-columns:1fr}}
+.queue-board table{min-width:850px;table-layout:fixed}.queue-board th:nth-child(1){width:12%}.queue-board th:nth-child(2){width:24%}.queue-board th:nth-child(3){width:14%}.queue-board th:nth-child(4){width:14%}.queue-board th:nth-child(5){width:9%}.queue-board th:nth-child(n+6){width:13.5%}.queue-board td{vertical-align:top;padding-block:13px}.queue-board .queue-stamp{font-variant-numeric:tabular-nums;display:grid;gap:3px}.queue-stamp span{white-space:nowrap}.queue-stamp .clock-value{color:var(--soft);font-size:13px}.queue-board .tz{font-size:10px;color:var(--soft);font-weight:450;white-space:nowrap}
+.queue-title{display:flex;align-items:baseline;gap:7px;flex-wrap:wrap}.queue-title b{overflow-wrap:anywhere}.purpose{padding:1px 6px;border-radius:5px;background:var(--line);color:var(--ink);font-size:11px}.task-context{display:block;overflow-wrap:anywhere;margin-top:2px}.queue-command{display:flex;align-items:flex-start;gap:8px;padding:6px 8px;margin-top:6px;background:var(--paper);border:1px solid var(--line);border-radius:7px}.queue-command code{flex:1;min-width:0;white-space:pre-wrap;overflow-wrap:anywhere;font:12px/1.45 var(--mono)}.queue-command button{flex:none;font-size:12px;padding:0}.queue-board .mine .queue-command{background:var(--white)}
+.node-res{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:clamp(10px,2vw,25px);margin:16px 0;font-variant-numeric:tabular-nums}
+.node-meter{--fill:#308cff;--rail:#e0e6ed;min-width:0}
+.node-meter.cpu-meter{--fill:#19c49e}
+[data-theme=dark] .node-meter{--fill:#68baff;--rail:#393f48}
+[data-theme=dark] .node-meter.cpu-meter{--fill:#42e4bc}
+.node-meter{display:grid;grid-template-rows:subgrid;grid-row:span 3;row-gap:4px}.node-meter-head{display:flex;align-content:start;align-items:baseline;gap:2px 6px;flex-wrap:wrap;font-size:12px;color:var(--soft)}
+.node-meter-head b{flex-basis:100%;color:var(--ink);font-size:14px}
+.node-meter-free{white-space:nowrap}.ck-location{margin:5px 0}.ck-location .badge{margin-right:6px}.ck-danger{color:#c33d42}[data-theme=dark] .ck-danger{color:#ff989b}
+.node-meter-track{overflow:hidden;height:7px;border-radius:6px;background:var(--rail);margin:2px 0}
+.node-meter-track i{display:block;height:100%;border-radius:inherit;background:var(--fill)}
+.node-meter-track.unknown{background:repeating-linear-gradient(120deg,transparent 0 3px,var(--rail) 3px 6px)}
+.node-meter small{display:block;color:var(--soft);line-height:1.45}.node .command-button,.queue-board .command-button{color:var(--orange);font-size:12px;padding:2px 0;margin-top:3px}.policy{margin:15px 0}.factor-list{display:flex;gap:7px;flex-wrap:wrap;margin:12px 0 4px}.factor-list span{border:1px solid var(--line);border-radius:7px;padding:4px 8px}.rank-mine{padding:8px 10px;margin:7px 0;border-left:3px solid #498be8;background:var(--paper);overflow-wrap:anywhere}#launchDialog{width:min(760px,92vw);max-height:82vh;border:1px solid var(--line);border-radius:16px;padding:22px;background:var(--white);color:var(--ink);box-shadow:0 18px 60px #0003}#launchDialog::backdrop{background:#161c2680}#launchBody{margin-top:14px}.launch-block{padding:12px 0;border-bottom:1px solid var(--line)}.launch-block pre{white-space:pre-wrap;overflow-wrap:anywhere;background:var(--paper);padding:10px;border-radius:8px;font:13px/1.55 var(--mono)}
+@media(max-width:700px){
+.queue-board .scroll table,.queue-board tbody{display:block;width:100%;min-width:0}
+.queue-board thead{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%)}
+.queue-board tbody tr{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:9px 12px;padding:15px 10px;border-top:1px solid var(--line)}
+.queue-board tbody td,.queue-board tbody td:first-child,.queue-board tbody .mine td:first-child{width:auto;min-width:0;padding:0;border:0;box-shadow:none;background:transparent}
+.queue-board tbody tr.mine{border-left:3px solid #498be8;background:var(--paper)}
+.queue-board tbody td:first-child{grid-column:span 2}.queue-board tbody .task-entry{grid-column:span 4}
+.queue-board tbody td:nth-child(n+3):nth-child(-n+5){grid-column:span 2}
+.queue-board tbody td:nth-child(n+6){grid-column:span 3;border-top:1px solid var(--line);padding-top:8px}
+.queue-board tbody td[data-caption]::before{content:attr(data-caption);display:block;color:var(--soft);font-size:11px;margin-bottom:3px}
+}/* ATLAS_CHARTS_CSS */
+</style></head><body><header><div class="top"><div class="brand"><i class="mark"></i>H800 Atlas</div><nav id="nav" aria-label="主导航"></nav><div class="right"><span class="avatar" id="initials" aria-hidden="true">··</span><span id="account"></span><button class="outline" id="logout">退出</button></div></div></header><main><div class="head"><div class="page-name"><h1 id="title">工作台</h1><p id="cover-meta" hidden></p></div><div class="right"><i class="dot off" id="dot"></i><span id="mode">正在确认数据来源…</span><select id="theme" class="theme" aria-label="外观"><option value="system">跟随系统</option><option value="light">浅色模式</option><option value="dark">深色模式</option></select><button class="outline" id="refresh">刷新</button></div></div><div id="content"></div><footer class="foot"><span id="status" role="status">正在载入…</span></footer></main><div id="pageLoader" hidden role="status" aria-label="正在加载页面"><svg class="loading-seal" viewBox="0 0 74 92" aria-hidden="true" focusable="false"><path fill-rule="evenodd" d="M46.88,25.44 Q47.75,24.88 48.56,24.88 Q49.38,24.88 50.88,25.44 Q52.38,26.00 53.06,26.75 Q53.75,27.50 54.81,28.00 Q55.88,28.50 58.31,32.12 Q60.75,35.75 61.62,39.12 Q62.50,42.50 62.44,45.81 Q62.38,49.12 61.44,52.50 Q60.50,55.88 58.06,59.44 Q55.62,63.00 54.50,63.56 Q53.38,64.12 51.75,65.56 Q50.12,67.00 48.38,66.88 Q46.62,66.75 45.94,64.94 Q45.25,63.12 45.25,45.94 Q45.25,28.75 45.62,27.38 Q46.00,26.00 46.88,25.44 Z M31.44,13.31 Q30.50,13.25 26.88,14.38 Q23.25,15.50 19.38,17.88 Q15.50,20.25 15.12,21.06 Q14.75,21.88 13.50,22.75 Q12.25,23.62 11.94,24.50 Q11.62,25.38 10.94,25.94 Q10.25,26.50 8.69,29.06 Q7.12,31.62 5.94,35.19 Q4.75,38.75 4.38,42.75 Q4.00,46.75 4.50,49.88 Q5.00,53.00 5.88,54.81 Q6.75,56.62 6.94,57.81 Q7.12,59.00 9.69,62.94 Q12.25,66.88 14.69,69.25 Q17.12,71.62 18.06,71.94 Q19.00,72.25 19.69,72.94 Q20.38,73.62 23.31,75.06 Q26.25,76.50 29.25,77.06 Q32.25,77.62 32.56,77.12 Q32.88,76.62 32.75,68.25 Q32.62,59.88 32.25,59.94 Q31.88,60.00 30.56,62.31 Q29.25,64.62 28.25,65.75 Q27.25,66.88 23.94,65.38 Q20.62,63.88 20.06,63.06 Q19.50,62.25 18.44,61.69 Q17.38,61.12 17.00,60.12 Q16.62,59.12 15.94,58.50 Q15.25,57.88 15.00,56.88 Q14.75,55.88 13.88,54.50 Q13.00,53.12 12.44,50.44 Q11.88,47.75 12.19,43.12 Q12.50,38.50 13.56,36.75 Q14.62,35.00 14.88,34.00 Q15.12,33.00 17.31,30.50 Q19.50,28.00 20.88,27.00 Q22.25,26.00 24.75,25.25 Q27.25,24.50 28.50,25.50 Q29.75,26.50 30.50,28.31 Q31.25,30.12 31.62,30.50 Q32.00,30.88 32.38,30.75 Q32.75,30.62 32.81,22.62 Q32.88,14.62 32.62,14.00 Q32.38,13.38 31.44,13.31 Z M39.50,8.88 Q37.12,5.25 36.75,5.44 Q36.38,5.62 36.19,20.44 Q36.00,35.25 35.44,36.31 Q34.88,37.38 33.44,38.62 Q32.00,39.88 26.12,42.38 Q20.25,44.88 20.38,45.50 Q20.50,46.12 21.38,46.88 Q22.25,47.62 23.56,48.19 Q24.88,48.75 26.12,48.88 Q27.38,49.00 29.88,50.19 Q32.38,51.38 33.62,52.69 Q34.88,54.00 35.50,55.19 Q36.12,56.38 36.19,69.69 Q36.25,83.00 36.56,84.44 Q36.88,85.88 37.31,85.62 Q37.75,85.38 39.06,82.94 Q40.38,80.50 41.88,79.12 Q43.38,77.75 46.19,77.12 Q49.00,76.50 52.06,74.94 Q55.12,73.38 55.75,72.69 Q56.38,72.00 56.94,71.88 Q57.50,71.75 59.56,69.50 Q61.62,67.25 62.56,66.69 Q63.50,66.12 66.06,61.19 Q68.62,56.25 69.38,52.31 Q70.12,48.38 70.12,45.44 Q70.12,42.50 69.44,38.69 Q68.75,34.88 67.44,32.62 Q66.12,30.38 65.88,29.38 Q65.62,28.38 64.62,27.00 Q63.62,25.62 61.12,23.00 Q58.62,20.38 57.19,19.31 Q55.75,18.25 54.81,17.94 Q53.88,17.62 52.25,16.44 Q50.62,15.25 47.69,14.56 Q44.75,13.88 43.31,13.19 Q41.88,12.50 39.50,8.88 Z"/></svg></div><dialog id="metricDialog" aria-labelledby="metricTitle"><div class="line"><div><small id="metricContext"></small><h2 id="metricTitle"></h2></div><button id="closeMetric" class="outline" aria-label="关闭指标大图">关闭</button></div><div class="curve-toolbar"><p id="metricInfo"></p><div class="curve-smoothing"><label class="smooth-toggle"><input type="checkbox" role="switch" id="smoothOn" aria-controls="smoothOptions">平滑</label><label id="smoothOptions" hidden>强度 <input type="range" id="smoothAmount" min="0" max="99" value="70" aria-label="指数移动平均平滑强度"><output id="smoothValue" for="smoothAmount">70%</output></label></div></div><div class="metric-stage"><canvas id="detailPlot" tabindex="0" aria-label="指标曲线，可用左右方向键逐点查看"></canvas><div id="metricGuide" hidden></div><div id="metricDot" hidden></div><output id="metricTip" hidden></output></div></dialog><dialog id="launchDialog" aria-labelledby="launchTitle"><div class="line"><h2 id="launchTitle"></h2><form method="dialog"><button type="button" class="outline" onclick="this.closest('dialog').close()">关闭</button></form></div><div id="launchBody"></div></dialog><script>const $=id=>document.getElementById(id),esc=s=>String(s??'—').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])),Gi=2**30,Ti=2**40,fmt=n=>n==null?'—':n>=Ti?(n/Ti).toFixed(2)+' TiB':n>=Gi?(n/Gi).toFixed(2)+' GiB':n>=1048576?(n/1048576).toFixed(1)+' MiB':n>=1024?Math.round(n/1024)+' KiB':n+' B';
+let H='',roots=[];
+let page=0,live=false,jobsAvailable=false,jobList=[],overview={mounts:[]},asset=null,dir=H,offset=0,query='',generation=0,assetTab='datasets',fileRows=[];
+const cached={},snapLinks={};
+const teamHttp='__ATLAS_TEAM_HTTP__'==='yes';
+function loginPage(){
+ if(teamHttp){
+  sessionStorage.removeItem('atlas-session');
+  location.replace('/login'+location.hash);
+ }else location.reload();
+}
+function atlasFetch(path,options={}){
+ if(teamHttp){
+  const token=sessionStorage.getItem('atlas-session');
+  if(!token){loginPage();return Promise.reject(Error('请登录'))}
+  options={...options,credentials:'omit',headers:{...options.headers,Authorization:'Bearer '+token}};
+ }
+ return fetch(path,options);
+}
+async function api(route,params={}){const r=await atlasFetch('/api/'+route+'?'+new URLSearchParams(params),{signal:AbortSignal.timeout(45000)});if(r.status===401){loginPage();throw Error('请重新登录')}if(!r.ok)throw Error('读取失败 · HTTP '+r.status);return r.json()}
+
+const names=['工作台','文件管理','训练记录','资源目录','集群看板'];
+const pages=['overview','files','runs','assets','cluster'];
+const states={PENDING:'排队中',RUNNING:'运行中',FAILED:'失败',COMPLETED:'已完成',CANCELLED:'已取消',TIMEOUT:'超时',COMPLETING:'结束中',CONFIGURING:'配置中',SUSPENDED:'挂起',RESIZING:'调整资源'};
+
+let selectedJob='',selectedFile='',fileData=null,assetQuery='',selectedState='',runCache=new Map(),assetPage=[0,0],sizes=new Map(),chartPoints=new Map(),syncing=false;
+const attr=esc;
+function button(data,value,label,cls='outline',extra=''){return '<button class="'+cls+'" data-'+data+'="'+attr(value)+'" '+extra+'>'+label+'</button>'}
+function badge(s){let base=(s||'').split(' ')[0];return '<span class="badge '+(states[base]?base.toLowerCase():'')+'">'+esc(states[base]||s)+'</span>'}
+function displayTime(t){return new Date(t*1000).toLocaleString('zh-CN',{hour12:false})}
+function mountList(){return overview.mounts.map(m=>{
+ const personal=m.name==='home', valid=m.free!=null&&m.total>0&&(!personal||m.scope==='personal');
+ const percent=valid?Math.min(100,Math.max(0,100*m.free/m.total)):0;
+ return '<div class="mount"><div><code>/'+esc(m.name)+'</code>'+(personal?'<small style="display:block">个人配额 30 GiB</small>':'')+'</div><div class="track"><div class="fill '+(valid&&percent<7?'hot':'')+'" style="width:'+percent+'%"></div></div><b class="mono">'+(valid?fmt(m.free):'待统计')+'</b></div>';
+}).join('')}
+const axisNames={step:'Step',epoch:'Epoch',sample:'采样序号'};
+function metricNumber(value){
+ const magnitude=Math.abs(value);
+ return magnitude>0&&magnitude<.001?value.toExponential(3):Number(value.toPrecision(5)).toString();
+}
+function metricChart(m,index){
+ const id='run-metric-'+index,latest=m.points.at(-1);
+ chartPoints.set(id,m);
+ return '<button type="button" class="run-metric" data-expand="'+id+'" aria-haspopup="dialog" aria-label="放大'+attr(m.label)+'"><span class="metric-card-name">'+esc(m.label)+'</span><small>'+esc(m.key)+'</small><strong>'+esc(metricNumber(latest[1]))+'</strong><canvas class="plot" id="'+id+'" role="img" aria-label="'+attr(m.label+'，最新值 '+metricNumber(latest[1]))+'"></canvas></button>';
+}
+function draw(){
+ for(const [id,m] of chartPoints){const cv=$(id);if(cv&&cv.clientWidth)paintMetric(cv,m)}
+ if($('metricDialog').open)drawExpanded();
+}
+function chartTicks(min,max,intervals,integer=false){
+ const rough=(max-min)/intervals;if(!(rough>0))return [min];
+ const base=10**Math.floor(Math.log10(rough));
+ const unit=[1,2,2.5,5,10].find(v=>v*base>=rough)||10;
+ const step=Math.max(integer?1:0,unit*base),values=[];
+ for(let k=Math.ceil(min/step);k<=Math.floor(max/step)&&values.length<20;k++)values.push(Number((k*step).toPrecision(12)));
+ return values.length?values:[min,max];
+}
+function smoothValues(points,weight){
+ // Normalization limits the influence of the first sample during warm-up.
+ let sum=0,mass=0;
+ return points.map(([,value])=>{sum=weight*sum+value;mass=weight*mass+1;return sum/mass});
+}
+function paintMetric(cv,m,large=false,smooth=null){
+ const dark=document.documentElement.dataset.theme==='dark';
+ const w=cv.clientWidth,h=cv.clientHeight,d=window.devicePixelRatio||1;
+ cv.width=Math.round(w*d);cv.height=Math.round(h*d);
+ const c=cv.getContext('2d');c.scale(d,d);c.font=(large?'12':'10')+'px Consolas, monospace';
+ const pts=m.points;let xmin=Infinity,xmax=-Infinity,lo=Infinity,hi=-Infinity;
+ for(const [a,v] of pts){xmin=Math.min(xmin,a);xmax=Math.max(xmax,a);lo=Math.min(lo,v);hi=Math.max(hi,v)}
+ if(hi===lo){const pad=Math.abs(lo)*.02||.01;lo-=pad;hi+=pad}
+ const ticks=chartTicks(lo,hi,large?8:3),labels=ticks.map(metricNumber);
+ const l=Math.ceil(Math.max(...labels.map(t=>c.measureText(t).width)))+8,r=w-(large?20:8),t=12,b=h-(large?32:22);
+ const x=v=>xmax===xmin?(l+r)/2:l+(v-xmin)/(xmax-xmin)*(r-l),y=v=>t+(hi-v)/(hi-lo)*(b-t);
+ c.fillStyle=dark?'#bec8d9':'#606c7c';c.strokeStyle=dark?'#414950':'#e1e7ef';
+ ticks.forEach((v,i)=>{c.fillText(labels[i],0,y(v)+3);c.beginPath();c.moveTo(l,y(v));c.lineTo(r,y(v));c.stroke()});
+ if(large){
+  const xticks=chartTicks(xmin,xmax,Math.max(2,Math.floor((r-l)/80)),m.axis!=='epoch');
+  c.textAlign='center';for(const v of xticks)c.fillText(metricNumber(v),x(v),b+13);
+  c.textAlign='right';c.fillText(m.source==='W&B · global_step'?'global_step':axisNames[m.axis],r,h-3);
+ }else{
+  c.fillText(axisNames[m.axis]+' '+xmin,l,h-4);if(xmin!==xmax){c.textAlign='right';c.fillText(String(xmax),r,h-4)}
+ }
+ const ink=({learning_rate:'#6a8ee4',grad_norm:'#ab73d6',seconds_per_step:'#20a282',loss_rlt:'#db8542'})[m.key]||'#458ce8';
+ c.lineJoin='round';c.lineCap='round';
+ function stroke(values,width,opacity){
+  c.strokeStyle=ink;c.globalAlpha=opacity;c.lineWidth=width;c.beginPath();
+  pts.forEach(([a,v],i)=>{const yy=y(values?values[i]:v);if(i)c.lineTo(x(a),yy);else c.moveTo(x(a),yy)});
+  c.stroke();c.globalAlpha=1;
+ }
+ stroke(null,large?1.25:1.15,smooth ? .22 : 1);
+ if(smooth)stroke(smooth,1.65,1);
+ if(pts.length===1){c.fillStyle=ink;c.beginPath();c.arc(x(pts[0][0]),y(pts[0][1]),2.3,0,Math.PI*2);c.fill()}
+ return {x,y,l,r,t,b,ink};
+}
+let expanded=null;
+function drawExpanded(){
+ if(!expanded)return;
+ expanded.smoothed=$('smoothOn').checked?smoothValues(expanded.metric.points,Number($('smoothAmount').value)/100):null;
+ expanded.geometry=paintMetric($('detailPlot'),expanded.metric,true,expanded.smoothed);
+ showMetricPoint(expanded.index);
+}
+function showMetricPoint(index){
+ const tip=$('metricTip'),dot=$('metricDot'),guide=$('metricGuide');
+ tip.hidden=dot.hidden=guide.hidden=index==null;
+ if(index==null)return;
+ const {metric,geometry:g}=expanded;index=Math.min(index,metric.points.length-1);
+ const [a,v]=metric.points[index],x=g.x(a),y=g.y(expanded.smoothed?.[index]??v);
+ guide.style.cssText='left:'+x+'px;top:'+g.t+'px;height:'+(g.b-g.t)+'px';
+ dot.style.cssText='left:'+x+'px;top:'+y+'px;background:'+g.ink;
+ tip.textContent=axisNames[metric.axis]+'  '+a+'\n'+(expanded.smoothed?'原始值':metric.label)+'  '+v+(expanded.smoothed?'\n平滑值  '+metricNumber(expanded.smoothed[index]):'');
+ const w=$('detailPlot').clientWidth;
+ tip.style.left=Math.max(0,Math.min(w-tip.offsetWidth,x+14+tip.offsetWidth>w?x-tip.offsetWidth-14:x+14))+'px';
+ tip.style.top=Math.max(0,Math.min(g.b-tip.offsetHeight,y-tip.offsetHeight/2))+'px';
+ expanded.index=index;
+}
+function traceMetric(e){
+ if(!expanded?.geometry)return;
+ const {geometry:g,metric}=expanded,rect=e.currentTarget.getBoundingClientRect(),px=(e.clientX-rect.left)*e.currentTarget.clientWidth/rect.width,py=(e.clientY-rect.top)*e.currentTarget.clientHeight/rect.height;
+ let best=0,dx=Infinity,dy=Infinity;
+ metric.points.forEach(([x,y],i)=>{const a=Math.abs(g.x(x)-px),b=Math.abs(g.y(expanded.smoothed?.[i]??y)-py);if(a<dx||(a===dx&&b<dy)){best=i;dx=a;dy=b}});
+ showMetricPoint(best);
+}
+function updateExpanded(view,v){
+ if(expanded===view&&view.attemptId!==attemptId(v)){ $('metricDialog').close();return }
+ if(expanded!==view||!v.expanded||v.expanded.key!==view.metric.key||v.expanded.axis!==view.metric.axis||v.sampled<view.sampled)return;
+ const prev=view.metric.points[view.index];
+ view.metric=v.expanded;view.sampled=v.sampled;
+ if(prev){const idx=view.metric.points.findIndex(([x,y])=>x===prev[0]&&y===prev[1]);view.index=idx<0?null:idx}
+ $('metricInfo').textContent=view.metric.points.length.toLocaleString()+' 个采样点 · '+(view.metric.source||'作业日志')+(v.truncated&&view.metric.source==='作业日志'?' · 每份日志末尾 2 MB':'');
+ drawExpanded();
+}
+function animateMetricOpen(dialog,card,source){
+ if(matchMedia('(prefers-reduced-motion: reduce)').matches)return;
+ const target=dialog.getBoundingClientRect();
+ if(!target.width||!target.height||!source.width||!source.height)return;
+ const sx=source.width/target.width,sy=source.height/target.height;
+ const duration=parseFloat(getComputedStyle(dialog).getPropertyValue('--metric-open-ms'));
+ const start='translate('+(source.left-target.left)+'px,'+(source.top-target.top)+'px) scale('+sx+','+sy+')';
+ // Overlay the original card for the first part of the expansion, including its canvas.
+ const preview=card.cloneNode(true);
+ preview.removeAttribute('data-expand');preview.tabIndex=-1;preview.inert=true;preview.setAttribute('aria-hidden','true');
+ preview.classList.add('metric-origin');
+ const canvas=preview.querySelector('canvas'),original=card.querySelector('canvas');
+ canvas.removeAttribute('id');canvas.getContext('2d').drawImage(original,0,0);
+ Object.assign(preview.style,{width:source.width+'px',height:source.height+'px',transform:'scale('+1/sx+','+1/sy+')'});
+ const layer=document.createElement('div');
+ layer.className='metric-transition-layer';layer.append(preview);dialog.append(layer);
+ const fade=preview.animate([{opacity:1},{opacity:0}],{duration:duration*.52,easing:'ease-in',fill:'forwards'});
+ fade.finished.then(()=>layer.remove(),()=>layer.remove());
+ dialog.animate([{transform:start},{transform:'none'}],{duration,easing:'cubic-bezier(.38,.03,.22,1)'});
+}
+function attemptId(v){return [v?.attempt?.number||0,v?.attempt?.run||''].join('/')}
+async function openMetric(card){
+ const m=chartPoints.get(card.dataset.expand);if(!m)return;
+ const source=card.getBoundingClientRect(),dialog=$('metricDialog');
+ const view=expanded={metric:m,job:selectedJob,attemptId:attemptId(runCache.get(selectedJob)),index:null,sampled:0};
+ $('metricTitle').textContent=m.label;$('metricContext').textContent='#'+selectedJob+' · '+m.key;
+ $('metricInfo').textContent='正在读取详细采样点…';dialog.showModal();drawExpanded();animateMetricOpen(dialog,card,source);
+ try{const v=await api('detail',{id:view.job,metric:m.key,axis:m.axis});
+  if(expanded===view&&!v.expanded)throw Error('未找到采样点');updateExpanded(view,v);
+ }catch{if(expanded===view)$('metricInfo').textContent='详细采样暂不可用 · 显示卡片采样点'}
+}
+$('smoothOn').onchange=()=>{$('smoothOptions').hidden=!$('smoothOn').checked;drawExpanded()};
+$('smoothAmount').oninput=()=>{$('smoothValue').textContent=$('smoothAmount').value+'%';drawExpanded()};
+$('closeMetric').onclick=()=>$('metricDialog').close();
+$('metricDialog').addEventListener('click',e=>{
+ if(e.target!==e.currentTarget)return;
+ const r=e.target.getBoundingClientRect();
+ if(e.clientX<r.left||e.clientX>r.right||e.clientY<r.top||e.clientY>r.bottom)e.target.close();
+});
+$('metricDialog').addEventListener('close',()=>{
+ const dialog=$('metricDialog');
+ if(dialog.open)return;
+ dialog.getAnimations().forEach(a=>a.cancel());dialog.querySelector('.metric-transition-layer')?.remove();
+ const view=expanded;expanded=null;
+ if(view&&page===2&&selectedJob===view.job){
+  const card=[...document.querySelectorAll('[data-expand]')].find(el=>{const m=chartPoints.get(el.dataset.expand);return m?.key===view.metric.key&&m.axis===view.metric.axis});
+  card?.focus({preventScroll:true});
+ }
+});
+$('detailPlot').onpointermove=traceMetric;
+$('detailPlot').onpointerdown=traceMetric;
+$('detailPlot').onpointerleave=e=>{if(expanded&&e.pointerType==='mouse'){expanded.index=null;showMetricPoint(null)}};
+$('detailPlot').onkeydown=e=>{if(expanded&&['ArrowLeft','ArrowRight'].includes(e.key)){e.preventDefault();showMetricPoint(Math.max(0,Math.min(expanded.metric.points.length-1,(expanded.index??-1)+(e.key==='ArrowRight'?1:-1))))}};
+function queueLine(j){let estimate=j.estimate&&!['Unknown','N/A'].includes(j.estimate)?j.estimate.replace('T',' ')+' '+(overview.zone||''):'待调度器估算';return (j.reason?'原因 '+j.reason+' · ':'')+'预计开始 '+estimate}
+function jobTable(list){if(!list.length)return '<p class="empty">当前没有作业记录。</p>';return '<div class="scroll"><table><thead><tr><th>作业名称</th><th>状态</th><th>节点 / 排队原因</th><th>耗时</th></tr></thead><tbody>'+list.map(j=>'<tr><td>'+button('job',j.id,esc(j.name),'name')+'<br><span class="jobid">#'+esc(j.id)+'</span></td><td>'+badge(j.state)+'</td><td>'+esc(j.state==='PENDING'?j.reason||'等待分配':j.node)+'</td><td class="mono">'+esc(j.elapsed)+'</td></tr>').join('')+'</tbody></table></div>'}
+/* ATLAS_CHARTS_JS */
+function runProgress(progress, loggedEpoch){
+ if(!progress)return '';
+ const {step,total,stepsPerEpoch,epochEstimated}=progress;
+ const track='<progress aria-label="训练步数" value="'+step+'" max="'+total+'"></progress>';
+ let ruler='',caption='';
+ if(stepsPerEpoch>0){
+  const rounds=Math.ceil(total/stepsPerEpoch);
+  const current=Math.min(rounds,Math.floor(step/stepsPerEpoch)+1);
+  // Keep individual boundaries for typical runs and group very long schedules.
+  const stride=Math.max(1,Math.ceil(rounds/60));
+  const labelStride=stride*Math.ceil(rounds/(6*stride));
+  let ticks='';
+  for(let n=stride;n*stepsPerEpoch<total;n+=stride){
+   const boundary=n*stepsPerEpoch,percent=100*boundary/total;
+   const label=n%labelStride===0&&percent>7&&percent<93?'<span>'+n+'</span>':'';
+   ticks+='<i style="left:'+percent+'%" title="第 '+n+' 轮结束 · '+(epochEstimated?'约 ':'')+'Step '+boundary.toLocaleString()+'">'+label+'</i>';
+  }
+  ruler='<div class="epoch-ruler" aria-label="已完成的轮数"><b>0</b>'+ticks+'<b>'+Number((total/stepsPerEpoch).toFixed(2))+'</b></div>';
+  caption='<small class="epoch-caption">'+(epochEstimated?'约 · ':'')+'第 <b>'+current+'</b> / '+rounds+' 轮'+(step===total?' · 训练步数已完成':'')+'<span>每轮 '+(epochEstimated?'约 ':'')+stepsPerEpoch.toLocaleString()+' 步</span></small>';
+ }else if(Number.isFinite(loggedEpoch)){
+  caption='<small class="epoch-caption">最近记录 · Epoch '+esc(loggedEpoch)+'</small>';
+ }
+ return '<div class="run-progress"><strong>Step '+step.toLocaleString()+' / '+total.toLocaleString()+'</strong><span>'+Number((100*step/total).toFixed(2))+'%</span><div class="epoch-track">'+track+ruler+'</div>'+caption+'</div>';
+}
+function sourceDetail(j){
+ const v=runCache.get(j.id),active=['RUNNING','COMPLETING','CONFIGURING','PENDING'].includes(j.state);
+ const queue=j.state==='PENDING'?'<p class="section">'+esc(queueLine(j))+'</p>':'';
+ const attempt=v?.attempt;
+ const guarded=attempt?.number>0;
+ const phaseLabels={training:'训练中',holding_after_failure:'训练失败 · 保留资源',holding_after_success:'训练完成 · 保留资源',starting:'准备启动'};
+ const phaseClass={training:'running',holding_after_failure:'failed',holding_after_success:'completed',starting:'pending'};
+ const phase=guarded&&active?'<span class="badge '+(phaseClass[attempt.phase]||'')+'">'+esc(phaseLabels[attempt.phase]||attempt.phase)+'</span>':'';
+ const attempts=guarded?'<section class="attempt-info"><strong>第 '+attempt.number+' 次训练</strong> '+phase+
+   (attempt.run?' <small>'+esc(attempt.tracker||'W&B')+' <code>'+esc(attempt.run)+'</code></small>':'')+
+   (attempt.previous.length?'<div>'+attempt.previous.map(v=>'第 '+v.number+' 次'+(v.code?'失败':'完成')+'（退出码 '+v.code+'）').join(' · ')+'</div>':'')+'</section>':'';
+ const header='<div class="line"><span class="jobid">JOB / '+esc(j.id)+'</span><span>'+(guarded?'Slurm 作业 ':'')+badge(j.state)+'</span></div><h2 class="inspect-title">'+esc(j.name)+'</h2><div class="metrics"><div><small>节点</small><b>'+esc(j.node||'—')+'</b></div><div><small>运行时长</small><b>'+esc(j.elapsed)+'</b></div></div>'+queue;
+ if(!v)return header+'<p class="empty" role="status">正在读取作业日志…</p>';
+ const progress=runProgress(v.progress,v.epoch);
+ const tracker=!guarded&&attempt?.tracker?'<p class="disk-note">'+esc(attempt.tracker)+' · '+esc(attempt.run)+'</p>':'';
+ const eta=j.state==='RUNNING'&&v.trainingEta?'<div class="detail-eta"><small>预计训练剩余</small>'+trainingEstimate(v.trainingEta,v.sampled)+'</div>':'';
+ return header+attempts+tracker+progress+eta+'<div class="run-sync"><b>训练指标</b><small>'+(active?'每 10 秒同步 · ':'')+'读取于 '+esc(new Date(v.sampled*1000).toLocaleTimeString('zh-CN',{hour12:false}))+'</small></div>'+
+ (v.metrics.length?'<div class="run-metrics">'+v.metrics.map(metricChart).join('')+'</div>':'<p class="disk-note">'+(active?'等待作业写入可绘制的训练指标。':'此作业的日志中没有可绘制的训练指标。')+'</p>')+
+ '<section class="section"><h3>运行摘要</h3><p>'+esc(v.summary)+'</p></section><section class="section"><h3>日志依据</h3>'+v.source.map(s=>'<code class="path">'+esc(s)+'</code>').join('')+'<small>'+esc(v.note)+'</small></section>';
+}
+const detailRequests=new Map();
+async function loadDetail(j,g,refresh=false){
+ if(!refresh&&runCache.has(j.id))return;
+ let request=detailRequests.get(j.id);
+ const view=expanded?.job===j.id?expanded:null;
+ if(!request){request=api('detail',view?{id:j.id,metric:view.metric.key,axis:view.metric.axis}:{id:j.id});detailRequests.set(j.id,request)}
+ try{
+  const v=await request;
+  if(page!==2||g!==generation||selectedJob!==j.id)return;
+  if(view)updateExpanded(view,v);
+  runCache.set(j.id,v);chartPoints.clear();$('runDetail').innerHTML=sourceDetail(j);draw();
+ }catch(e){
+  if(page===2&&g===generation&&$('runDetail')){
+   $('runDetail').querySelector('.feedback')?.remove();
+   $('runDetail').insertAdjacentHTML('beforeend','<p class="feedback">日志读取失败，'+button('job',j.id,'重试','link')+'</p>');
+  }
+ }finally{if(detailRequests.get(j.id)===request)detailRequests.delete(j.id)}
+}
+let runPolling=false;
+async function pollRuns(){
+ if(page!==2||!live||document.hidden||syncing||runPolling)return;
+ runPolling=true;
+ const g=generation,previous=jobList;
+ try{
+  const next=await api('jobs');if(page!==2||generation!==g)return;
+  jobList=next;jobsAvailable=true;
+  const j=next.find(j=>j.id===selectedJob),old=previous.find(row=>row.id===selectedJob);
+  const active=state=>['RUNNING','COMPLETING','CONFIGURING','PENDING'].includes(state);
+  const filtersChanged=next.some(row=>!previous.some(p=>p.state===row.state));
+  const newList=next.filter(row=>!selectedState||row.state===selectedState);
+  const oldList=previous.filter(row=>!selectedState||row.state===selectedState);
+  if(filtersChanged||oldList.length!==newList.length||newList.some((row,i)=>row.id!==oldList[i].id||row.state!==oldList[i].state)){
+   if(j&&old&&old.state!==j.state)runCache.delete(j.id);
+   await render();
+  }else{
+   const rows=new Map(next.map(row=>[row.id,row]));
+   document.querySelectorAll('.job[data-job] small').forEach(el=>{const row=rows.get(el.closest('button').dataset.job);if(row)el.textContent='#'+row.id+' · '+row.elapsed});
+  }
+  const current=jobList.find(row=>row.id===selectedJob);
+  if(current&&(active(current.state)||!runCache.has(current.id)))await loadDetail(current,generation,true);
+  $('runPollStatus')?.remove();
+ }catch{
+  if(page===2&&g===generation&&$('runDetail')&&!$('runPollStatus'))$('runDetail').insertAdjacentHTML('beforeend','<p class="feedback" id="runPollStatus">作业同步中断，将在下一次轮询重试。</p>');
+ }finally{runPolling=false}
+}
+function runs(){const list=jobList.filter(j=>!selectedState||j.state===selectedState),j=list.find(j=>j.id===selectedJob)||list.find(j=>j.state==='RUNNING')||list[0];selectedJob=j?.id||'';
+ const filters=[...new Set(['',...jobList.map(j=>j.state),selectedState])].map(s=>button('state',s,esc(states[s]||s||'全部'),'chip','aria-pressed="'+(s===selectedState)+'"')).join('');
+ return '<div class="split"><section class="surface"><h2>作业列表</h2><div class="tools">'+filters+'</div><div class="scrolllist">'+list.map(x=>button('job',x.id,'<span><b>'+esc(x.name)+'</b><small>#'+esc(x.id)+' · '+esc(x.elapsed)+'</small></span>'+badge(x.state),'job '+(x.id===selectedJob?'chosen':''))).join('')+'</div></section><article id="runDetail" class="surface sticky">'+(j?sourceDetail(j):'<p class="empty">没有符合条件的作业。</p>')+'</article></div>'}
+function fileInfo(f){return '<span aria-hidden="true" class="file-emblem '+(f.directory?'':'doc')+'"></span><small>文件属性</small><h2 class="inspect-title">'+esc(f.name)+'</h2><dl class="facts"><dt>类型</dt><dd>'+esc(f.kind)+'</dd><dt>大小</dt><dd>'+fmt(f.bytes)+'</dd><dt>修改时间</dt><dd>'+esc(f.mtime?displayTime(f.mtime):'—')+'</dd><dt>绝对路径</dt><dd><code>'+esc(f.path)+'</code></dd>'+(f.target?'<dt>链接目标</dt><dd><code>'+esc(f.target)+'</code></dd>':'')+'</dl>'+(f.directory&&f.path!==dir?button('root',f.path,'打开目录','outline'):'')}
+async function filesView(g){let base=dir,names=(cached[base]||[]).filter(s=>s.toLowerCase().includes(query.toLowerCase()));let v=live?await api('files',{path:base,offset,q:query}):{path:base,roots,total:names.length,items:names.map(n=>({name:n,path:base+'/'+n,directory:!n.includes('.'),kind:base===H&&snapLinks[n]?'链接':n.includes('.')?'文件':'目录',target:base===H?snapLinks[n]:'',bytes:null}))};
+ if(g!==generation)return '';fileData=v;fileRows=v.items;const f=fileRows.find(x=>x.path===selectedFile)||{name:base.split('/').pop(),path:base,kind:'当前目录',directory:true};
+ let root=v.roots.find(r=>base===r||base.startsWith(r+'/'))||base;let parts=base.slice(root.length).split('/').filter(Boolean),path=root;let crumbs=button('root',root,esc(root),'link');for(const n of parts){path+='/'+n;crumbs+=' / '+button('root',path,esc(n),'link')}
+ return '<div class="tags">'+v.roots.map(p=>button('root',p,esc(p.includes('bodypipeline')?'Bodypipeline':p.split('/')[1]),'tab','aria-pressed="'+(p===root)+'"')).join('')+'</div><div class="split filegrid below"><section class="surface"><div class="crumb">'+crumbs+'</div><form id="finder" class="tools"><input name="q" value="'+attr(query)+'" aria-label="搜索当前目录" placeholder="搜索当前目录"><button class="outline">搜索</button></form><div class="line"><h3>目录内容</h3><small>'+v.total+' 项'+(live?'':' · 生成记录')+'</small></div><div class="scrolllist">'+v.items.map((x,i)=>button('entry',i,'<b><i class="ico '+(x.directory?'':'file')+'"></i>'+esc(x.name)+'</b><small>'+esc(x.kind)+'</small><span class="mono">'+fmt(x.bytes)+'</span>','entry '+(selectedFile===x.path?'chosen':''))).join('')+(!v.items.length?'<p class="empty">'+(live?'当前没有匹配项。':'此目录没有收录匹配的快照条目。')+'</p>':'')+'</div><div class="pager">'+(offset?button('offset',offset-120,'上一页'):'')+(offset+120<v.total?button('offset',offset+120,'下一页'):'')+'</div></section><article id="fileDetail" class="surface sticky">'+fileInfo(f)+'</article></div>'}
+let storeFilter='all',nasEntry=null,nasIssue='',transferRows=[],nasWhen=0,uploadPolling=false;
+function graphBars(title,values,totalLabel,colorClass=''){
+ const max=Math.max(1,...values.map(x=>x[1]));
+ return '<section class="surface graphic '+colorClass+'"><div class="line"><h2>'+esc(title)+'</h2><small>'+esc(totalLabel)+'</small></div>'+values.map(([label,n,display])=>'<div class="graph-row"><span title="'+attr(label)+'">'+esc(label)+'</span><div class="track"><div class="fill" style="width:'+Math.min(100,n/max*100)+'%"></div></div><b class="mono">'+esc(display??n)+'</b></div>').join('')+'</section>'
+}
+function datasetGraphics(rows){
+ const counts=new Map();for(const d of rows)counts.set(d.kind,(counts.get(d.kind)||0)+1);
+ const total=rows.length,episodes=rows.reduce((sum,x)=>sum+(x.kind==='LeRobot'?x.episodes||0:0),0);
+ const places=[['H800',rows.filter(d=>d.location!=='NAS').length],['NAS',rows.filter(d=>d.location==='NAS').length]];
+ return '<div class="res-graphics"><section class="surface graphic"><h2>数据资源分布</h2><div class="visual-flex"><div class="donut" style="--portion:'+Math.round((places[0][1]/(total||1))*100)+'%"><strong>'+total+'</strong></div><div><p><i class="key-dot"></i> H800　'+places[0][1]+'</p><p><i class="key-dot alt"></i> NAS　'+places[1][1]+'</p><small>按数据副本计数</small></div></div></section>'+graphBars('资源类型',[...counts].sort((a,b)=>b[1]-a[1]),'已记录 '+episodes.toLocaleString()+' 条 LeRobot episodes','violet')+'</div>'
+}
+function ckGraphics(groups){
+ const top=[...groups].sort((a,b)=>b.bytes-a.bytes).slice(0,4);
+ return '<div class="res-graphics"><section class="surface graphic"><h2>已登记 Checkpoints</h2><div class="metric-big">'+groups.reduce((s,x)=>s+x.count,0)+'</div><small>'+groups.length+' 个任务目录 · 已盘点 '+fmt(groups.reduce((s,x)=>s+x.bytes,0))+'</small></section>'+graphBars('占用最大的任务',top.map(g=>[groupLabel(g),g.bytes,fmt(g.bytes)]),'按盘点字节数','violet')+'</div>'
+}
+async function fetchNAS(){
+ if(nasWhen&&Date.now()-nasWhen<30000)return;
+ try{nasEntry=await api('nas');nasIssue=nasEntry.note||(nasEntry.partial?'部分 NAS 目录不可读':'')}catch{nasIssue='NAS 暂时无法读取'}
+ nasWhen=Date.now()
+}
+function transferPanel(){
+ const uploads=transferRows.filter(t=>t.meta?.kind==='checkpoint');
+ if(!uploads.length)return '';
+ return '<section class="surface transfer-box"><h2>Checkpoint 操作记录</h2>'+uploads.slice(0,15).map(t=>'<div class="transfer-line"><div class="line"><b>'+(t.action==='remove'?'删除本地副本 · ':'上传 · ')+esc(groupLabel({name:t.meta.group.split('/').pop(),path:t.meta.group})+' / '+t.meta.name)+'</b><span class="badge">'+esc(t.state)+(t.state==='传输中'?' '+numeric(t.percent,0)+'%':'')+'</span></div>'+(t.destination?'<code class="path">'+esc(t.destination)+'</code>':'')+(t.error?'<small class="feedback">'+esc(t.error)+'</small>':'')+'</div>').join('')+'</section>'
+}
+async function pollTransfers(){
+ if(!live||page!==3||assetTab!=='ck'||uploadPolling||document.hidden)return;uploadPolling=true;
+ try{
+ const next=await api('uploads');const finished=next.some(n=>n.state==='完成'&&!transferRows.some(o=>o.id===n.id&&o.state==='完成'));
+ transferRows=next;if(finished){ckSources=null;groupDetails.clear();groupList=null;await render()}else if($('transfers'))$('transfers').innerHTML=transferPanel()
+ }catch{}finally{uploadPolling=false}
+}
+async function removeLocal(b,path){
+ if(!confirm('重新校验 NAS 副本后，永久删除这个 H800 目录？\n\n'+path))return;
+ b.disabled=true;
+ try{
+  const r=await atlasFetch('/api/remove-local',{method:'POST',headers:{'Content-Type':'application/json','X-Atlas-Action':'remove-local'},body:JSON.stringify({path})});
+  if(r.status===401){loginPage();return}
+  const job=await r.json();if(!r.ok)throw Error(job.error||'提交失败');
+  transferRows=[job,...transferRows.filter(t=>t.id!==job.id)];$('transfers').innerHTML=transferPanel();b.textContent='等待复核';
+ }catch(e){b.disabled=false;$('status').textContent=e.message}
+}
+async function sendCheckpoint(b,path){
+ b.disabled=true;b.textContent='正在提交…';
+ try{const r=await atlasFetch('/api/upload',{method:'POST',headers:{'Content-Type':'application/json','X-Atlas-Action':'upload'},body:JSON.stringify({path})});if(r.status===401){loginPage();return}const job=await r.json();if(!r.ok)throw Error(job.error||'提交失败');
+ transferRows=[job,...transferRows.filter(t=>t.id!==job.id)];if($('transfers'))$('transfers').innerHTML=transferPanel();b.textContent='已提交至 NAS'
+ }catch(e){b.textContent='重试上传';b.disabled=false;$('status').textContent=e.message}
+}
+
+function assetColumn(items,i){const matching=items.filter(a=>(a.name+' '+a.path).toLowerCase().includes(assetQuery.toLowerCase()));const start=Math.min(assetPage[i]*10,Math.max(0,Math.floor((matching.length-1)/10)*10));
+ return '<section class="surface"><div class="line"><h2>'+(i?'Checkpoints':'数据集')+'</h2><small>'+(i&&!live?'历史汇总':matching.length+' 项')+'</small></div><small>'+(i?'权重与训练状态文件 · 历史盘点':'按更新时间 · 最新在前')+'</small>'+matching.slice(start,start+10).map(a=>'<div class="asset"><b>'+esc(a.name)+'</b><small class="sample-step">'+esc(a.location||'H800')+' · '+esc(a.robot)+' · '+esc(a.kind)+(a.jobId?' · 作业 '+esc(a.jobId.slice(0,12)):'')+' · '+esc(updatedLabel(a))+'</small><code class="path">'+esc(a.path)+'</code><span class="mono">'+(i?fmt(a.bytes)+(a.present===false?' · 本地目录缺失':''):esc(a.episodes)+' 条 / '+esc(a.frames)+' 帧')+'</span> '+(copyButton(a.path)+' '+(live&&a.location!=='NAS'?button('measure',a.path,sizes.get(a.path)||'统计占用','link'):(a.bytes!=null?fmt(a.bytes):'')))+'</div>').join('')+(!matching.length?'<p class="empty">没有匹配项。</p>':'')+'<div class="pager">'+(start?button('ap',i+':'+(start/10-1),'上一页'):'')+(matching.length>10?'<small>'+Math.floor(start/10+1)+' / '+Math.ceil(matching.length/10)+'</small>':'')+(start+10<matching.length?button('ap',i+':'+(start/10+1),'下一页'):'')+'</div></section>'}
+let robotFilter='';
+
+let ckStore='all',ckSources=null;
+let groupList=null, groupDetails=new Map(), groupPath='', groupIndex=0;
+let clusterData=null, clusterError='', queueUser='', queuePage=0, clusterRequest=null;
+
+const nodeStates={
+ idle:['空闲','running'], mixed:['部分占用','progress'], allocated:['已分配','running'],
+ completing:['结束中','progress'], draining:['排空中','pending'], drained:['已排空','pending'],
+ down:['离线','failed'], fail:['故障','failed'], failing:['故障中','failed'],
+ maint:['维护','pending'], reserved:['已预留','progress'], planned:['计划分配','progress']
+};
+function nodeBadge(raw){
+ const key=String(raw||'').toLowerCase().match(/^[a-z]+/)?.[0];
+ const meta=nodeStates[key];
+ return '<span class="badge '+(meta?meta[1]:'')+'">'+(meta?esc(meta[0])+' · ':'')+esc(raw)+'</span>';
+}
+function numeric(v,digits=5){return v==null?'—':Number(v).toLocaleString('en-US',{useGrouping:false,maximumFractionDigits:digits})}
+function copyButton(path){return button('copy',path,'复制路径','outline copy-path')}
+function groupLabel(g){const parts=g.path.split('/');return ['preflight','checkpoints','ckpts','output','outputs'].includes(g.name)?parts.slice(-2).join(' / '):g.name}
+function pageControls(key,index,total,limit){let max=Math.ceil(total/limit);return max>1?'<div class="pager">'+(index?button(key,index-1,'上一页'):'')+'<small>'+String(index+1)+' / '+max+'</small>'+(index+1<max?button(key,index+1,'下一页'):'')+'</div>':''}
+function tableMarkup(headers,rows){return '<div class="scroll"><table><thead><tr>'+headers.map(x=>'<th>'+x+'</th>').join('')+'</tr></thead><tbody>'+rows.join('')+'</tbody></table></div>'}
+function atStep(n,step){return n==null?'':n===step?'保存步':'最近记录 · step '+n}
+function checkpointLocations(c){
+ let html=c.present?'<div class="ck-location"><span class="badge">H800</span>'+copyButton(c.path)+'<code class="path">'+esc(c.path)+'</code></div>':'';
+ for(const copy of c.copies){
+  html+='<div class="ck-location"><span class="badge '+(copy.verified?'completed':'pending')+'">'+(copy.verified?'已上传 NAS · 已校验':'NAS · 待校验')+'</span>'+copyButton(copy.destination)+'<code class="path">'+esc(copy.destination)+'</code></div>';
+ }
+ if(c.present&&overview.checkpointUploadEnabled){
+  html+=button('upload',c.path,'上传到 NAS','outline');
+  if(c.copies.some(x=>x.verified))html+=' '+button('removeck',c.path,'删除 H800 本地副本','outline ck-danger');
+ }
+ return html;
+}
+function sourceGroups(items){
+ const grouped=new Map();
+ for(const row of items){
+  let g=grouped.get(row.group);
+  if(!g){g={path:row.group,name:row.group.split('/').pop(),count:0,bytes:0,unmeasured:0,updated:0,h800:0,nas:0};grouped.set(row.group,g)}
+  g.count++;g.bytes+=row.bytes||0;if(row.bytes==null)g.unmeasured++;
+  if(row.present)g.h800++;if(row.copies.length)g.nas++;
+  g.updated=Math.max(g.updated,row.updated);
+ }
+ return [...grouped.values()].sort((a,b)=>b.updated-a.updated||a.path.localeCompare(b.path));
+}
+function groupDetailView(g,items){return '<article class="surface below"><div class="line">'+button('backgroups','1','← 全部训练任务','link')+'<small>'+items.length+' 个 checkpoint</small></div><h2 class="long-title">'+esc(groupLabel(g))+'</h2>'+copyButton(g.path)+'<code class="path">'+esc(g.path)+'</code>'+tableMarkup(['Checkpoint / 路径','更新时间 ↓','Step','Epoch / 总轮数','训练 loss','学习率','盘点大小'],items.map(c=>'<tr><td><b>'+esc(c.name)+'</b>'+checkpointLocations(c)+'</td><td>'+esc(updatedLabel(c))+'</td><td>'+numeric(c.step,0)+'</td><td>'+numeric(c.epoch)+' / '+numeric(c.epochs,0)+'</td><td>'+numeric(c.loss,8)+'<small class="sample-step">'+atStep(c.lossStep,c.step)+'</small></td><td>'+esc(c.lr==null?'—':Number(c.lr).toExponential(3))+'<small class="sample-step">'+atStep(c.lrStep,c.step)+'</small></td><td>'+fmt(c.bytes)+'</td></tr>'))+'<p class="disk-note">Epoch 取自训练状态。loss 和学习率显示保存步或之前最近一次记录；— 表示缺少对应数据。</p></article>'}
+async function resourceView(){
+ const tab=assetTab,chosen=groupPath;
+ let tabs='<div class="tags asset-tabs">'+button('assetnav','datasets','数据集','tab','aria-pressed="'+(tab==='datasets')+'"')+button('assetnav','ck','Checkpoints','tab','aria-pressed="'+(tab==='ck')+'"')+'</div>';
+ let storage='<section class="surface below"><div class="line"><h2>存储余量</h2><small>个人配额与共享卷余量</small></div><div class="storage-wide">'+mountList()+'</div></section>';
+ let form='<form id="assetFinder" class="tools"><input name="q" value="'+attr(assetQuery)+'" aria-label="搜索当前子页" placeholder="'+(tab==='datasets'?'搜索数据集名称或路径':'搜索训练任务或父目录路径')+'"><button class="outline">搜索</button></form>';
+ if(tab==='datasets'){if(live&&!asset)asset=await api('assets');const a=asset;
+ if(live)await fetchNAS();
+ const nas=nasEntry,all=[...a.datasets,...(nas?.datasets||[])];
+ const byStore=all.filter(d=>storeFilter==='all'||(d.location||'H800')===storeFilter);
+ const locations='<div class="tools"><label for="ds-store">存储位置</label><select id="ds-store" class="theme">'+[['all','全部位置'],['H800','H800'],['NAS','NAS']].map(([id,n])=>'<option value="'+id+'" '+(id===storeFilter?'selected':'')+'>'+n+'</option>').join('')+'</select>'+(nas?.enabled?'<small>NAS 剩余 '+fmt(nas.free)+' · '+esc(nas.root)+'</small>':'')+'</div>';
+ const options=[...new Set([...(storeFilter==='NAS'?[]:a.robots),...byStore.map(d=>d.robot)].filter(Boolean))];
+ const chooser='<div class="tools robot-filter" role="group" aria-label="机器人 / 来源"><span>机器人 / 来源</span><div class="robot-options">'+['',...options].map(r=>button('robot',r,esc(r||'全部来源'),'chip','aria-pressed="'+(r===robotFilter)+'"')).join('')+'</div></div>';
+ const nasEmpty=storeFilter==='NAS'&&nas?.enabled&&!nasIssue&&!byStore.length;
+ const list=nasEmpty?'<section class="surface"><h2>NAS 数据集</h2><p class="empty">当前 NAS 目录中没有检索到数据集。</p>'+button('nascheckpoints','1','查看 NAS Checkpoints →','link')+'</section>':assetColumn(byStore.filter(d=>!robotFilter||d.robot===robotFilter),0);
+ return tabs+datasetGraphics(all)+locations+(nasIssue?'<p class="feedback">'+esc(nasIssue)+'</p>':'')+chooser+form+list+storage}
+ if(!ckSources)ckSources=await api('checkpoint-sources');
+ try{transferRows=await api('uploads')}catch{}
+ tabs+='<div class="tools" aria-label="Checkpoint 来源">'+[['all','全部来源'],['H800','H800'],['NAS','NAS']].map(([id,n])=>button('ckstore',id,n,'chip','aria-pressed="'+(ckStore===id)+'"')).join('')+'</div>'+(ckSources.note?'<p class="feedback">'+esc(ckSources.note)+'</p>':'')+'<div id="transfers">'+transferPanel()+'</div>';
+ const items=ckSources.items.filter(c=>ckStore==='all'||(ckStore==='H800'?c.present:c.copies.length));
+ const groups=sourceGroups(items);
+ if(chosen){
+  const g=groups.find(x=>x.path===chosen);
+  if(!g)return tabs+'<p class="empty">该来源中没有此任务的 checkpoint。</p>'+button('backgroups','1','返回任务列表');
+  const selected=items.filter(c=>c.group===chosen);
+  if(selected.some(c=>c.present)&&!groupDetails.has(chosen)){
+   groupDetails.set(chosen,await api('checkpoints',{group:chosen}));
+  }
+  const metrics=new Map((groupDetails.get(chosen)||[]).map(c=>[c.path,c]));
+  const rows=selected.map(c=>({step:Number(c.name.match(/[0-9]+$/)?.[0]),...metrics.get(c.path),...c})).sort((a,b)=>b.updated-a.updated||b.step-a.step);
+  return tabs+groupDetailView(g,rows);
+ }
+ const matching=groups.filter(g=>g.path.toLowerCase().includes(assetQuery.toLowerCase()));
+ groupIndex=Math.min(groupIndex,Math.max(0,Math.ceil(matching.length/12)-1));
+ return tabs+ckGraphics(groups)+form+'<section class="surface"><div class="line"><h2>训练任务</h2><small>'+matching.length+' 个父目录'+(live?'':' · 生成记录')+'</small></div>'+tableMarkup(['训练输出目录','副本来源','最新 checkpoint ↓','Checkpoint 数','已盘点大小'],matching.slice(groupIndex*12,groupIndex*12+12).map(g=>'<tr><td>'+button('group',g.path,esc(groupLabel(g)),'name')+'<code class="path">'+esc(g.path)+'</code>'+copyButton(g.path)+'</td><td>'+[g.h800?'H800 · '+g.h800:'',g.nas?'NAS · '+g.nas:''].filter(Boolean).join('<br>')+'</td><td>'+esc(updatedLabel(g))+'</td><td>'+g.count+'</td><td>'+fmt(g.bytes)+(g.unmeasured?'<small class="sample-step">'+g.unmeasured+' 项大小待统计</small>':'')+'</td></tr>'))+pageControls('gpage',groupIndex,matching.length,12)+'</section>'+storage
+}
+async function fetchCluster(){if(clusterRequest)return clusterRequest;
+ clusterRequest=api('cluster').then(data=>{clusterData=data;clusterError=''}).catch(()=>{clusterError='Slurm 暂时无法读取'}).finally(()=>{clusterRequest=null});return clusterRequest}
+function sinceEstimate(epoch,stamp){
+ if(!epoch)return '未给出';
+ const minutes=Math.max(0,Math.round((epoch-stamp)/60));
+ if(minutes<1)return '不足 1 分钟';
+ const h=Math.floor(minutes/60),d=Math.floor(h/24);
+ return d?d+' 天 '+(h%24)+' 小时':h?h+' 小时 '+(minutes%60)+' 分钟':minutes+' 分钟'
+}
+function trainingEstimate(eta,now){
+ const labels={unavailable:'进度未共享',waiting:'缺少训练进度',warming:'正在测速',stale:'进度未更新',stopped:'训练已停止',finished:'训练步数已完成'};
+ const ready=eta?.state==='ready'&&eta.finish>now;
+ const label=ready?'约 '+sinceEstimate(eta.finish,now):labels[eta?.state]||'暂无估算';
+ const observed=eta?.updated?'最近进度 '+displayTime(eta.updated):'';
+ const details=ready?'预计 '+displayTime(eta.finish)+' 完成 · '+numeric(eta.secondsPerStep,2)+' 秒/步':'';
+ return '<div class="training-eta'+(ready?' has-eta':'')+'"><b>'+esc(label)+'</b>'+(details?'<small>'+esc(details)+'</small>':'')+(observed?'<small>'+esc(observed)+'</small>':'')+'</div>';
+}
+function predictionPanel(c){
+ const forecasts=c.forecasts||[];
+ if(!forecasts.length)return '<section class="surface eta"><h2>我的排队预测</h2><small>当前没有待调度作业。</small></section>';
+ return '<section class="surface eta"><div class="line"><h2>我的排队预测</h2><small>最近 30 天 · 本地近邻模型</small></div>'+forecasts.map(f=>'<div class="estimate"><b>#'+esc(f.id)+' · '+esc(f.name)+'</b><div class="eta-pair"><div><small>历史模型 · 剩余等待</small><strong>'+esc(f.center?sinceEstimate(f.center,c.stamp):'暂无法预测')+'</strong><small>'+(f.center?'相似作业 '+f.samples+' 项 · 中间一半范围 '+sinceEstimate(f.low,c.stamp)+' 至 '+sinceEstimate(f.high,c.stamp):esc(f.note))+'</small></div><div><small>Slurm 调度器 · 剩余等待</small><strong>'+esc(sinceEstimate(f.scheduler,c.stamp))+'</strong><small>'+esc(f.scheduler?displayTime(f.scheduler)+'（本地时间）':'调度器尚未给出时间')+'</small></div></div></div>').join('')+'<small>模型从已启动、同分区和同卡数的历史作业估算，未计入实时优先级变化。安排训练时优先参考 Slurm。</small></section>'
+}
+function nodeMeter(label,unit,total,used,free,detail){
+ const known=Number.isFinite(used)&&Number.isFinite(total)&&total>0;
+ const width=known?Math.max(0,Math.min(100,used/total*100)):0;
+ return '<div class="node-meter '+(label==='CPU'?'cpu-meter':'gpu-meter')+'">'+
+  '<div class="node-meter-head"><b>'+label+'</b><span>已分配 '+numeric(used,0)+' / '+numeric(total,0)+' '+unit+'</span><span class="node-meter-free">空闲 '+numeric(free,0)+' '+unit+'</span></div>'+
+  '<div aria-hidden="true" class="node-meter-track'+(known?'':' unknown')+'"><i style="width:'+width+'%"></i></div><small>'+detail+'</small></div>';
+}
+function resourceGrid(n){
+ const g=n.gpu||{},c=n.cpu||{},capacity=c.effective??c.total;
+ const cpuFree=capacity!=null&&c.allocated!=null?Math.max(0,capacity-c.allocated):null;
+ const gpuDetail='整卡 '+numeric(g.whole,0)+' 张 · 分片占用 '+numeric(g.shared,0)+' 张'+(g.blocked?' · 节点不可新分配':'');
+ const cpuDetail='物理配置 '+numeric(c.total,0)+' 核 · 负载 '+numeric(c.load,2)+' · 实测 '+(c.busy==null?'暂无':numeric(c.busy,1)+'%');
+ return '<div class="node-res">'+nodeMeter('GPU','张',g.total,g.used,g.free,gpuDetail)+nodeMeter('CPU','核',capacity,c.allocated,cpuFree,cpuDetail)+'</div>';
+}
+function commandButton(j){return button('inspectcmd',j.id,'查看命令','command-button','aria-haspopup="dialog" aria-label="查看作业 '+attr(j.id)+' 的命令"')}
+let commandRequest=0;
+async function showCommand(id){
+ const dialog=$('launchDialog'),body=$('launchBody'),token=++commandRequest;
+ $('launchTitle').textContent='作业 #'+id;body.textContent='读取作业启动记录…';if(!dialog.open)dialog.showModal();
+ try{
+ const job=clusterData?.jobs.find(j=>j.id===id);
+ const v=await api('job-command',{id});
+ if(token!==commandRequest||!dialog.open)return;
+ const block=(title,cmd,source,vals={})=>'<section class="launch-block"><div class="line"><b>'+esc(title)+'</b>'+button('copy',cmd,'复制','link')+'</div><pre>'+esc(cmd)+'</pre>'+(source?'<code class="path">'+esc(source)+'</code>':'')+Object.entries(vals).map(([k,v])=>'<small class="sample-step">'+esc(k)+' = <code>'+esc(v)+'</code></small>').join('')+'</section>';
+ body.innerHTML='<h3>'+esc(v.name)+'</h3>'+v.observed.map(o=>block('实际进程参数',o.command,o.source)).join('')+v.commands.map(o=>block('脚本中的启动语句',o.command,o.source,o.values)).join('')+
+ '<p class="disk-note">'+esc(v.state==='PENDING'||job?.state==='PENDING'?'排队中，尚未产生运行进程。':v.observed.length?'进程参数来自当前采样。':'当前无法读取该作业的运行进程参数。')+' '+(v.commands.length?'变量以脚本原文显示，列出的配置路径来自静态赋值。':'未解析到可读的启动语句。')+'</p>'+(v.submission?block('Slurm 提交入口',v.submission,''):'');
+ }catch{if(token===commandRequest)body.textContent='作业已离开队列，或 Slurm 暂时无法读取。'}
+}
+let rankPartition='',rankOpen=false;
+function priorityPanel(c){
+ const s=c.scheduling||{},cfg=s.config||{},pending=c.jobs.filter(j=>j.state==='PENDING'),owner=c.owner;
+ const available=[...new Set([...(s.partitions||[]).map(p=>p[0]),...pending.map(j=>j.partition)])];
+ if(!available.includes(rankPartition))rankPartition=pending.find(j=>j.user===owner)?.partition||available[0]||'';
+ const list=pending.filter(j=>j.partition===rankPartition&&j.priority!==undefined&&j.priority!=='N/A').sort((a,b)=>Number(b.priority)-Number(a.priority));
+ const labels={Age:'等待时间',Assoc:'关联账户',FairShare:'公平份额',JobSize:'作业规模',Partition:'分区',QOS:'QoS',TRES:'资源类型'};
+ const weights=Object.entries(labels).map(([k,label])=>[label,cfg['PriorityWeight'+k]]).filter(x=>x[1]!=null);
+ const ranks=new Map();list.forEach((j,i)=>{if(!ranks.has(j.priority))ranks.set(j.priority,i+1)});
+ const mine=list.filter(j=>j.user===owner),rank=(j)=>'#'+ranks.get(j.priority)+' / '+list.length;
+ const standings=list.map(j=>{const f=(s.details||{})[j.id+'|'+j.partition];return '<tr'+(j.user===owner?' class="mine"':'')+'><td>'+esc(rank(j))+'</td><td>'+esc(j.user)+(j.user===owner?' · 我':'')+'</td><td>'+esc(j.name)+'<small class="sample-step">#'+esc(j.id)+'</small></td><td>'+esc(j.priority)+'</td><td>'+esc(j.qos)+'</td><td>'+esc(f?[f.age,f.fair,f.qos].join(' / '):'—')+'</td><td>'+esc(queueReason(j.reason))+'</td></tr>'});
+ return '<section class="surface policy"><div class="line"><h2>Slurm 调度规则</h2><small>'+esc(cfg.SchedulerType||'未取得调度配置')+' · '+esc(cfg.PriorityType||'—')+'</small></div><div class="factor-list">'+weights.map(([label,v])=>'<span>'+esc(label)+' <b>'+esc(v==='(null)'?'未配置':v)+'</b></span>').join('')+'</div><p class="disk-note">优先级重算周期 '+esc(cfg.PriorityCalcPeriod)+' · 等待加分上限 '+esc(cfg.PriorityMaxAge)+' · 用量衰减半衰期 '+esc(cfg.PriorityDecayHalfLife)+'</p><small>QoS 等级（原始优先值）　'+esc((s.qos||[]).map(x=>x.join(' ')).join('　')||'暂无')+'</small><br><small>分区层级 / 作业因子　'+esc((s.partitions||[]).map(x=>x[0]+' '+x[1]+'/'+x[2]).join('　')||'暂无')+'</small><div class="line section"><h3>我的优先级位置</h3><label>分区 <select id="rankPartition" class="theme">'+available.map(v=>'<option '+(v===rankPartition?'selected':'')+'>'+esc(v)+'</option>').join('')+'</select></label></div>'+ (mine.length?mine.map(j=>'<div class="rank-mine"><b>'+esc(rank(j))+'</b>　'+esc(j.name)+'　<small>#'+esc(j.id)+' · '+esc(j.priority)+' 分</small></div>').join(''):'<p class="empty">这个分区当前没有你的排队作业。</p>')+
+ '<div class="line"><small>按同分区可见待调度作业的分数降序，同分并列。依赖、资源匹配和回填都会影响开跑顺序。</small>'+button('ranktoggle',1,(rankOpen?'收起':'查看')+'分区排名（'+list.length+'）','link','aria-expanded="'+rankOpen+'"')+'</div>'+(rankOpen?tableMarkup(['分数排名','用户','作业','总分','QoS','等待 / 公平 / QoS 加权分','排队原因'],standings):'')+'</section>'
+}
+
+function ownerRow(j,owner){return '<tr'+(j.user===owner?' class="mine"':'')+'><td><b>'+esc(j.user)+'</b>'+(j.user===owner?'<span class="mine-tag">我</span>':'')}
+function updatedLabel(item){return item.updated?displayTime(item.updated):'时间未知'}
+
+function queueReason(value){const raw=(value||'').replace(/^\(|\)$/g,'');const map={Priority:'优先级',Resources:'等待资源',Dependency:'依赖未完成',DependencyNeverSatisfied:'依赖无法满足',JobHeldUser:'用户暂停',ReqNodeNotAvail:'请求节点不可用'};return map[raw]?map[raw]+' · '+raw:raw||'—'}
+function queuePurpose(job){
+ const command=job.command||'', file=(command.trim().match(/^(?:"([^"]+)"|'([^']+)'|([^\s]+))/)||[]).slice(1).find(Boolean)||'';
+ const parts=file.split('/').filter(Boolean),script=parts.at(-1)||'',folder=parts.at(-2)||'';
+ const hint=[job.name,script,folder].join(' ').toLowerCase();
+ const has=rx=>rx.test(hint);
+ let kind=has(/(?:^|[\s_.\/-])(?:eval(?:uation)?|benchmark|评估)(?:$|[\s_.\/-])/) ? '评估'
+ :has(/(?:^|[\s_.\/-])(?:test|probe|smoke|preflight)(?:$|[\s_.\/-])/) ? '测试'
+ :has(/(?:^|[\s_.\/-])(?:train(?:ing)?|sft|finetune|pretrain)(?:$|[\s_.\/-])/) ? '训练'
+ :has(/(?:^|[\s_.\/-])(?:infer(?:ence)?|predict)(?:$|[\s_.\/-])/) ? '推理'
+ :has(/(?:^|[\s_.\/-])(?:summary|audit|analyze)(?:$|[\s_.\/-])/) ? '分析':'';
+ const context=folder&&!['bin','scripts','jobs','home','tmp','work','scratch'].includes(folder)&&folder!==job.user?folder:'';
+ return {kind,context};
+}
+function queueStamp(value){
+ const match=/^(\d{4}-\d{2}-\d{2})[T ](\d{2}:\d{2}:\d{2})$/.exec(value||'');
+ if(!match)return '<small>'+esc(!value||['N/A','Unknown'].includes(value)?'未给出':value)+'</small>';
+ return '<time class="queue-stamp" datetime="'+attr(value.replace(' ','T'))+'"><span>'+esc(match[1])+'</span><span class="clock-value">'+esc(match[2])+'</span></time>';
+}
+function jobResources(j){
+ const r=j.resources;
+ if(!r)return '<small>资源待获取</small>';
+ const gpu=r.shard?[r.gpu?r.gpu+' 张':'',r.shard+' 分片'].filter(Boolean).join(' + '):r.gpu+' 张';
+ const mem=r.mem==='0'?'整节点':(r.mem||'—').replace(/^(\d+(?:\.\d+)?)([KMGT])$/,(_,n,u)=>n+' '+u+'iB');
+ const cells=[['GPU',gpu],['CPU',r.cpu==null?'—':r.cpu+' 核'],['内存',mem]];
+ if(Number(r.nodes)>1)cells.push(['节点',r.nodes+' 台']);
+ return '<div class="job-resources" aria-label="作业'+(j.state==='PENDING'?'申请':'已分配')+'资源">'+cells.map(([label,val])=>'<span>'+label+' <b>'+esc(val)+'</b></span>').join('')+'</div>';
+}
+function nodeJob(j,owner,stamp){
+ const mine=j.user===owner;
+ const eta=mine&&j.state==='RUNNING'?'<div><small>预计训练剩余</small>'+trainingEstimate(j.trainingEta,stamp)+'</div>':'';
+ const nameAndResources='<div class="job-name-resources"><span class="node-job-name">'+esc(j.name)+'</span>'+jobResources(j)+'</div>';
+ return '<div class="node-job'+(mine?' my-job':'')+'"><div class="node-job-title"><div><b>'+esc(j.user)+'</b>'+(mine?' <span class="mine-tag">我</span>':'')+' <small>#'+esc(j.id)+'</small>'+badge(j.state)+'</div>'+commandButton(j)+'</div>'+nameAndResources+'<div class="node-job-times"><div><small>已用 / 申请时限</small><span>'+esc(j.elapsed)+' / '+esc(j.limit)+'</span></div>'+eta+'</div></div>';
+}
+function pendingRow(j,owner,zone){
+ const p=queuePurpose(j);
+ const title='<div class="queue-title"><b>'+esc(j.name)+'</b>'+(p.kind?'<small class="purpose" title="按作业名和脚本路径识别">'+esc(p.kind)+'</small>':'')+'</div>';
+ return ownerRow(j,owner)+'<small class="sample-step">#'+esc(j.id)+'</small></td><td class="task-entry">'+title+commandButton(j)+'</td><td data-caption="状态">'+badge(j.state)+'<small class="sample-step">'+esc(queueReason(j.reason))+'</small></td><td data-caption="分区 / 资源">'+esc(j.partition)+jobResources(j)+'</td><td data-caption="申请时限">'+esc(j.limit)+'</td><td data-caption="提交时间 '+attr(zone)+'">'+queueStamp(j.submitted)+'</td><td data-caption="预计开始 '+attr(zone)+'">'+(j.user===owner?queueStamp(j.expected):'')+'</td></tr>'
+}
+
+async function clusterView(){
+ if(!clusterData||Date.now()/1000-clusterData.stamp>=15)await fetchCluster();
+ if(!clusterData)return '<p class="surface feedback">'+esc(clusterError)+' '+button('resample',1,'重试','link')+'</p>';
+ const c=clusterData,pending=c.jobs.filter(j=>j.state==='PENDING'),users=new Map();
+ for(const j of pending)users.set(j.user,(users.get(j.user)||0)+1);
+ const sorted=[...users].sort((a,b)=>b[1]-a[1]||a[0].localeCompare(b[0]));
+ if(queueUser&&!users.has(queueUser))queueUser='';
+ const filtered=pending.filter(j=>!queueUser||j.user===queueUser).sort((a,b)=>Number(b.user===c.owner)-Number(a.user===c.owner));
+ queuePage=Math.min(queuePage,Math.max(0,Math.ceil(filtered.length/25)-1));
+ const counts=[['可见节点',c.nodes.length],['占用节点的用户',new Set(c.nodes.flatMap(n=>n.jobs.map(j=>j.user))).size],['排队人数',users.size],['待调度作业',pending.length]];
+ const tiles='<div class="summary">'+counts.map(([k,v])=>'<div class="stat"><small>'+k+'</small><strong>'+v+'</strong></div>').join('')+'</div>';
+ const nodes=c.nodes.map(n=>'<article class="surface node"><div class="line"><h2>'+esc(n.name)+'</h2>'+nodeBadge(n.state)+'</div><small>'+esc(n.hardware)+'</small>'+resourceGrid(n)+(n.reason&&n.reason!=='none'?'<p class="feedback">'+esc(n.reason)+'</p>':'')+(n.jobs.length?'<div class="node-jobs">'+n.jobs.map(j=>nodeJob(j,c.owner,c.stamp)).join('')+'</div>':'<p class="empty">未见已分配作业</p>')+'</article>').join('');
+ const queue='<section class="surface below queue-board"><h2>排队用户与作业</h2><div class="tools">'+button('quser','','全部 · '+pending.length,'chip','aria-pressed="'+(!queueUser)+'"')+sorted.map(([u,n])=>button('quser',u,esc(u)+(u===c.owner?' · 我':'')+' · '+n,u===c.owner?'chip mine-chip':'chip','aria-pressed="'+(queueUser===u)+'"')).join('')+'</div>'+tableMarkup(['用户 / 作业号','任务与启动命令','状态与原因','分区 / 资源','申请时限','提交时间 <small class="tz">'+esc(c.zone)+'</small>','预计开始 <small class="tz">'+esc(c.zone)+'</small>'],filtered.slice(queuePage*25,queuePage*25+25).map(j=>pendingRow(j,c.owner,c.zone)))+pageControls('qpage',queuePage,filtered.length,25)+'</section>';
+ return '<div class="line cluster-time"><small>'+esc(clusterError?clusterError+' · 保留上次采样':'每 15 秒更新')+' · '+displayTime(c.stamp)+' · 队列时间 '+esc(c.zone)+'</small>'+button('resample',1,'立即采样','link')+'</div>'+tiles+predictionPanel(c)+priorityPanel(c)+'<div class="node-grid">'+nodes+'</div>'+queue
+}
+function setResource(tab,path=''){assetTab=tab;groupPath=path;assetQuery='';groupIndex=0;assetPage=[0,0];navigate(3)}
+function locationState(){if(location.hash==='#all')history.replaceState(null,'','#overview');const [section,sub,p]=location.hash.slice(1).split('/');page=Math.max(0,pages.indexOf(section));assetTab=sub==='checkpoints'?'ck':'datasets';try{groupPath=assetTab==='ck'&&p?decodeURIComponent(p):''}catch{groupPath=''}}
+function setTheme(choice){let dark=choice==='system'?matchMedia('(prefers-color-scheme: dark)').matches:choice==='dark';document.documentElement.dataset.theme=dark?'dark':'light';$('theme').value=choice;draw()}
+function savedTheme(){try{return localStorage.getItem('h800-theme')||'system'}catch{return 'system'}}
+async function copyPath(b,path){try{await navigator.clipboard.writeText(path);b.textContent='已复制'}catch{const f=document.createElement('textarea');f.value=path;b.after(f);f.select();if(document.execCommand('copy')){b.textContent='已复制';f.remove()}else{b.textContent='请复制选中文字'}}}
+
+let pendingPage=false,loaderTimer;
+function beginPageLoad(){
+ if(pendingPage)return;
+ pendingPage=true;
+ $('content').setAttribute('aria-busy','true');
+ loaderTimer=setTimeout(()=>{ $('pageLoader').hidden=false;$('content').inert=true },180);
+}
+function finishPageLoad(){
+ clearTimeout(loaderTimer);pendingPage=false;
+ $('pageLoader').hidden=true;$('content').inert=false;$('content').removeAttribute('aria-busy');
+}
+async function render(navigation=false){
+ if(navigation&&$('metricDialog').open)$('metricDialog').close();
+ const g=++generation;chartPoints.clear();if(navigation)beginPageLoad();
+ document.body.classList.toggle('atlas-home',page===0);$('title').textContent=page===0?'H800 Atlas':names[page];$('cover-meta').hidden=page!==0;$('cover-meta').textContent=[overview.user&&overview.user+' 的工作台',overview.stamp&&new Date(overview.stamp*1000).toLocaleDateString('zh-CN',{month:'long',day:'numeric',weekday:'long'})].filter(Boolean).join('  ·  ');$('nav').innerHTML=names.map((n,i)=>button('page',i,n,'',i===page?'aria-current="page"':'')).join('');
+ if(!live){
+  $('content').innerHTML='<section class="surface"><h2>H800 实时连接</h2><p class="empty">'+(syncing?'正在读取 H800…':'等待连接，点击刷新重试。')+'</p></section>';
+  if(!syncing)finishPageLoad();
+  return;
+ }
+ try{
+  if(page===0){
+   if(!studio.ready)$('content').innerHTML=dashboardOverview()+'<section class="surface"><p class="studio-empty" role="status">正在读取作业时间线与资源图表…</p></section>';
+   await loadStudio();if(g!==generation)return;
+  }
+  const html=page===0?dashboard():page===1?await filesView(g):page===2?runs():page===4?await clusterView():await resourceView();
+  if(g!==generation)return;
+  $('content').innerHTML=html;draw();
+  if(page===2&&selectedJob)await loadDetail(jobList.find(j=>j.id===selectedJob),g);
+ }catch(e){
+  if(g===generation)$('content').innerHTML='<p class="surface feedback">'+esc(e.message)+' '+button('page',page,'重试','link')+' '+(page===1?button('root',H,'返回 home','link'):'')+'</p>';
+ }finally{if(g===generation)finishPageLoad()}
+}
+function navigate(n){page=n;const target='#'+pages[n]+(n===3?(assetTab==='ck'?'/checkpoints'+(groupPath?'/'+encodeURIComponent(groupPath):''):'/datasets'):'');if(location.hash!==target)history.pushState(null,'',target);render(true)}
+function openDir(p){dir=p;selectedFile='';offset=0;query='';navigate(1)}
+document.addEventListener('click',async e=>{const b=e.target.closest('button');if(!b)return;const d=b.dataset;
+ if(d.expand)openMetric(b);
+ else if(d.assetnav)setResource(d.assetnav);
+ else if(d.robot!==undefined){robotFilter=d.robot;assetPage[0]=0;render()}
+ else if(d.nascheckpoints){ckStore='NAS';setResource('ck')}
+ else if(d.ckstore){ckStore=d.ckstore;groupIndex=0;render()}
+ else if(d.removeck)await removeLocal(b,d.removeck);
+ else if(d.group)setResource('ck',d.group);
+ else if(d.backgroups)setResource('ck');
+ else if(d.gpage!==undefined){groupIndex=+d.gpage;render()}
+ else if(d.upload)await sendCheckpoint(b,d.upload);
+ else if(d.inspectcmd)await showCommand(d.inspectcmd);
+ else if(d.ranktoggle){rankOpen=!rankOpen;render()}
+ else if(d.copy)await copyPath(b,d.copy);
+ else if(d.quser!==undefined){queueUser=d.quser;queuePage=0;render()}
+ else if(d.qpage!==undefined){queuePage=+d.qpage;render()}
+ else if(d.resample){await fetchCluster();if(page===4)render()}
+ else if(d.page!==undefined)navigate(+d.page);
+ else if(d.job){
+   if(page!==2){selectedState='';selectedJob=d.job;navigate(2)}
+   else{
+     const j=jobList.find(x=>x.id===d.job);if(!j)return;
+     selectedJob=d.job;const g=++generation;finishPageLoad();
+     document.querySelectorAll('.job[data-job]').forEach(el=>el.classList.toggle('chosen',el===b));
+     $('runDetail').innerHTML=sourceDetail(j);draw();loadDetail(j,g,true);
+     if(matchMedia('(max-width:700px)').matches)$('runDetail').scrollIntoView({block:'start'});
+   }
+ }
+ else if(d.state!==undefined){selectedState=d.state;render()}
+ else if(d.root)openDir(d.root);
+ else if(d.offset!==undefined){offset=+d.offset;render()}
+ else if(d.entry!==undefined){let f=fileRows[+d.entry];if(f.directory){let next=f.target&&roots.some(r=>f.target===r||f.target.startsWith(r+'/'))?f.target:f.path;openDir(next)}else{selectedFile=f.path;$('fileDetail').innerHTML=fileInfo(f);document.querySelectorAll('[data-entry]').forEach(el=>el.classList.toggle('chosen',el===b))}}
+ else if(d.ap){let [i,n]=d.ap.split(':').map(Number);assetPage[i]=n;render()}
+ else if(d.measure){b.disabled=true;b.textContent='统计中…';try{let v=await api('size',{path:d.measure});let s=v.bytes==null?v.note:fmt(v.bytes);if(v.bytes!=null)sizes.set(d.measure,s);b.textContent=s}catch{b.textContent='统计失败，再试一次'}b.disabled=false}
+});
+document.addEventListener('change',e=>{if(e.target.id==='rankPartition'){rankPartition=e.target.value;render()}if(e.target.id==='ds-store'){storeFilter=e.target.value;robotFilter='';assetPage[0]=0;render()}});document.addEventListener('submit',e=>{e.preventDefault();let q=new FormData(e.target).get('q')||'';if(e.target.id==='finder'){query=q;offset=0}else if(e.target.id==='assetFinder'){assetQuery=q;groupIndex=0;assetPage=[0,0]}render()});
+async function sync(){
+ if(syncing)return;syncing=true;if(!live)beginPageLoad();
+ try{const o=await api('overview');overview=o;if(!H){H=o.home;dir=H;roots=o.roots}$('account').textContent=o.user;$('initials').textContent=o.user.slice(0,2).toUpperCase();live=true;$('mode').textContent='实时 · '+o.host;$('dot').className='dot';$('status').textContent='H800 采样于 '+displayTime(o.stamp);
+ const [jobsResult,groupsResult]=await Promise.allSettled([api('jobs'),api('checkpoint-groups')]);asset=null;groupDetails.clear();ckSources=null;nasWhen=0;runCache.clear();
+ jobsAvailable=jobsResult.status==='fulfilled';if(jobsAvailable)jobList=jobsResult.value;else $('status').textContent+=' · Slurm 作业读取失败';
+ groupList=groupsResult.status==='fulfilled'?groupsResult.value:null;
+ await render()
+ }catch{const cached=live;$('mode').textContent='连接中断';$('dot').className='dot off';$('status').textContent=cached?'最后成功读取 '+displayTime(overview.stamp):'无法连接 H800，请重连 SSH 后刷新。';if(!cached){syncing=false;await render()}}finally{syncing=false}
+}
+$('logout').onclick=async()=>{const r=await atlasFetch('/auth/logout',{method:'POST',headers:{'X-Atlas-Action':'logout'}});if(r.ok||r.status===401)loginPage();else $('status').textContent='退出失败，请重试'};
+let versionCheck=false;
+async function checkVersion(){
+ if(versionCheck||document.hidden)return;
+ versionCheck=true;
+ try{const v=await api('version');if(v.release!==document.querySelector('meta[name="atlas-release"]').content)location.reload()}catch{}finally{versionCheck=false}
+}
+setInterval(checkVersion,10000);document.addEventListener('visibilitychange',()=>{if(!document.hidden)checkVersion()});
+window.addEventListener('pageshow',e=>{if(e.persisted)location.reload()});
+if(teamHttp&&!sessionStorage.getItem('atlas-session'))loginPage();else {
+setInterval(pollRuns,10000);document.addEventListener('visibilitychange',()=>{if(!document.hidden)pollRuns()});setInterval(pollTransfers,4500);locationState();setTheme(savedTheme());$('theme').onchange=e=>{let choice=e.target.value;try{localStorage.setItem('h800-theme',choice)}catch{}setTheme(choice)};matchMedia('(prefers-color-scheme: dark)').addEventListener('change',()=>{if($('theme').value==='system')setTheme('system')});window.addEventListener('popstate',()=>{locationState();render(true)});setInterval(async()=>{if(page===4&&live&&!document.hidden){await fetchCluster();if(page===4)render()}},15000);$('refresh').onclick=sync;window.addEventListener('resize',draw);render();sync();setInterval(()=>{if(live&&!document.hidden&&page===0)sync()},60000)
+}
+</script></body></html>

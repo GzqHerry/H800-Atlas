@@ -1,0 +1,68 @@
+#!/bin/sh
+# Publish from an H800 checkout (or an uploaded source archive).
+set -eu
+cd "$(dirname "$0")"
+root=/workspace/gzqherry/h800-atlas-team
+umask 022
+install -d -m 755 "$root" "$root/releases"
+exec 9>"$root/publish.lock"
+flock -x 9
+files="training_eta.py swan_history.py wandb_history.py charts.py gateway.py server.py monitor.py insights.py cpu_usage.py nas.py scheduler.py dist/index.html dist/login.html dist/charts.js dist/charts.css dist/lunar-cover.webp dist/login-landscape.webp"
+version=$(sha256sum $files | sha256sum | cut -c1-16)
+release="$root/releases/$version"
+stage=$(mktemp -d "$root/releases/.stage-XXXXXXXX")
+trap 'rm -rf -- "$stage"' EXIT
+mkdir "$stage/dist"
+for file in $files; do install -m 644 "$file" "$stage/$file"; done
+python3 - "$stage" <<'PY'
+import base64, pathlib, sys
+root=pathlib.Path(sys.argv[1])
+for path in root.glob('*.py'):compile(path.read_bytes(),str(path),'exec')
+page=root/'dist/index.html'
+html=page.read_text()
+for marker,asset in [('/* ATLAS_CHARTS_JS */','charts.js'),('/* ATLAS_CHARTS_CSS */','charts.css')]:
+    assert html.count(marker)==1
+    html=html.replace(marker,(page.parent/asset).read_text())
+login=page.parent/'login.html'
+for target,template,marker,asset in [(page,html,'__ATLAS_LUNAR_COVER__','lunar-cover.webp'),
+                                     (login,login.read_text(),'__ATLAS_LOGIN_LANDSCAPE__','login-landscape.webp')]:
+    image=base64.b64encode((page.parent/asset).read_bytes()).decode('ascii')
+    assert template.count(marker)==1
+    target.write_text(template.replace(marker,image))
+assert '__ATLAS_RELEASE__' in html
+PY
+chmod 755 "$stage"
+if [ ! -d "$release" ]; then mv -T "$stage" "$release"; fi
+awk '{print "127.0.0.1 " $1 " " $2}' /etc/ssh/ssh_host_ed25519_key.pub >"$root/known_hosts.new"
+mv -f "$root/known_hosts.new" "$root/known_hosts"
+old=$(readlink -f "$root/current" || true)
+ln -sfn "releases/$version" "$root/current.new"
+mv -Tf "$root/current.new" "$root/current"
+unitdir="$HOME/.config/systemd/user"
+mkdir -p "$unitdir"
+install -m 644 h800-atlas.service "$unitdir/h800-atlas.service"
+install -d -m 2750 "$root/samples"
+install -m 644 h800-atlas-sample.service h800-atlas-sample.timer "$unitdir/"
+systemctl --user daemon-reload
+systemctl --user enable h800-atlas.service
+if [ -f "$old/gateway.py" ] && cmp -s "$old/gateway.py" "$release/gateway.py"; then
+    systemctl --user start h800-atlas.service
+else
+    systemctl --user restart h800-atlas.service
+fi
+for attempt in 1 2 3 4 5; do
+    if curl --noproxy '*' -fsS http://127.0.0.1:18768/ | grep -q 'id="login"'; then
+        systemctl --user enable --now h800-atlas-sample.timer
+        systemctl --user start h800-atlas-sample.service
+        echo "H800 Atlas release $version"
+        exit 0
+    fi
+    sleep 1
+done
+if [ -d "$old" ] && [ -f "$old/gateway.py" ] && [ "$old" != "$release" ]; then
+    ln -sfn "$old" "$root/current.previous"
+    mv -Tf "$root/current.previous" "$root/current"
+    systemctl --user restart h800-atlas.service
+fi
+echo 'Gateway health check failed.' >&2
+exit 1
