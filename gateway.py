@@ -40,7 +40,7 @@ def avatar_catalog():
 
 def save_avatar(user, body):
     # user comes from the authenticated SSH session; never accept a target username.
-    if set(body) == {'preset'} and type(body['preset']) is int and 0 <= body['preset'] < 16:
+    if set(body) == {'preset'} and type(body['preset']) is int and 0 <= body['preset'] < 48:
         avatar = body['preset']
     elif set(body) == {'photo'} and isinstance(body['photo'], str):
         from PIL import Image

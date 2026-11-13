@@ -38,6 +38,32 @@ if [ ! -d "$release" ]; then mv -T "$stage" "$release"; fi
 awk '{print "127.0.0.1 " $1 " " $2}' /etc/ssh/ssh_host_ed25519_key.pub >"$root/known_hosts.new"
 mv -f "$root/known_hosts.new" "$root/known_hosts"
 old=$(readlink -f "$root/current" || true)
+if [ -f "$old/dist/avatars.js" ] && grep -Fq '(hash>>>0)%16' "$old/dist/avatars.js"; then
+    # Keep existing H800 accounts on the same subject when enlarging the default pool.
+    python3 - <<'PY'
+import json, os, pathlib, pwd, re, subprocess, tempfile
+target = pathlib.Path.home()/'.local/share/h800-atlas/avatars'
+target.mkdir(parents=True, mode=0o700, exist_ok=True)
+users = {p.pw_name for p in pwd.getpwall() if 1000 <= p.pw_uid < 65534}
+users.update(subprocess.check_output(['sacct','-a','-X','-nP','-S','2000-01-01','-o','User'], text=True).splitlines())
+for user in users:
+    if not re.fullmatch(r'[a-zA-Z0-9_][a-zA-Z0-9_.-]{0,63}', user):
+        continue
+    path = target/(user+'.json')
+    if path.exists():
+        continue
+    value = 2166136261
+    for ch in 'atlas-lunar-crew-v1/'+user:
+        value = ((value ^ ord(ch))*16777619) & 0xffffffff
+    with tempfile.NamedTemporaryFile(mode='w', dir=target) as tmp:
+        json.dump(value % 16, tmp)
+        tmp.flush()
+        try:
+            os.link(tmp.name, path)
+        except FileExistsError:
+            pass
+PY
+fi
 ln -sfn "releases/$version" "$root/current.new"
 mv -Tf "$root/current.new" "$root/current"
 unitdir="$HOME/.config/systemd/user"
