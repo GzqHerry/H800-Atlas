@@ -7,7 +7,7 @@ umask 022
 install -d -m 755 "$root" "$root/releases"
 exec 9>"$root/publish.lock"
 flock -x 9
-files="training_eta.py swan_history.py wandb_history.py charts.py gateway.py server.py monitor.py insights.py cpu_usage.py nas.py scheduler.py dist/index.html dist/login.html dist/charts.js dist/charts.css dist/lunar-cover.webp dist/login-landscape.webp"
+files="training_eta.py swan_history.py wandb_history.py charts.py gateway.py server.py monitor.py insights.py cpu_usage.py nas.py scheduler.py dist/index.html dist/login.html dist/charts.js dist/charts.css dist/avatars.js dist/crew.webp dist/lunar-cover.webp dist/login-landscape.webp"
 version=$(sha256sum $files | sha256sum | cut -c1-16)
 release="$root/releases/$version"
 stage=$(mktemp -d "$root/releases/.stage-XXXXXXXX")
@@ -20,9 +20,11 @@ root=pathlib.Path(sys.argv[1])
 for path in root.glob('*.py'):compile(path.read_bytes(),str(path),'exec')
 page=root/'dist/index.html'
 html=page.read_text()
-for marker,asset in [('/* ATLAS_CHARTS_JS */','charts.js'),('/* ATLAS_CHARTS_CSS */','charts.css')]:
+for marker,asset in [('/* ATLAS_CHARTS_JS */','charts.js'),('/* ATLAS_AVATARS_JS */','avatars.js'),('/* ATLAS_CHARTS_CSS */','charts.css')]:
     assert html.count(marker)==1
     html=html.replace(marker,(page.parent/asset).read_text())
+assert html.count('__ATLAS_CREW__')==1
+html=html.replace('__ATLAS_CREW__',base64.b64encode((page.parent/'crew.webp').read_bytes()).decode('ascii'))
 login=page.parent/'login.html'
 for target,template,marker,asset in [(page,html,'__ATLAS_LUNAR_COVER__','lunar-cover.webp'),
                                      (login,login.read_text(),'__ATLAS_LOGIN_LANDSCAPE__','login-landscape.webp')]:

@@ -141,7 +141,7 @@ function usageRanking(data){
  const scale=metric==='success'?100:sorted[0]?.value||1;
  const rows=visible.map(r=>{
   const personal=r.user===me, value=usageFormat(r.value,metric);
-  return '<li class="usage-row'+(personal?' usage-mine':'')+'"><span class="usage-rank">'+r.rank+'</span><span class="usage-name" title="'+attr(r.user)+'">'+esc(r.user)+'</span>'+
+  return '<li class="usage-row'+(personal?' usage-mine':'')+'"><span class="usage-rank">'+r.rank+'</span><span class="usage-name" title="'+attr(r.user)+'">'+personLabel(r.user)+'</span>'+
    '<span class="usage-track" aria-hidden="true"><i style="width:'+100*(r.value||0)/scale+'%"></i></span>'+
    '<span class="usage-value">'+value+(metric==='success'?'<small>'+r.completed+' / '+r.ended+' 已结束</small>':'')+'</span></li>';
  }).join('');
@@ -181,12 +181,11 @@ async function loadUsage(){
 function dashboard(){
  loadUsage();
  return dashboardOverview()+(studio.issues.length?'<p class="feedback">'+esc(studio.issues.join(' · '))+'</p>':'')+'<div class="studio-board">'+
- '<section id="trainingUsage" class="surface studio-card studio-wide" aria-label="集群训练用量">'+usageCard()+'</section>'+
  studioPanel('我的作业时间线','最近 6 个作业 · 活跃作业优先',button('page','2','训练记录 →','link'),gantt(),true)+
  studioPanel('节点空闲窗口','近 12 小时 · 每小时最后一次采样','',heatmap())+
  studioPanel('我的 GPU 时间','近 7 天 · 已分配 GPU 卡时','',gpuHours())+
  studioPanel('权重占用分布','各训练任务的存储占比','<div class="studio-switch">'+['H800','NAS'].map(s=>control('treestore',s,s,studio.store===s)).join('')+'</div>',storageMap())+
- resultPanel()+'</div><section class="surface below"><div class="line"><h2>最近作业</h2>'+button('page','2','全部作业 →','link')+'</div>'+jobTable(jobList.slice(0,5))+'</section>';
+ resultPanel()+'</div><section id="trainingUsage" class="surface studio-card below" aria-label="集群训练用量">'+usageCard()+'</section>';
 }
 async function loadStudio(){
  if(studio.ready&&Date.now()-studioUpdated<50000&&ckSources)return;

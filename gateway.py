@@ -1,6 +1,8 @@
 """H800 Atlas HTTP/HTTPS gateway. One authenticated SSH master per session."""
 from typing import NamedTuple
 import collections
+import base64
+import io
 import http.cookies
 import json
 import os
@@ -29,6 +31,37 @@ sessions = {}
 attempts = collections.defaultdict(list)
 guard = threading.Lock()
 auth_slots = threading.BoundedSemaphore(6)
+AVATARS = Path.home()/'.local/share/h800-atlas/avatars'
+
+
+def avatar_catalog():
+    return {p.stem: json.loads(p.read_bytes()) for p in AVATARS.glob('*.json')}
+
+
+def save_avatar(user, body):
+    # user comes from the authenticated SSH session; never accept a target username.
+    if set(body) == {'preset'} and type(body['preset']) is int and 0 <= body['preset'] < 16:
+        avatar = body['preset']
+    elif set(body) == {'photo'} and isinstance(body['photo'], str):
+        from PIL import Image
+        raw = base64.b64decode(body['photo'], validate=True)
+        with Image.open(io.BytesIO(raw), formats=['JPEG']) as image:
+            if image.size != (128, 128):
+                raise ValueError('invalid dimensions')
+            output = io.BytesIO()
+            image.convert('RGB').save(output, 'JPEG', quality=85)
+        avatar = 'data:image/jpeg;base64,' + base64.b64encode(output.getvalue()).decode('ascii')
+    else:
+        raise ValueError('invalid avatar')
+    AVATARS.mkdir(mode=0o700, parents=True, exist_ok=True)
+    with tempfile.NamedTemporaryFile(dir=AVATARS, mode='w', delete=False) as temp:
+        try:
+            json.dump(avatar, temp)
+            temp.flush()
+            os.replace(temp.name, AVATARS/(user+'.json'))
+        finally:
+            Path(temp.name).unlink(missing_ok=True)
+    return avatar
 
 
 class Release(NamedTuple):
@@ -197,12 +230,13 @@ class Handler(BaseHTTPRequestHandler):
             if worker and path!='/api/version':worker.seen=now
         body={}
         if self.command=='POST':
-            action={'/auth/login':'login','/auth/logout':'logout','/api/upload':'upload','/api/remove-local':'remove-local'}.get(path)
+            action={'/auth/login':'login','/auth/logout':'logout','/api/upload':'upload','/api/remove-local':'remove-local','/api/avatar':'avatar'}.get(path)
             origin=('https://' if self.secure else 'http://')+host
             if not action or self.headers.get('Origin')!=origin or self.headers.get('X-Atlas-Action')!=action:
                 return self.reply(403,{'error':'请求来源无效'})
             length=int(self.headers.get('Content-Length',0))
-            if not 0<=length<=8192 or (not length and path!='/auth/logout'):
+            limit=65536 if path=='/api/avatar' else 8192
+            if not 0<=length<=limit or (not length and path!='/auth/logout'):
                 return self.reply(400,{'error':'请求大小无效'})
             if length:
                 body=json.loads(self.rfile.read(length))
@@ -219,6 +253,11 @@ class Handler(BaseHTTPRequestHandler):
             data=data.replace(b'__ATLAS_TEAM_HTTP__',b'yes' if self.team_http else b'no')
             return self.reply(200,data.replace(b'__ATLAS_RELEASE__',current.version.encode()),'text/html;charset=utf-8')
         if not worker:return self.reply(401,{'error':'请先登录 H800'})
+        if self.command=='GET' and path=='/api/avatars':return self.reply(200,avatar_catalog())
+        if self.command=='POST' and path=='/api/avatar':
+            try:avatar=save_avatar(worker.user,body)
+            except (ValueError,OSError):return self.reply(400,{'error':'头像未保存，请重新选择或尝试其他图片'})
+            return self.reply(200,{'avatar':avatar})
         if self.command=='GET' and path=='/api/version':return self.reply(200,{'release':published.version})
         if not path.startswith('/api/'):return self.reply(404,{'error':'页面不存在'})
         try:
