@@ -185,7 +185,7 @@ function openMember(trigger,editing=false){
 }
 document.addEventListener('click',e=>{
  const link=e.target.closest('[data-profile]');
- if(link&&!profileDialog.open)openMember(link);
+ if(link&&link!==$('account')&&!profileDialog.open)openMember(link);
 });
 profileDialog.addEventListener('click',async e=>{
  const b=e.target.closest('button'),view=member;

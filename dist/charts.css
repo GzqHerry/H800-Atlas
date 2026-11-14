@@ -218,3 +218,10 @@ i.crew-portrait{background-color:#050505;background-image:var(--crew-sheet);back
 @media(max-width:400px){.usage-row{font-size:12px}.usage-plot .studio-pick{padding-inline:8px}.usage-finish{gap:5px}.usage-finish>i{width:22px;height:22px}}
 .job-name-resources .job-resources{justify-content:flex-end;max-width:100%;text-align:right}
 @media(max-width:520px){.job-name-resources{grid-template-columns:minmax(0,1fr) minmax(0,1fr);column-gap:8px}.job-name-resources .job-resources{gap:2px 7px}}
+
+.wb-entry,.wb-actions{display:flex;align-items:center;gap:10px;flex-wrap:wrap}.wb-entry{margin:18px 0}.wb-entry small,#wbForm small{color:var(--soft)}
+#wbDialog{box-sizing:border-box;width:min(540px,calc(100vw - 24px));max-height:85dvh;overflow:auto;border:1px solid var(--line);border-radius:18px;background:var(--white);color:var(--ink);padding:24px}
+#wbDialog::backdrop{background:#0a101970;backdrop-filter:blur(7px)}
+#wbForm{display:grid;gap:10px}#wbForm h2,#wbError{margin:0}#wbError:empty{display:none}
+#wbCandidates{margin:0;padding:0;border:0;min-width:0}#wbOptions{max-height:24vh;overflow:auto}#wbOptions label{display:flex;gap:8px;padding:8px;align-items:baseline;overflow-wrap:anywhere}
+#wbOptions input{flex:none}#wbPath{width:100%;box-sizing:border-box;min-width:0}.wb-actions{justify-content:flex-end}#wbSave{background:var(--ink);color:var(--white)}

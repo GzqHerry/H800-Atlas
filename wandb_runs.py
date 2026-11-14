@@ -3,6 +3,7 @@ import json
 import os
 import re
 import threading
+import tempfile
 import time
 from collections import defaultdict
 from pathlib import Path
@@ -87,6 +88,35 @@ def scan(roots,safe):
         with _lock:_scanning=False;_finished=time.monotonic()
 
 
+def binding_file(home,job):
+    if not isinstance(job,str) or not re.fullmatch(r'\d+(?:_\d+)?',job):raise ValueError('作业号无效')
+    return home/'.local/share/h800-atlas/wandb-links'/(job+'.json')
+
+
+def validate_path(value,job,safe):
+    if not isinstance(value,str) or not Path(value).is_absolute() or len(value)>4096:
+        raise ValueError('请输入 run 目录或 .wandb 文件的绝对路径')
+    path=safe(value)
+    folder=path if path.is_dir() else path.parent
+    match=RUN.fullmatch(folder.name)
+    if not match:raise ValueError('请选择具体的 run 或 offline-run 目录，或其中的 .wandb 文件')
+    stream=safe(folder/f'run-{match[1]}.wandb')
+    if not stream.is_file() or (path!=folder and path!=stream):raise ValueError('请选择该 run 对应的 .wandb 文件')
+    if identity(folder,safe) not in ('',job):raise ValueError('此 run 的作业信息与当前作业不匹配')
+    with stream.open('rb') as f:
+        if f.read(4)!=b':W&B':raise ValueError('文件没有有效的 W&B 历史记录头')
+    return folder
+
+
+def save_binding(file,folder):
+    file.parent.mkdir(mode=0o700,parents=True,exist_ok=True)
+    with tempfile.NamedTemporaryFile(mode='w',dir=file.parent,delete=False) as tmp:
+        try:
+            json.dump(str(folder),tmp);tmp.flush()
+            os.replace(tmp.name,file)
+        finally:Path(tmp.name).unlink(missing_ok=True)
+
+
 def resolve(job,hints,bases,roots,safe,allow_index=True):
     global _scanning
     paths=set()
@@ -104,26 +134,27 @@ def resolve(job,hints,bases,roots,safe,allow_index=True):
                 if safe(folder/f'run-{match[1]}.wandb').is_file() and identity(folder,safe) in ('',job):
                     paths.add(folder)
             except (OSError,RuntimeError):pass
-    if len(ids)>1:return None,'当前训练关联到多个 W&B run，未合并曲线。'
-    if len(paths)==1:return paths.pop(),'由当前作业日志定位 W&B run。'
-    if not allow_index and not ids:return None,''
+    if len(paths)==1 and len(ids)==1:return paths.pop(),'由当前作业日志定位 W&B run。',[]
+    if not allow_index and not ids:return None,'',[]
     # Probe the submit directory, log directory, and this allocation's export first.
     for base in dict.fromkeys(bases):
         for relative in ('wandb','.wandb',f'attempts/{job}/wandb',f'attempts/{job}/wandb/wandb'):
             probe(base/relative,safe)
     with _lock:
-        candidates=set(_by_run.get(next(iter(ids)),())) if ids else set(_by_job.get(job,()))
-    matches=[]
+        candidates=set().union(*(_by_run.get(i,()) for i in ids)) if ids else set(_by_job.get(job,()))
+    matches=set(paths)
     for p in candidates:
         try:
             owner=identity(p,safe)
-            if (owner==job or (ids and not owner)) and safe(p/f'run-{RUN.fullmatch(p.name)[1]}.wandb').is_file():matches.append(p)
+            if (owner==job or (ids and not owner)) and safe(p/f'run-{RUN.fullmatch(p.name)[1]}.wandb').is_file():matches.add(p)
         except (OSError,RuntimeError):pass
-    if len(matches)==1:return matches[0],('按日志中的 W&B run ID 匹配。' if ids else '按 Slurm 作业号匹配 W&B run。')
-    if len(matches)>1:return None,'发现多个匹配的 W&B 目录，未合并曲线。'
+    if len(matches)==1 and len(ids)<=1:return matches.pop(),('按日志中的 W&B run ID 匹配。' if ids else '按 Slurm 作业号匹配 W&B run。'),[]
+    if len(matches)>1:return None,'发现多个匹配的 W&B 目录，请选择本次训练的 run。',sorted(map(str,matches))
     with _lock:
         if not _scanning and (not _finished or time.monotonic()-_finished>120):
             _scanning=True
             threading.Thread(target=scan,args=(roots,safe),daemon=True).start()
         scanning=_scanning
-    return None,('正在个人目录中查找与此作业匹配的 W&B run。' if scanning else '未找到能确认属于此作业的本地 W&B run。')
+    note='正在个人目录中查找与此作业匹配的 W&B run。' if scanning else '未找到能确认属于此作业的本地 W&B run。'
+    if len(ids)>1:note='日志记录了多个 W&B run，可选择已有候选或填写路径。'
+    return None,note,sorted(map(str,matches))

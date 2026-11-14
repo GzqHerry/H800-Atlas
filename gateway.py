@@ -262,7 +262,7 @@ class Handler(BaseHTTPRequestHandler):
             if worker and path!='/api/version':worker.seen=now
         body={}
         if self.command=='POST':
-            action={'/auth/login':'login','/auth/logout':'logout','/api/upload':'upload','/api/remove-local':'remove-local','/api/avatar':'avatar','/api/profile':'bio','/api/checkpoint-scan':'checkpoint-scan'}.get(path)
+            action={'/auth/login':'login','/auth/logout':'logout','/api/upload':'upload','/api/remove-local':'remove-local','/api/avatar':'avatar','/api/profile':'bio','/api/checkpoint-scan':'checkpoint-scan','/api/wandb-link':'wandb-link'}.get(path)
             if not action or self.headers.get('Origin')!=origin or self.headers.get('X-Atlas-Action')!=action:
                 return self.reply(403,{'error':'请求来源无效'})
             length=int(self.headers.get('Content-Length',0))

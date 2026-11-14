@@ -1,14 +1,17 @@
-const menuTrigger=$('initials'), accountMenu=$('accountMenu');
+const menuTriggers=[$('initials'),$('account')], accountMenu=$('accountMenu');
+let menuOpener=menuTriggers[0];
 function closeAccountMenu(focus=false){
- accountMenu.hidden=true;menuTrigger.setAttribute('aria-expanded','false');
- if(focus)menuTrigger.focus({preventScroll:true});
+ accountMenu.hidden=true;menuTriggers.forEach(b=>b.setAttribute('aria-expanded','false'));
+ if(focus)menuOpener.focus({preventScroll:true});
 }
-function openAccountMenu(){
- accountMenu.hidden=false;menuTrigger.setAttribute('aria-expanded','true');
+function openAccountMenu(trigger){
+ menuOpener=trigger;accountMenu.hidden=false;menuTriggers.forEach(b=>b.setAttribute('aria-expanded','true'));
  $('menuProfile').focus({preventScroll:true});
 }
-menuTrigger.onclick=()=>accountMenu.hidden?openAccountMenu():closeAccountMenu(true);
-menuTrigger.onkeydown=e=>{if(e.key==='ArrowDown'){e.preventDefault();openAccountMenu()}};
+for(const trigger of menuTriggers){
+ trigger.onclick=()=>accountMenu.hidden?openAccountMenu(trigger):closeAccountMenu(true);
+ trigger.onkeydown=e=>{if(e.key==='ArrowDown'){e.preventDefault();openAccountMenu(trigger)}};
+}
 accountMenu.onkeydown=e=>{
  const items=[...accountMenu.querySelectorAll('a,button')],index=items.indexOf(document.activeElement);
  if(e.key==='Escape'){e.preventDefault();closeAccountMenu(true)}

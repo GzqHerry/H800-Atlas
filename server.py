@@ -374,8 +374,8 @@ def read_run_metrics(offsets, focus=None, history=None, swan=None, openpi=None):
     epoch_scale(progress,steps_per_epoch,paired)
     return dict(metrics=metrics,expanded=expanded,progress=progress,epoch=latest_epoch,evidence=evidence,truncated=truncated)
 
-def detail(job,focus=None):
-    if not re.fullmatch(r'[0-9]+(?:_[0-9]+)?',job):raise ValueError('作业号无效')
+def personal_job(job):
+    if not isinstance(job,str) or not re.fullmatch(r'[0-9]+(?:_[0-9]+)?',job):raise ValueError('作业号无效')
     raw=command(['sacct','-u',H.name,'-j',job,'-X','-n','-P','-o','JobID,JobName%200,State,ExitCode,Elapsed,WorkDir,StdOut,StdErr'])
     rows=[r.split('|') for r in raw.splitlines() if r.split('|')[0]==job]
     if rows:
@@ -389,6 +389,10 @@ def detail(job,focus=None):
         workdir=next(iter(re.findall(r'\bWorkDir=(\S+)',fields)),'')
         paths=re.findall(r'\bStd(?:Out|Err)=(\S+)',fields)
         code=''
+    return name,state,code,elapsed,workdir,paths
+
+def detail(job,focus=None):
+    name,state,code,elapsed,workdir,paths=personal_job(job)
     matches=[]
     candidates=[s.replace('%j',job).replace('%x',name).replace('%A',job.split('_')[0]).replace('%a',job.split('_')[-1]) for s in paths if s]
     for ext in ('out','err'):
@@ -414,14 +418,24 @@ def detail(job,focus=None):
                 if marks:hints.extend(v for at,v in log_indexes[p]['wandb'].items() if at>=marks[-1])
     elif folder and not hints:hints=[str(folder)]
     auxiliary=bool(re.search(r'(?:^|[-_])(?:wandb[-_]sync|sync[-_]network[-_]check)$',name,re.I))
-    if not auxiliary:
-        folder,discovery=wandb_runs.resolve(job,hints,bases,[H,W,D,S],safe,allow_index=attempt['number']<=1)
+    choices=[]
+    try:saved=json.loads(wandb_runs.binding_file(H,job).read_text())
+    except (OSError,ValueError):saved=None
+    if saved:
+        try:
+            folder=wandb_runs.validate_path(saved,job,safe)
+            discovery='使用为此作业保存的 W&B run。'
+        except (OSError,ValueError,RuntimeError):
+            folder=None
+            discovery='已关联的 W&B run 暂不可读，可以更改关联。'
+    elif not auxiliary:
+        folder,discovery,choices=wandb_runs.resolve(job,hints,bases,[H,W,D,S],safe,allow_index=attempt['number']<=1)
     else:folder=None
     attempt['run']=folder.name.rsplit('-',1)[-1] if folder else None
     if folder:attempt['tracker']='W&B'
     history,history_path=job_history(folder,job)
     swan_id,swan,swan_path=swan_run(offsets)
-    if swan_id:
+    if swan_id and not saved:
         attempt.update(run=swan_id,tracker='SwanLab')
     export,export_dir=openpi_export(matches,job)
     openpi={}
@@ -429,6 +443,8 @@ def detail(job,focus=None):
         try:openpi=openpi_history(export)
         except OSError:pass
     result=read_run_metrics(offsets,focus,history,swan,openpi)
+    if saved or (not auxiliary and not folder and not swan_id):
+        result['wandbLink']=dict(saved=saved,candidates=choices,note=discovery)
     if openpi and not result['progress']:
         config=read_state(export_dir/'training-config.json',safe)
         status=read_state(export_dir/'status/rank0-status.json',safe)
@@ -547,6 +563,16 @@ def checkpoint_sources():
 def route(method, target, body):
     u=urlsplit(target)
     q={k:v[-1] for k,v in parse_qs(u.query).items()}
+    if method=='POST' and u.path=='/api/wandb-link':
+        job=body.get('job')
+        try:
+            personal_job(job)
+            folder=wandb_runs.validate_path(body.get('path'),job,safe)
+            wandb_runs.save_binding(wandb_runs.binding_file(H,job),folder)
+        except FileNotFoundError:return 404,dict(error='路径不存在，或目录中缺少对应的 .wandb 文件')
+        except PermissionError:return 403,dict(error='当前账号无法读取该路径或保存关联')
+        except (ValueError,RuntimeError) as exc:return 400,dict(error=str(exc))
+        return 200,dict(path=str(folder))
     if method=='POST' and u.path=='/api/checkpoint-scan':
         try:result=scan_checkpoints(H,body.get('path'))
         except FileNotFoundError:return 404,dict(error='目录不存在，请检查 H800 路径')
