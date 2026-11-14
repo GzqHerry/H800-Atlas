@@ -342,7 +342,7 @@ function sourceDetail(j){
  const tracker=!guarded&&attempt?.tracker?'<p class="disk-note">'+esc(attempt.tracker)+' · '+esc(attempt.run)+'</p>':'';
  const eta=j.state==='RUNNING'&&v.trainingEta?'<div class="detail-eta"><small>预计训练剩余</small>'+trainingEstimate(v.trainingEta,v.sampled)+'</div>':'';
  return header+attempts+tracker+progress+eta+'<div class="run-sync"><b>训练指标</b><small>'+(active?'每 10 秒同步 · ':'')+'读取于 '+esc(new Date(v.sampled*1000).toLocaleTimeString('zh-CN',{hour12:false}))+'</small></div>'+
- (v.metrics.length?'<div class="run-metrics">'+v.metrics.map(metricChart).join('')+'</div>':'<p class="disk-note">'+(active?'等待作业写入可绘制的训练指标。':'此作业的日志中没有可绘制的训练指标。')+'</p>')+
+ (v.metrics.length?'<div class="run-metrics">'+v.metrics.map(metricChart).join('')+'</div>':'<p class="disk-note">'+(v.emptyReason?esc(v.emptyReason):(active?'等待作业写入可绘制的训练指标。':'此作业的日志中没有可绘制的训练指标。'))+'</p>')+
  '<section class="section"><h3>运行摘要</h3><p>'+esc(v.summary)+'</p></section><section class="section"><h3>日志依据</h3>'+v.source.map(s=>'<code class="path">'+esc(s)+'</code>').join('')+'<small>'+esc(v.note)+'</small></section>';
 }
 const detailRequests=new Map();

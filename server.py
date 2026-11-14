@@ -235,7 +235,49 @@ def epoch_scale(progress, steps_per_epoch, paired):
         estimated = True
     progress.update(stepsPerEpoch=steps_per_epoch,epochEstimated=estimated)
 
-def read_run_metrics(offsets, focus=None, history=None, swan=None):
+def openpi_export(paths,job):
+    # The bootstrap log and attempts/<Slurm ID> belong to the same launch.
+    # A project can also contain older, unscoped status files.
+    for log in paths:
+        folder=log.parent/'attempts'/job
+        try:
+            path=safe(folder/'status/rank0-metrics.jsonl')
+        except (OSError,ValueError):
+            continue
+        return path,folder
+    return None,None
+
+
+openpi_cache={}
+OPENPI_LABELS={'param_norm':'参数范数','rlt_reconstruction_loss':'RLT 重建损失','velocity_loss':'速度损失'}
+
+def openpi_history(path):
+    # rsync may atomically replace the file. Never carry an offset across inodes.
+    with path.open('rb') as stream:
+        st=os.fstat(stream.fileno())
+        state=openpi_cache.get(path)
+        if (not state or state['inode']!=st.st_ino or st.st_size<state['size']
+                or (st.st_size==state['size'] and st.st_mtime_ns!=state['mtime'])):
+            if len(openpi_cache)>=4:openpi_cache.pop(next(iter(openpi_cache)))
+            state=dict(inode=st.st_ino,offset=0,values={})
+            openpi_cache[path]=state
+        state.update(size=st.st_size,mtime=st.st_mtime_ns)
+        stream.seek(state['offset'])
+        for line in stream:
+            if not line.endswith(b'\n'):break
+            state['offset']=stream.tell()
+            try:row=json.loads(line)
+            except (ValueError,UnicodeError):continue
+            if not isinstance(row,dict):continue
+            step=row.get('step')
+            if type(step)!=int or step<0 or not isinstance(row.get('metrics'),dict):continue
+            for key,val in row['metrics'].items():
+                if key not in RUN_METRICS and key not in OPENPI_LABELS and not re.fullmatch(r'joint_action_loss/[a-zA-Z0-9_/.-]{1,80}',key):continue
+                if number(val) is not None:state['values'].setdefault(key,{})[step]=val
+        return state['values']
+
+
+def read_run_metrics(offsets, focus=None, history=None, swan=None, openpi=None):
     history=history or {}
     series={}
     evidence=[]
@@ -291,6 +333,10 @@ def read_run_metrics(offsets, focus=None, history=None, swan=None):
                 else:points.append((x if x is not None else len(points)+1,value))
     sources={}
     labels=dict(RUN_METRICS)
+    for key,values in (openpi or {}).items():
+        labels[key]=labels.get(key,OPENPI_LABELS.get(key,key))
+        series[(key,'step')]=dict(values)
+        sources[key]='OpenPI · rank 0'
     for key,values in (swan or {}).items():
         short=key.removeprefix('train/')
         label={'lr':'学习率','accuracy':'训练准确率','accuracy_neighbor':'邻近准确率','time/step':'每步耗时（秒）'}.get(short)
@@ -354,7 +400,23 @@ def detail(job,focus=None):
     swan_id,swan,swan_path=swan_run(offsets)
     if swan_id:
         attempt.update(run=swan_id,tracker='SwanLab')
-    result=read_run_metrics(offsets,focus,history,swan)
+    export,export_dir=openpi_export(matches,job)
+    openpi={}
+    if export:
+        try:openpi=openpi_history(export)
+        except OSError:pass
+    result=read_run_metrics(offsets,focus,history,swan,openpi)
+    if openpi and not result['progress']:
+        config=read_state(export_dir/'training-config.json',safe)
+        status=read_state(export_dir/'status/rank0-status.json',safe)
+        total=config.get('num_train_steps')
+        step=max(max(values) for values in openpi.values())
+        updates=status.get('completed_updates')
+        if type(updates)==int and type(total)==int and updates<=total:step=max(step,updates)
+        if type(total)==int and 0<=step<=total and total>0:
+            result['progress']=dict(step=step,total=total)
+            per_epoch=config.get('steps_per_epoch')
+            if type(per_epoch)==int and per_epoch>0:epoch_scale(result['progress'],per_epoch,{})
     if state=='RUNNING':
         try:
             f=training_eta.job_records(job).get(job)
@@ -368,6 +430,11 @@ def detail(job,focus=None):
     loss=next((m['points'] for m in result['metrics'] if m['key']=='loss' and m['axis']=='epoch'),[])
     source=[str(p) for p in offsets]+([history_path] if history_path and history else [])
     note='各日志仅取末尾 2 MB。' if result['truncated'] else '读取当前作业的标准输出与错误日志。'
+    if openpi:
+        source.append(str(export))
+        note+=' OpenPI 曲线取自该作业单独导出的 rank 0 原始标量。'
+    if not result['metrics'] and re.search(r'(?:^|[-_])(?:wandb[-_]sync|sync[-_]network[-_]check)$',name,re.I):
+        result['emptyReason']='这是 W&B 同步或连通性检查作业。请在左侧选择启动训练的作业查看曲线。'
     if swan_path:
         source.append(swan_path)
         note+=' SwanLab 指标取自该实验已写入的标量记录。'
