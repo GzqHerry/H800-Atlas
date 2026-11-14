@@ -399,8 +399,12 @@ if __name__=='__main__':
     # Keep the existing owner's tunnel pointing to the same authenticated UI.
     class Unix(socketserver.ThreadingMixIn,socketserver.UnixStreamServer):
         daemon_threads=True
-    OLD_SOCKET.unlink(missing_ok=True)
-    unix=Unix(str(OLD_SOCKET),Handler)
-    threading.Thread(target=unix.serve_forever,daemon=True).start()
+    try:
+        OLD_SOCKET.unlink(missing_ok=True)
+        unix=Unix(str(OLD_SOCKET),Handler)
+    except OSError as exc:
+        print(f'Legacy socket unavailable: {exc}',flush=True)
+    else:
+        threading.Thread(target=unix.serve_forever,daemon=True).start()
     threading.Thread(target=cleanup,daemon=True).start()
     listener.serve_forever()
