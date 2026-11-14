@@ -91,7 +91,12 @@ html[data-theme=dark]{color-scheme:dark;--paper:#17181c;--ink:#ecedf2;--soft:#b1
 <div id="avatarPresets" role="group" aria-label="太空探索头像"></div>
 <div class="crew-actions"><label class="outline crew-upload">上传照片<input id="avatarUpload" type="file" accept="image/jpeg,image/png,image/webp"></label>
 <button id="avatarClose" class="outline" type="button">取消</button><button id="avatarSave" class="primary" type="button">保存头像</button></div>
-<p role="status" id="avatarMessage"></p></fieldset></dialog><dialog id="profileDialog" aria-labelledby="profileName">
+<p role="status" id="avatarMessage"></p></fieldset></dialog><dialog id="ckScanDialog" aria-labelledby="ckScanTitle"><form id="ckScanForm">
+<h2 id="ckScanTitle">按路径检索 Checkpoint</h2><label for="ckScanPath">H800 训练输出目录</label>
+<input id="ckScanPath" required placeholder="/workspace/用户名/训练输出目录" autocomplete="off">
+<small>检索该目录及其子目录，按训练任务加入你的 Checkpoints。</small><p id="ckScanFeedback" role="status"></p>
+<div class="tools"><button type="button" class="outline" id="ckScanClose">关闭</button><button class="outline" id="ckScanSubmit">开始检索</button></div>
+</form></dialog><dialog id="profileDialog" aria-labelledby="profileName">
 <div class="profile-cover"><button id="profileClose" type="button" aria-label="关闭个人名片" autofocus>×</button></div>
 <div class="profile-body"><div id="profilePortrait"></div><h2 id="profileName"></h2>
 <div id="profileBio" aria-live="polite"></div>
@@ -472,7 +477,7 @@ function checkpointLocations(c){
  for(const copy of c.copies){
   html+='<div class="ck-location"><span class="badge '+(copy.verified?'completed':'pending')+'">'+(copy.verified?'已上传 NAS · 已校验':'NAS · 待校验')+'</span>'+copyButton(copy.destination)+'<code class="path">'+esc(copy.destination)+'</code></div>';
  }
- if(c.present&&overview.checkpointUploadEnabled){
+ if(c.present&&overview.checkpointUploadEnabled&&overview.roots.some(root=>c.path.startsWith(root+'/'))){
   html+=button('upload',c.path,'上传到 NAS','outline');
   if(c.copies.some(x=>x.verified))html+=' '+button('removeck',c.path,'删除 H800 本地副本','outline ck-danger');
  }
@@ -507,7 +512,7 @@ async function resourceView(){
  return tabs+datasetGraphics(all)+locations+(nasIssue?'<p class="feedback">'+esc(nasIssue)+'</p>':'')+chooser+form+list+storage}
  if(!ckSources)ckSources=await api('checkpoint-sources');
  try{transferRows=await api('uploads')}catch{}
- tabs+='<div class="tools" aria-label="Checkpoint 来源">'+[['all','全部来源'],['H800','H800'],['NAS','NAS']].map(([id,n])=>button('ckstore',id,n,'chip','aria-pressed="'+(ckStore===id)+'"')).join('')+'</div>'+(ckSources.note?'<p class="feedback">'+esc(ckSources.note)+'</p>':'')+'<div id="transfers">'+transferPanel()+'</div>';
+ tabs+='<div class="tools" aria-label="Checkpoint 来源">'+button('openscan','1','按路径检索','outline')+[['all','全部来源'],['H800','H800'],['NAS','NAS']].map(([id,n])=>button('ckstore',id,n,'chip','aria-pressed="'+(ckStore===id)+'"')).join('')+'</div>'+(ckSources.note?'<p class="feedback">'+esc(ckSources.note)+'</p>':'')+'<div id="transfers">'+transferPanel()+'</div>';
  const items=ckSources.items.filter(c=>ckStore==='all'||(ckStore==='H800'?c.present:c.copies.length));
  const groups=sourceGroups(items);
  if(chosen){
@@ -695,6 +700,7 @@ document.addEventListener('click',async e=>{const b=e.target.closest('button');i
  else if(d.assetnav)setResource(d.assetnav);
  else if(d.robot!==undefined){robotFilter=d.robot;assetPage[0]=0;render()}
  else if(d.nascheckpoints){ckStore='NAS';setResource('ck')}
+ else if(d.openscan){$('ckScanDialog').showModal();$('ckScanPath').focus()}
  else if(d.ckstore){ckStore=d.ckstore;groupIndex=0;render()}
  else if(d.removeck)await removeLocal(b,d.removeck);
  else if(d.group)setResource('ck',d.group);
@@ -726,6 +732,23 @@ document.addEventListener('click',async e=>{const b=e.target.closest('button');i
  else if(d.measure){b.disabled=true;b.textContent='统计中…';try{let v=await api('size',{path:d.measure});let s=v.bytes==null?v.note:fmt(v.bytes);if(v.bytes!=null)sizes.set(d.measure,s);b.textContent=s}catch{b.textContent='统计失败，再试一次'}b.disabled=false}
 });
 document.addEventListener('change',e=>{if(e.target.id==='rankPartition'){rankPartition=e.target.value;render()}if(e.target.id==='ds-store'){storeFilter=e.target.value;robotFilter='';assetPage[0]=0;render()}});document.addEventListener('submit',e=>{e.preventDefault();let q=new FormData(e.target).get('q')||'';if(e.target.id==='finder'){query=q;offset=0}else if(e.target.id==='assetFinder'){assetQuery=q;groupIndex=0;assetPage=[0,0]}render()});
+$('ckScanClose').onclick=()=>$('ckScanDialog').close();
+$('ckScanForm').onsubmit=async e=>{
+ e.preventDefault();e.stopPropagation();
+ const submit=$('ckScanSubmit');if(submit.disabled)return;
+ const path=$('ckScanPath').value.trim();
+ submit.disabled=true;$('ckScanFeedback').textContent='正在检索…';
+ try{
+  const response=await atlasFetch('/api/checkpoint-scan',{method:'POST',headers:{'Content-Type':'application/json','X-Atlas-Action':'checkpoint-scan'},body:JSON.stringify({path})});
+  if(response.status===401){loginPage();return}
+  const data=await response.json();if(!response.ok)throw Error(data.error||'检索失败');
+  ckSources=null;groupDetails.clear();groupList=await api('checkpoint-groups');inventoryFetched=0;
+  ckStore='H800';groupPath='';assetQuery=data.path;groupIndex=0;
+  $('ckScanFeedback').textContent='找到 '+data.count+' 个 checkpoint'+(data.skipped?'，跳过 '+data.skipped+' 个不可读目录':'');
+  if(page===3&&assetTab==='ck'){history.replaceState(null,'','#assets/checkpoints');await render()}
+ }catch(error){$('ckScanFeedback').textContent=error.message}
+ finally{submit.disabled=false}
+};
 async function sync(){
  if(syncing)return;syncing=true;if(!live)beginPageLoad();
  try{const o=await api('overview');overview=o;if(!H){H=o.home;dir=H;roots=o.roots}$('account').textContent=o.user;$('account').dataset.profile=o.user;$('initials').innerHTML=userAvatar(o.user);live=true;syncAvatars();$('mode').textContent='实时 · '+o.host;$('dot').className='dot';$('status').textContent='H800 采样于 '+displayTime(o.stamp);

@@ -115,9 +115,13 @@ def resolve_names(items,root):
             else:item['nameSource']='目录名'
 
 
-def discover(home, personal_roots):
-    root=Path('/data/share/bodypipeline')/('runtime-'+home.name)/'data'
-    robots=sorted(p.name for p in root.iterdir() if p.is_dir()) if root.is_dir() else []
+SHARED_DATA = Path('/data/share/bodypipeline/runtime-gzqherry/data')
+DATASET_ROOTS = [SHARED_DATA, Path('/data/gzqherry/lerobot_v3'),
+                 *[Path('/workspace/gzqherry')/name for name in ('datasets','training_assets','data_episode')]]
+
+def discover():
+    root,*personal_roots=DATASET_ROOTS
+    robots=sorted(p.name for p in root.iterdir() if p.is_dir())
     items={}
     def add(path,robot,kind,meta=None):
         data=read_metadata(meta) if meta else {}
@@ -128,7 +132,7 @@ def discover(home, personal_roots):
     for folder in personal_roots:
         for pattern in ('meta/info.json','*/meta/info.json','*/*/meta/info.json'):
             for meta in folder.glob(pattern):
-                add(meta.parent.parent,'个人目录','LeRobot',meta)
+                add(meta.parent.parent,'共享目录','LeRobot',meta)
     for robot in robots:
         for directory,dirs,files in os.walk(root/robot,followlinks=False):
             path=Path(directory)

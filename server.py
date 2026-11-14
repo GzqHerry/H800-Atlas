@@ -7,8 +7,8 @@ import charts
 import swan_history
 import training_eta
 from datetime import datetime
-from insights import discover
-from monitor import lookup_command, cluster, checkpoint_index, checkpoint_detail, checkpoint_groups, number, read_state
+from insights import DATASET_ROOTS
+from monitor import lookup_command, cluster, checkpoint_index, checkpoint_detail, checkpoint_groups, number, read_state, scan_checkpoints
 H=Path.home(); W=Path('/workspace')/H.name; D=Path('/data')/H.name; S=Path('/scratch')/H.name
 ROOTS=[H,W,D,S,Path('/data/share/bodypipeline/runtime-'+H.name)]; SITE=Path(__file__).parent
 MOUNTS={'home':H,'workspace':W,'data':D,'scratch':S}
@@ -42,9 +42,12 @@ def training_results():
         out=launch.get('output_dir')
         if not job or not isinstance(out,str) or not Path(out).is_absolute():continue
         status=read_state(Path(out)/'allocation_guard/status.json',safe)
-        if str(status.get('job_id'))!=job:continue
-        phase=status.get('phase')
-        if phase in ('holding_after_success','holding_after_failure'):results[job]=phase
+        if str(status.get('job_id'))==job:
+            results[job]=status.get('phase')
+        else:
+            completion=read_state(Path(out)/'completion.json',safe)
+            if str(completion.get('job_id'))==job and type(completion.get('exit_code')) is int:
+                results[job]='holding_after_failure' if completion['exit_code'] else 'holding_after_success'
     return results
 
 def jobs():
@@ -372,13 +375,9 @@ def detail(job,focus=None):
         note+=' 已识别 SwanLab 实验，尚未读到支持的本地记录。'
     return dict(result,summary=summary,attempt=attempt,points=loss,source=source,sampled=int(time.time()),note=note)
 
-def personal_datasets():
-    return discover(H,[D/'lerobot_v3',W/'datasets',W/'training_assets',W/'data_episode'])
-
 def profile_inventory():
-    _, rows=personal_datasets()
     groups=checkpoint_groups(H)
-    return dict(datasets=len(rows),checkpoints=sum(map(len,groups.values())),tasks=len(groups),stamp=int(time.time()))
+    return dict(checkpoints=sum(map(len,groups.values())),tasks=len(groups),stamp=int(time.time()))
 
 def assets():
     inv=H/'nas-archive-20261112/inventory.json'; ck=[]
@@ -387,13 +386,13 @@ def assets():
         for p,v in d.items():
             if re.fullmatch(r'(checkpoint-\d+|global_step_\d+|\d+)',Path(p).name):
                 ck.append(dict(name=Path(p).name,path=p,bytes=v[1],present=Path(p).is_dir()))
-    robots,ds=personal_datasets()
     archive=S/'nas-archive-20261112/events.jsonl'
-    return dict(ck=ck,datasets=ds,robots=robots,stamp=int(inv.stat().st_mtime) if inv.exists() else None,archive=[json.loads(i) for i in tail(archive,50000).splitlines()[-2:] if i.startswith('{')] if archive.exists() else [])
+    return dict(ck=ck,stamp=int(inv.stat().st_mtime) if inv.exists() else None,archive=[json.loads(i) for i in tail(archive,50000).splitlines()[-2:] if i.startswith('{')] if archive.exists() else [])
 size_lock=threading.Lock()
 size_cache={}
 def measure(q):
-    p=safe(q.get('path',''))
+    p=Path(q.get('path','')).resolve(strict=True)
+    if not any(r in p.parents for r in DATASET_ROOTS):p=safe(p)
     if p in ROOTS or not p.is_dir(): raise ValueError('Choose an asset directory')
     now=time.time()
     if p in size_cache and now-size_cache[p]['stamp']<3600:return size_cache[p]
@@ -456,6 +455,12 @@ def checkpoint_sources():
 def route(method, target, body):
     u=urlsplit(target)
     q={k:v[-1] for k,v in parse_qs(u.query).items()}
+    if method=='POST' and u.path=='/api/checkpoint-scan':
+        try:result=scan_checkpoints(H,body.get('path'))
+        except FileNotFoundError:return 404,dict(error='目录不存在，请检查 H800 路径')
+        except PermissionError:return 403,dict(error='当前 H800 账号无权读取该目录')
+        except ValueError as exc:return 400,dict(error=str(exc))
+        return 200,dict(result,inventory=profile_inventory())
     if method=='POST' and u.path in ('/api/upload','/api/remove-local'):
         if not nas.enabled(): raise PermissionError('此账号尚未配置 NAS')
         path=Path(body.get('path',''))
@@ -472,7 +477,12 @@ def route(method, target, body):
     routes['/api/checkpoint-sources']=checkpoint_sources
     routes['/api/training-summary']=lambda:charts.training_summary(H,safe)
     routes['/api/profile-inventory']=profile_inventory
-    routes['/api/training-usage']=lambda:charts.training_usage(int(q.get('days', '7')), int(time.monotonic()//300))
+    if method=='GET' and u.path=='/api/training-usage':
+        days=int(q.get('days','7'))
+        outcomes=body.get('outcomes',{})
+        outcomes.setdefault(H.name,{}).update(training_results())
+        rows=charts.training_usage_rows(charts.usage_lines(days,int(time.monotonic()//300)),outcomes)
+        return 200,dict(users=rows,stamp=int(time.time()),days=days)
     routes['/api/training-charts']=lambda:charts.training_charts(H,safe)
     routes['/api/node-history']=charts.read_history
     routes['/api/assets']=assets

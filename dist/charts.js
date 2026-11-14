@@ -156,11 +156,11 @@ function usageRanking(data){
  const success=total.ended?100*total.ok/total.ended:null;
  const tabs=Object.entries(usageMetrics).map(([key,label])=>control('usagemetric',key,label,metric===key)).join('');
  return '<div class="usage-layout"><div class="usage-summary"><small>累计 GPU 卡时</small><strong>'+usageNumber.format(total.gpu)+'</strong>'+
-  '<span>'+sorted.length+' 位用户 · '+usageNumber.format(total.jobs)+' 次训练</span><div class="usage-finish"><i aria-hidden="true" style="--share:'+(success||0)+'%"></i><div>作业成功率 <b>'+usageFormat(success,'success')+'</b><small>'+total.ok+' 成功 / '+total.ended+' 已结束</small></div></div></div>'+
+  '<span>'+sorted.length+' 位用户 · '+usageNumber.format(total.jobs)+' 次训练</span><div class="usage-finish"><i aria-hidden="true" style="--share:'+(success||0)+'%"></i><div>训练成功率 <b>'+usageFormat(success,'success')+'</b><small>'+total.ok+' 成功 / '+total.ended+' 已结束</small></div></div></div>'+
   '<div class="usage-plot"><div class="studio-switch" role="group" aria-label="排行指标">'+tabs+'</div>'+
   (rows?'<ol class="usage-list" aria-label="'+usageMetrics[metric]+'排行">'+rows+'</ol>':chartEmpty('此时段没有可识别的训练作业'))+
   (sorted.length>5?button('usageall','1',all?'收起排行':'查看全部 '+sorted.length+' 位用户','link','aria-expanded="'+all+'"'):'')+'</div></div>'+
-  '<p class="usage-note">按作业名或提交脚本识别训练。时长只计所选时段内的运行时间，卡时按分配卡数累计。成功率按已结束作业计算，取消和超时计入分母。</p>';
+  '<p class="usage-note">按作业名或提交脚本识别训练。时长只计所选时段内的运行时间，卡时按分配卡数累计。每个作业按最后一次训练结果计一次；缺少训练结果时按 Slurm 终态统计。</p>';
 }
 function usageCard(){
  const {days,cache,errors}=usageView, data=cache.get(days), failed=errors.has(days);

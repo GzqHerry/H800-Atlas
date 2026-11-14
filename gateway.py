@@ -33,6 +33,23 @@ guard = threading.Lock()
 auth_slots = threading.BoundedSemaphore(6)
 AVATARS = Path.home()/'.local/share/h800-atlas/avatars'
 PROFILES = AVATARS.parent/'profiles'
+outcome_lock=threading.Lock()
+
+def shared_catalog():
+    return json.loads((ROOT/'samples/datasets.json').read_bytes())
+
+def member_inventory(user, counts=None):
+    counts=dict(counts if counts is not None else (profile_value(user,'inventory',{}) or {}))
+    catalog=shared_catalog()
+    counts.update(datasets=len(catalog['datasets']),datasetStamp=catalog['stamp'])
+    return counts
+
+def remember_outcomes(user, phases):
+    if not phases:return
+    with outcome_lock:
+        saved=profile_value(user,'outcomes',{})
+        combined={**saved,**phases}
+        if combined!=saved:save_json(PROFILES/'outcomes'/(user+'.json'),combined)
 
 
 def avatar_catalog():
@@ -239,7 +256,7 @@ class Handler(BaseHTTPRequestHandler):
             if worker and path!='/api/version':worker.seen=now
         body={}
         if self.command=='POST':
-            action={'/auth/login':'login','/auth/logout':'logout','/api/upload':'upload','/api/remove-local':'remove-local','/api/avatar':'avatar','/api/profile':'bio'}.get(path)
+            action={'/auth/login':'login','/auth/logout':'logout','/api/upload':'upload','/api/remove-local':'remove-local','/api/avatar':'avatar','/api/profile':'bio','/api/checkpoint-scan':'checkpoint-scan'}.get(path)
             origin=('https://' if self.secure else 'http://')+host
             if not action or self.headers.get('Origin')!=origin or self.headers.get('X-Atlas-Action')!=action:
                 return self.reply(403,{'error':'请求来源无效'})
@@ -272,10 +289,10 @@ class Handler(BaseHTTPRequestHandler):
             user=parse_qs(urlsplit(self.path).query).get('user',[''])[0]
             if not re.fullmatch(r'[a-zA-Z0-9_][a-zA-Z0-9_.-]{0,63}',user):
                 return self.reply(400,{'error':'账号无效'})
-            return self.reply(200,dict(bio=profile_value(user,'bios',''),inventory=profile_value(user,'inventory',None)))
+            return self.reply(200,dict(bio=profile_value(user,'bios',''),inventory=member_inventory(user)))
         if self.command=='GET' and path=='/api/profile-inventory':
             last=profile_value(worker.user,'inventory',None)
-            if last and time.time()-last['stamp']<1800:return self.reply(200,last)
+            if last and time.time()-last['stamp']<1800:return self.reply(200,member_inventory(worker.user,last))
         if self.command=='GET' and path=='/api/avatars':return self.reply(200,avatar_catalog())
         if self.command=='POST' and path=='/api/avatar':
             try:avatar=save_avatar(worker.user,body)
@@ -283,6 +300,8 @@ class Handler(BaseHTTPRequestHandler):
             return self.reply(200,{'avatar':avatar})
         if self.command=='GET' and path=='/api/version':return self.reply(200,{'release':published.version})
         if not path.startswith('/api/'):return self.reply(404,{'error':'页面不存在'})
+        if self.command=='GET' and path=='/api/training-usage':
+            body={'outcomes':{p.stem:json.loads(p.read_bytes()) for p in (PROFILES/'outcomes').glob('*.json')}}
         try:
             code,data=worker.call(self.command,self.path,body)
         except (OSError,subprocess.SubprocessError):
@@ -290,12 +309,21 @@ class Handler(BaseHTTPRequestHandler):
             if removed:removed.close()
             return self.reply(401,{'error':'SSH 会话已断开，请重新登录'},cookie='')
         if type(code) is not int or not 200<=code<=599:raise ValueError()
+        if code==200 and path=='/api/assets':data.update(shared_catalog())
+        if code==200 and path=='/api/jobs':
+            remember_outcomes(worker.user,{j['id']:j.get('trainingPhase') for j in data if 'trainingPhase' in j})
+        if code==200 and path=='/api/detail' and data.get('attempt',{}).get('number'):
+            job=parse_qs(urlsplit(self.path).query)['id'][0]
+            remember_outcomes(worker.user,{job:data['attempt']['phase']})
+        if code==200 and path=='/api/checkpoint-scan':
+            save_json(PROFILES/'inventory'/(worker.user+'.json'),data['inventory'])
         if path=='/api/profile-inventory' and code==200:
-            fields=('datasets','checkpoints','tasks','stamp')
+            fields=('checkpoints','tasks','stamp')
             if not isinstance(data,dict) or not all(type(data.get(k)) is int and data[k]>=0 for k in fields):
                 return self.reply(502,{'error':'资源统计不可用'})
             data={k:data[k] for k in fields}
             save_json(PROFILES/'inventory'/(worker.user+'.json'),data)
+            data=member_inventory(worker.user,data)
         self.reply(code,data)
 
     def login(self, body, token):

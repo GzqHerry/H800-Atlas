@@ -127,9 +127,9 @@ function refreshMyInventory(){
  return inventoryRequest;
 }
 function showInventory(data){
- $('profileStamp').textContent=data?chartTime(data.stamp)+' 更新':'';
+ $('profileStamp').textContent=data?.datasetStamp?'共享目录 '+chartTime(data.datasetStamp)+' 更新':'';
  $('profileInventory').innerHTML=data?
-  [['数据集',data.datasets],['训练任务目录',data.tasks],['Checkpoints',data.checkpoints]].map(([label,n])=>'<div><strong>'+usageNumber.format(n)+'</strong><small>'+label+'</small></div>').join(''):
+  [['共享数据集',data.datasets],['个人训练任务目录',data.tasks],['个人 Checkpoints',data.checkpoints]].map(([label,n])=>'<div><strong>'+(n==null?'待同步':usageNumber.format(n))+'</strong><small>'+label+'</small></div>').join(''):
   '<small>暂无资源统计，首次同步该账号的工作台后显示。</small>';
 }
 function showBio(view){
@@ -145,6 +145,7 @@ async function loadMember(view){
  }catch{if(member===view){$('profileBio').innerHTML=button('retryprofile',1,'简介读取失败 · 重试','link');if(!view.inventory)$('profileInventory').textContent='暂时无法读取资源统计'}}
 }
 async function showProfileStats(view,days){
+ view.days=days;
  const request=++view.request;
  $('profilePeriods').innerHTML=[7,30].map(n=>control('profiledays',n,'近 '+n+' 天',n===days)).join('');
  $('profileStats').textContent='正在读取 Slurm 记账…';
@@ -212,3 +213,8 @@ profileDialog.addEventListener('close',()=>{
  profileDialog.getAnimations().forEach(a=>a.cancel());
  if(link?.isConnected)link.focus({preventScroll:true});
 });
+setInterval(()=>{
+ if(!member||document.hidden)return;
+ const sample=usageView.cache.get(member.days);
+ if(!sample||Date.now()/1000-sample.stamp>=300)showProfileStats(member,member.days);
+},60000);

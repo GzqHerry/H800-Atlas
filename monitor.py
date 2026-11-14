@@ -1,5 +1,8 @@
 """Slurm accounting and saved training metadata for the H800 workbench."""
 import json
+import hashlib
+import os
+import tempfile
 import training_eta
 from scheduler import scheduling, command_details
 from cpu_usage import add_cpu_usage
@@ -94,7 +97,52 @@ def checkpoint_groups(home):
                     names.setdefault(child.name,None)
         except OSError:
             pass
+    for catalog in (home/'.local/share/h800-atlas/checkpoint-scans').glob('*.json'):
+        for folder in json.loads(catalog.read_text()):
+            path=Path(folder)
+            if CK_NAME.fullmatch(path.name) and path.is_dir():
+                groups[path.parent].setdefault(path.name,None)
     return groups
+
+def scan_checkpoints(home, value):
+    if not isinstance(value,str) or not value.strip():raise ValueError('请输入 H800 目录的绝对路径')
+    root=Path(value.strip()).expanduser()
+    if not root.is_absolute():raise ValueError('请输入绝对路径或以 ~/ 开头的路径')
+    root=root.resolve(strict=True)
+    if not root.is_dir():raise ValueError('请选择目录')
+    if root==Path('/') or root.parts[1] in ('proc','sys','dev','run'):
+        raise ValueError('请选择训练任务或输出目录')
+    found=[]
+    if CK_NAME.fullmatch(root.name):
+        next(root.iterdir(),None)
+        found.append(str(root))
+    else:
+        started=time.monotonic()
+        skipped=0
+        def inaccessible(error):
+            nonlocal skipped
+            if Path(error.filename)==root:raise error
+            skipped+=1
+        for i,(directory,dirs,_) in enumerate(os.walk(root,onerror=inaccessible)):
+            if i>=30000 or time.monotonic()-started>20:
+                raise ValueError('目录较大，请输入更具体的训练输出目录')
+            descend=[]
+            for name in dirs:
+                p=Path(directory)/name
+                if name.startswith('.') or p.is_symlink():continue
+                if CK_NAME.fullmatch(name):
+                    if os.access(p,os.R_OK|os.X_OK):found.append(str(p))
+                else:descend.append(name)
+            dirs[:]=descend
+    index=home/'.local/share/h800-atlas/checkpoint-scans'
+    index.mkdir(parents=True,exist_ok=True)
+    with tempfile.NamedTemporaryFile(dir=index,mode='w',delete=False) as tmp:
+        try:
+            json.dump(found,tmp)
+            tmp.flush()
+            os.replace(tmp.name,index/(hashlib.sha256(os.fsencode(root)).hexdigest()+'.json'))
+        finally:Path(tmp.name).unlink(missing_ok=True)
+    return dict(path=str(root),count=len(found),skipped=0 if CK_NAME.fullmatch(root.name) else skipped)
 
 
 def checkpoint_index(home):
@@ -135,11 +183,16 @@ def checkpoint_detail(home, group, safe):
         path=parent/name
         step=int(CK_NAME.fullmatch(name)[1])
         source=path/'trainer_state.json'
-        state=read_state(source,safe)
+        # Only the two fixed trainer-state locations of a registered group are read here.
+        def metadata_path(p):
+            resolved=p.resolve(strict=True)
+            if resolved==p and p.name=='trainer_state.json' and (p.parent==parent or p.parent==path):return resolved
+            return safe(p)
+        state=read_state(source,metadata_path)
         if not state:
             source=parent/'trainer_state.json'
             if parent_state is None:
-                parent_state=read_state(source,safe)
+                parent_state=read_state(source,metadata_path)
             state=parent_state
         own_state=source.parent==path
         if own_state and number(state.get('global_step')) is not None:

@@ -7,7 +7,7 @@ from bisect import bisect_right
 from functools import lru_cache
 from pathlib import Path
 from monitor import CK_NAME, checkpoint_groups, expand_nodes, number, read_state, slurm
-from insights import gpu_counts
+from insights import gpu_counts, discover
 
 HISTORY = Path(__file__).resolve().parents[2] / 'samples' / 'nodes.json'
 
@@ -18,7 +18,8 @@ FINISHED = {'COMPLETED', 'FAILED', 'CANCELLED', 'TIMEOUT', 'OUT_OF_MEMORY', 'NOD
             'BOOT_FAIL', 'DEADLINE', 'PREEMPTED', 'REVOKED', 'SPECIAL_EXIT'}
 
 
-def training_usage_rows(lines):
+def training_usage_rows(lines, outcomes=None):
+    outcomes=outcomes or {}
     users = {}
     seen = set()
     for line in lines:
@@ -29,7 +30,8 @@ def training_usage_rows(lines):
         if not user or job in seen or not elapsed.isdigit() or int(elapsed) == 0:
             continue
         labels = ' '.join([name, *SCRIPT_NAME.findall(submit)])
-        if OTHER_WORK.search(labels) or not TRAINING_NAME.search(labels):
+        phase=outcomes.get(user,{}).get(job)
+        if phase is None and (OTHER_WORK.search(labels) or not TRAINING_NAME.search(labels)):
             continue
         seen.add(job)
         row = users.setdefault(user, dict(user=user, jobs=0, seconds=0, gpuSeconds=0, completed=0, ended=0))
@@ -42,18 +44,19 @@ def training_usage_rows(lines):
         row['gpuSeconds'] += seconds * int(cards)
         row['seconds'] += seconds
         row['jobs'] += 1
-        row['completed'] += state == 'COMPLETED'
-        row['ended'] += state in FINISHED
+        success=phase=='holding_after_success'
+        terminal=phase in ('holding_after_success','holding_after_failure')
+        row['completed'] += success if terminal else state=='COMPLETED'
+        row['ended'] += terminal or state in FINISHED
     return list(users.values())
 
 
 @lru_cache(maxsize=4)
-def training_usage(days, bucket):
+def usage_lines(days, bucket):
     if days not in (7, 30):
         raise ValueError('unsupported period')
-    lines = slurm('sacct', '-a', '-X', '-T', '-nP', '-S', f'now-{days}days', '-E', 'now',
+    return slurm('sacct', '-a', '-X', '-T', '-nP', '-S', f'now-{days}days', '-E', 'now',
                   '-o', 'JobIDRaw,User,JobName,State,ElapsedRaw,AllocTRES,SubmitLine')
-    return dict(users=training_usage_rows(lines), stamp=int(time.time()), days=days)
 
 
 def read_history():
@@ -168,3 +171,9 @@ def training_charts(home,safe):
 
 if __name__=='__main__':
     sample_nodes()
+    robots, datasets=discover()
+    target=HISTORY.with_name('datasets.json')
+    tmp=target.with_suffix('.tmp')
+    tmp.write_text(json.dumps(dict(robots=robots,datasets=datasets,stamp=int(time.time())),ensure_ascii=False))
+    os.chmod(tmp,0o640)
+    tmp.replace(target)
