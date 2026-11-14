@@ -8,7 +8,7 @@ import swan_history
 import training_eta
 from datetime import datetime
 from insights import discover
-from monitor import lookup_command, cluster, checkpoint_index, checkpoint_detail, checkpoint_groups, number
+from monitor import lookup_command, cluster, checkpoint_index, checkpoint_detail, checkpoint_groups, number, read_state
 H=Path.home(); W=Path('/workspace')/H.name; D=Path('/data')/H.name; S=Path('/scratch')/H.name
 ROOTS=[H,W,D,S,Path('/data/share/bodypipeline/runtime-'+H.name)]; SITE=Path(__file__).parent
 MOUNTS={'home':H,'workspace':W,'data':D,'scratch':S}
@@ -33,6 +33,20 @@ def files(q):
     return dict(path=str(path),items=items[start:start+120],total=len(items),roots=[str(p) for p in ROOTS if p.is_dir()])
 def command(args):
     return subprocess.run(args,capture_output=True,text=True,timeout=10,check=True).stdout
+
+def training_results():
+    results={}
+    for submission in (H/'training_launches').glob('*/submission.json'):
+        launch=read_state(submission,safe)
+        job=str(launch.get('job_id',''))
+        out=launch.get('output_dir')
+        if not job or not isinstance(out,str) or not Path(out).is_absolute():continue
+        status=read_state(Path(out)/'allocation_guard/status.json',safe)
+        if str(status.get('job_id'))!=job:continue
+        phase=status.get('phase')
+        if phase in ('holding_after_success','holding_after_failure'):results[job]=phase
+    return results
+
 def jobs():
     cols='JobID,JobName%200,State,ExitCode,Elapsed,NodeList,Start,End,Submit,AllocTRES,TimelimitRaw'
     args=['sacct','-u',H.name,'-S','2000-01-01','-X','-n','-P','-o',cols]
@@ -49,7 +63,9 @@ def jobs():
             row.update(active.get(row['id'],{}))
         rows.extend(v for k,v in active.items() if k not in accounted)
     except (OSError,subprocess.SubprocessError,ValueError):pass
+    outcomes=training_results()
     for row in rows:
+        if row['id'] in outcomes:row['trainingPhase']=outcomes[row['id']]
         for key in ('submit','start','end','estimate'):
             try:row[key+'Ts']=int(datetime.fromisoformat(row[key]).timestamp())
             except (KeyError,ValueError,OverflowError):row[key+'Ts']=None
@@ -141,7 +157,7 @@ def attempt_logs(paths,job):
     if run and (len(runs)>1 or current>1) and not any(p.suffix=='.out' for p in offsets):
         try:offsets[safe(run/'files/output.log')]=0
         except OSError:pass
-    attempt=dict(number=current,phase=phase,run=run.name.rsplit('-',1)[-1] if run else None,
+    attempt=dict(number=current,phase=phase,exitCode=exits.get(current),run=run.name.rsplit('-',1)[-1] if run else None,
                  previous=[dict(number=n,code=c) for n,c in sorted(exits.items()) if n<current])
     return offsets,run,attempt
 

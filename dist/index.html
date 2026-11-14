@@ -309,14 +309,23 @@ function runProgress(progress, loggedEpoch){
  }
  return '<div class="run-progress"><strong>Step '+step.toLocaleString()+' / '+total.toLocaleString()+'</strong><span>'+Number((100*step/total).toFixed(2))+'%</span><div class="epoch-track">'+track+ruler+'</div>'+caption+'</div>';
 }
+function slurmState(j){return j.state.split(' ')[0]}
+function trainingOutcome(phase){
+ return phase==='holding_after_success'?'训练成功':phase==='holding_after_failure'?'训练失败':'';
+}
+function outcomeBadge(result){return '<span class="badge '+(result==='训练成功'?'completed':'failed')+'">'+result+'</span>'}
+function runListBadge(j){
+ const result=trainingOutcome(runCache.get(j.id)?.attempt?.phase??j.trainingPhase);
+ return result?outcomeBadge(result):badge(j.state);
+}
 function sourceDetail(j){
  const v=runCache.get(j.id),active=['RUNNING','COMPLETING','CONFIGURING','PENDING'].includes(j.state);
  const queue=j.state==='PENDING'?'<p class="section">'+esc(queueLine(j))+'</p>':'';
  const attempt=v?.attempt;
  const guarded=attempt?.number>0;
- const phaseLabels={training:'训练中',holding_after_failure:'训练失败 · 保留资源',holding_after_success:'训练完成 · 保留资源',starting:'准备启动'};
- const phaseClass={training:'running',holding_after_failure:'failed',holding_after_success:'completed',starting:'pending'};
- const phase=guarded&&active?'<span class="badge '+(phaseClass[attempt.phase]||'')+'">'+esc(phaseLabels[attempt.phase]||attempt.phase)+'</span>':'';
+ const result=trainingOutcome(attempt?.phase);
+ const phase=result?outcomeBadge(result)+(active?' <small>保留资源</small>':'')+(attempt.exitCode!=null?' <small>退出码 '+esc(attempt.exitCode)+'</small>':''):
+  guarded&&active?'<span class="badge running">'+(attempt.phase==='starting'?'准备启动':'训练中')+'</span>':'';
  const attempts=guarded?'<section class="attempt-info"><strong>第 '+attempt.number+' 次训练</strong> '+phase+
    (attempt.run?' <small>'+esc(attempt.tracker||'W&B')+' <code>'+esc(attempt.run)+'</code></small>':'')+
    (attempt.previous.length?'<div>'+attempt.previous.map(v=>'第 '+v.number+' 次'+(v.code?'失败':'完成')+'（退出码 '+v.code+'）').join(' · ')+'</div>':'')+'</section>':'';
@@ -339,7 +348,9 @@ async function loadDetail(j,g,refresh=false){
   const v=await request;
   if(page!==2||g!==generation||selectedJob!==j.id)return;
   if(view)updateExpanded(view,v);
-  runCache.set(j.id,v);chartPoints.clear();$('runDetail').innerHTML=sourceDetail(j);draw();
+  runCache.set(j.id,v);
+  const row=document.querySelector('.job.chosen .badge');if(row)row.outerHTML=runListBadge(j);
+  chartPoints.clear();$('runDetail').innerHTML=sourceDetail(j);draw();
  }catch(e){
   if(page===2&&g===generation&&$('runDetail')){
    $('runDetail').querySelector('.feedback')?.remove();
@@ -358,9 +369,9 @@ async function pollRuns(){
   const j=next.find(j=>j.id===selectedJob),old=previous.find(row=>row.id===selectedJob);
   const active=state=>['RUNNING','COMPLETING','CONFIGURING','PENDING'].includes(state);
   const filtersChanged=next.some(row=>!previous.some(p=>p.state===row.state));
-  const newList=next.filter(row=>!selectedState||row.state===selectedState);
-  const oldList=previous.filter(row=>!selectedState||row.state===selectedState);
-  if(filtersChanged||oldList.length!==newList.length||newList.some((row,i)=>row.id!==oldList[i].id||row.state!==oldList[i].state)){
+  const newList=next.filter(row=>!selectedState||slurmState(row)===selectedState);
+  const oldList=previous.filter(row=>!selectedState||slurmState(row)===selectedState);
+  if(filtersChanged||oldList.length!==newList.length||newList.some((row,i)=>row.id!==oldList[i].id||row.state!==oldList[i].state||row.trainingPhase!==oldList[i].trainingPhase)){
    if(j&&old&&old.state!==j.state)runCache.delete(j.id);
    await render();
   }else{
@@ -374,9 +385,9 @@ async function pollRuns(){
   if(page===2&&g===generation&&$('runDetail')&&!$('runPollStatus'))$('runDetail').insertAdjacentHTML('beforeend','<p class="feedback" id="runPollStatus">作业同步中断，将在下一次轮询重试。</p>');
  }finally{runPolling=false}
 }
-function runs(){const list=jobList.filter(j=>!selectedState||j.state===selectedState),j=list.find(j=>j.id===selectedJob)||list.find(j=>j.state==='RUNNING')||list[0];selectedJob=j?.id||'';
- const filters=[...new Set(['',...jobList.map(j=>j.state),selectedState])].map(s=>button('state',s,esc(states[s]||s||'全部'),'chip','aria-pressed="'+(s===selectedState)+'"')).join('');
- return '<div class="split"><section class="surface"><h2>作业列表</h2><div class="tools">'+filters+'</div><div class="scrolllist">'+list.map(x=>button('job',x.id,'<span><b>'+esc(x.name)+'</b><small>#'+esc(x.id)+' · '+esc(x.elapsed)+'</small></span>'+badge(x.state),'job '+(x.id===selectedJob?'chosen':''))).join('')+'</div></section><article id="runDetail" class="surface sticky">'+(j?sourceDetail(j):'<p class="empty">没有符合条件的作业。</p>')+'</article></div>'}
+function runs(){const list=jobList.filter(j=>!selectedState||slurmState(j)===selectedState),j=list.find(j=>j.id===selectedJob)||list.find(j=>j.state==='RUNNING')||list[0];selectedJob=j?.id||'';
+ const filters=[...new Set(['',...jobList.map(slurmState),selectedState])].map(s=>button('state',s,esc(states[s]||s||'全部'),'chip','aria-pressed="'+(s===selectedState)+'"')).join('');
+ return '<div class="split"><section class="surface"><h2>作业列表</h2><div class="tools"><small>Slurm 状态</small>'+filters+'</div><div class="scrolllist">'+list.map(x=>button('job',x.id,'<span><b>'+esc(x.name)+'</b><small>#'+esc(x.id)+' · '+esc(x.elapsed)+'</small></span>'+runListBadge(x),'job '+(x.id===selectedJob?'chosen':''))).join('')+'</div></section><article id="runDetail" class="surface sticky">'+(j?sourceDetail(j):'<p class="empty">没有符合条件的作业。</p>')+'</article></div>'}
 function fileInfo(f){return '<span aria-hidden="true" class="file-emblem '+(f.directory?'':'doc')+'"></span><small>文件属性</small><h2 class="inspect-title">'+esc(f.name)+'</h2><dl class="facts"><dt>类型</dt><dd>'+esc(f.kind)+'</dd><dt>大小</dt><dd>'+fmt(f.bytes)+'</dd><dt>修改时间</dt><dd>'+esc(f.mtime?displayTime(f.mtime):'—')+'</dd><dt>绝对路径</dt><dd><code>'+esc(f.path)+'</code></dd>'+(f.target?'<dt>链接目标</dt><dd><code>'+esc(f.target)+'</code></dd>':'')+'</dl>'+(f.directory&&f.path!==dir?button('root',f.path,'打开目录','outline'):'')}
 async function filesView(g){let base=dir,names=(cached[base]||[]).filter(s=>s.toLowerCase().includes(query.toLowerCase()));let v=live?await api('files',{path:base,offset,q:query}):{path:base,roots,total:names.length,items:names.map(n=>({name:n,path:base+'/'+n,directory:!n.includes('.'),kind:base===H&&snapLinks[n]?'链接':n.includes('.')?'文件':'目录',target:base===H?snapLinks[n]:'',bytes:null}))};
  if(g!==generation)return '';fileData=v;fileRows=v.items;const f=fileRows.find(x=>x.path===selectedFile)||{name:base.split('/').pop(),path:base,kind:'当前目录',directory:true};
