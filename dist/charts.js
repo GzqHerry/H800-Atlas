@@ -22,9 +22,15 @@ function taskType(j){
  if(/train|finetune|sft|(?:^|[-_])rlt|训练/.test(n)||studio.trainingJobs.has(j.id))return 0;
  return 3;
 }
+let timelinePage=0;
 function gantt(){
- const active=j=>['RUNNING','PENDING','CONFIGURING','COMPLETING'].includes(j.state);
- const ordered=jobList.filter(j=>j.submitTs).sort((a,b)=>Number(active(b))-Number(active(a))||b.submitTs-a.submitTs).slice(0,6);
+ const active=j=>['RUNNING','PENDING','CONFIGURING','COMPLETING','SUSPENDED'].includes(j.state);
+ const recent=j=>j.endTs||j.startTs||j.submitTs;
+ const jobs=jobList.filter(j=>j.submitTs).sort((a,b)=>Number(active(b))-Number(active(a))||
+  (active(a)?b.submitTs-a.submitTs:recent(b)-recent(a))||b.submitTs-a.submitTs);
+ const pageSize=6;
+ timelinePage=Math.max(0,Math.min(timelinePage,Math.ceil(jobs.length/pageSize)-1));
+ const ordered=jobs.slice(timelinePage*pageSize,(timelinePage+1)*pageSize);
  if(!ordered.length)return chartEmpty('暂无带提交时间的作业记录');
  const now=overview.stamp;
  const end=j=>active(j)?now:(j.endTs||j.startTs||j.submitTs);
@@ -33,10 +39,11 @@ function gantt(){
  function mark(a,b,cls){if(a==null||b==null||b<a)return '';return '<i class="gantt-mark '+cls+'" style="left:'+100*(a-lo)/(hi-lo)+'%;width:'+100*(b-a)/(hi-lo)+'%"></i>'}
  const rows=ordered.map(j=>{
   const future=predicted(j),started=j.state!=='PENDING'&&j.startTs&&j.startTs<=now?j.startTs:null;
-  const title=j.name+' · '+(states[j.state]||j.state)+' · 提交 '+chartTime(j.submitTs)+(future?' · 预计开始 '+chartTime(future):'');
-  return '<button class="gantt-row" data-job="'+attr(j.id)+'" title="'+attr(title)+'"><span class="gantt-label"><b>'+esc(j.name)+'</b><small>#'+esc(j.id)+'</small></span><span class="gantt-lane">'+mark(j.submitTs,started||end(j),'wait')+(started?mark(started,end(j),j.state==='FAILED'?'fail':'run'):'')+(future?mark(now,future,'estimate'):'')+'</span></button>';
+  const state=states[slurmState(j)]||j.state;
+  const title=j.name+' · Slurm '+state+' · 提交 '+chartTime(j.submitTs)+(started?' · 开始 '+chartTime(started):'')+(!active(j)&&j.endTs?' · 结束 '+chartTime(j.endTs):'')+(future?' · 预计开始 '+chartTime(future):'');
+  return '<button class="gantt-row" data-job="'+attr(j.id)+'" title="'+attr(title)+'"><span class="gantt-label"><b>'+esc(j.name)+'</b><span class="gantt-meta"><small>#'+esc(j.id)+'</small>'+runListBadge(j)+'</span></span><span class="gantt-lane">'+mark(j.submitTs,started||end(j),'wait')+(started?mark(started,end(j),j.state==='FAILED'?'fail':'run'):'')+(future?mark(now,future,'estimate'):'')+'</span></button>';
  }).join('');
- return rows+'<div class="gantt-scale"><span>'+chartTime(lo)+'</span><span class="gantt-mid">'+chartTime((lo+hi)/2)+'</span><span>'+chartTime(hi)+'</span></div><div class="studio-legend">'+chipLegend('var(--amber)','已等待')+chipLegend(colors[0],'已运行')+chipLegend('var(--fail)','失败作业运行段')+'<span>┄ 至预计启动</span></div>';
+ return rows+'<div class="gantt-scale"><span>'+chartTime(lo)+'</span><span class="gantt-mid">'+chartTime((lo+hi)/2)+'</span><span>'+chartTime(hi)+'</span></div><div class="studio-legend">'+chipLegend('var(--amber)','已等待')+chipLegend(colors[0],'已运行')+chipLegend('var(--fail)','失败作业运行段')+'<span>┄ 至预计启动</span></div>'+pageControls('timelinepage',timelinePage,jobs.length,pageSize);
 }
 function heatmap(){
  const history=studio.history, latest=history.at(-1);if(!latest)return chartEmpty('等待首个 Slurm 节点样本');
@@ -181,7 +188,7 @@ async function loadUsage(){
 function dashboard(){
  loadUsage();
  return dashboardOverview()+(studio.issues.length?'<p class="feedback">'+esc(studio.issues.join(' · '))+'</p>':'')+'<div class="studio-board">'+
- studioPanel('我的作业时间线','最近 6 个作业 · 活跃作业优先',button('page','2','训练记录 →','link'),gantt(),true)+
+ studioPanel('我的作业时间线','活跃作业优先 · 历史作业按结束时间倒序',button('page','2','训练记录 →','link'),gantt(),true)+
  studioPanel('节点空闲窗口','近 12 小时 · 每小时最后一次采样','',heatmap())+
  studioPanel('我的 GPU 时间','近 7 天 · 已分配 GPU 卡时','',gpuHours())+
  studioPanel('权重占用分布','各训练任务的存储占比','<div class="studio-switch">'+['H800','NAS'].map(s=>control('treestore',s,s,studio.store===s)).join('')+'</div>',storageMap())+
@@ -211,6 +218,7 @@ document.addEventListener('click',e=>{
  if(d.metric==='ck'){ckStore='H800';setResource('ck');return}
  else if(d.metric){selectedState=d.metric==='all'?'':d.metric;selectedJob='';navigate(2);return}
  else if(d.heat)studio.sample=d.heat;
+ else if(d.timelinepage!==undefined)timelinePage=Number(d.timelinepage);
  else if(d.gpuh){const [i,k]=d.gpuh.split('|').map(Number);studio.day=weekData()[i].label;studio.category=k}
  else if(d.treestore){studio.store=d.treestore;studio.pickedGroup=''}
  else if(d.tree)studio.pickedGroup=d.tree;

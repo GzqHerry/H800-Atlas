@@ -57,6 +57,8 @@
 .atlas-home .gantt-lane{height:12px;border-radius:4px}
 .atlas-home .gantt-row{border-bottom:1px solid var(--line);padding:7px 0}
 .atlas-home .gantt-row:hover{background:var(--paper)}
+.gantt-meta{display:flex;align-items:center;flex-wrap:wrap;gap:3px 6px;margin-top:3px}
+.gantt-meta .badge{font-size:10px;padding:2px 6px;line-height:1.4}
 [data-theme=dark] .atlas-home{background:#14161b}
 :root{--lunar-cover:url("data:image/webp;base64,__ATLAS_LUNAR_COVER__")}
 @media(max-width:720px){
