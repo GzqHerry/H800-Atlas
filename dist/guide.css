@@ -1,0 +1,30 @@
+.account-area{position:relative}
+#initials[aria-expanded=true]{outline:2px solid var(--orange);outline-offset:3px}
+#accountMenu{position:absolute;right:0;top:calc(100% + 10px);width:182px;padding:6px;border:1px solid var(--line);border-radius:15px;background:var(--white);box-shadow:0 14px 42px #0c172526;z-index:8}
+#accountMenu[hidden]{display:none}
+#accountMenu :is(button,a){display:block;box-sizing:border-box;width:100%;padding:10px 14px;text-align:left;border:0;border-radius:8px;background:transparent;color:var(--ink);font:inherit;font-size:14px;text-decoration:none}
+#accountMenu :is(button,a):is(:hover,:focus-visible){background:var(--paper)}
+#accountMenu #logout{border-top:1px solid var(--line);border-radius:0 0 8px 8px;color:#bc4343;margin-top:4px}
+[data-theme=dark] #accountMenu #logout{color:#ffa9a9}
+.handbook{padding:24px 0 40px}
+.book-cover{min-height:190px;box-sizing:border-box;border-radius:22px;padding:clamp(24px,5vw,62px);background:#070708 var(--lunar-cover) right center / auto 120% no-repeat;color:white;isolation:isolate;position:relative;overflow:hidden;display:flex;flex-direction:column;justify-content:center;gap:10px}
+.book-cover:before{content:"";position:absolute;inset:0;z-index:-1;background:linear-gradient(90deg,#060607 5%,#060607e8 42%,transparent 80%)}
+.book-cover small{color:#c8ccd3;letter-spacing:.08em}.book-cover h1{color:white;font-size:clamp(32px,5vw,56px);letter-spacing:-.05em;margin:0;line-height:1.15}.book-cover p{margin:0;color:#e0e2e6}
+.book-layout{display:grid;grid-template-columns:200px minmax(0,1fr);gap:clamp(26px,5vw,76px);margin:36px auto 0;max-width:1100px;align-items:start}
+.book-toc{position:sticky;top:88px;padding:10px 0}.book-toc strong{display:block;margin:0 13px 12px;font-size:13px;color:var(--soft)}
+.book-toc a{display:block;font-size:14px;text-decoration:none;border-radius:9px;color:var(--soft);padding:9px 13px;margin:3px 0}.book-toc a:hover,.book-toc a[aria-current]{color:var(--ink);background:var(--white)}.book-toc a[aria-current]{box-shadow:inset 3px 0 var(--orange);font-weight:650}
+.book-chapter{scroll-margin-top:100px;margin-bottom:52px;border-bottom:1px solid var(--line);padding-bottom:30px;min-width:0}
+.book-chapter h2{font-size:clamp(25px,3vw,36px);letter-spacing:-.045em;margin:0 0 9px}
+.book-chapter h3{font-size:19px;margin:28px 0 7px;letter-spacing:-.015em}
+.book-chapter p{line-height:1.85;font-size:15px;margin:0;overflow-wrap:anywhere}
+.book-chapter>p{color:var(--soft)}.book-chapter figure{margin:15px 0 24px}
+.book-shot{display:block;padding:clamp(8px,1.8vw,20px);width:100%;border-radius:16px;background:var(--white);border:1px solid var(--line);cursor:zoom-in;overflow:hidden}
+.book-shot img{display:block;width:100%;height:auto;aspect-ratio:var(--shot-ratio);max-height:410px;margin:auto;object-fit:contain}
+#profileAvatarEdit{margin-top:5px;color:var(--orange);padding:4px 0;font-size:13px}
+.atlas-guide main>.head{display:none}
+.book-chapter figcaption{color:var(--soft);font-size:12px;margin:7px 2px}.book-chapter footer{margin-top:19px;display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:8px}.book-chapter footer a{color:var(--orange);text-decoration:none}.book-chapter footer button{color:var(--soft);font-size:13px}
+#guideZoom{box-sizing:border-box;width:fit-content;max-width:96vw;max-height:94dvh;border:1px solid var(--line);border-radius:18px;background:var(--white);color:var(--ink);padding:16px}
+#guideZoom::backdrop{background:#090d15ae;backdrop-filter:blur(9px)}
+#guideZoom .line{gap:20px;margin-bottom:10px}#guideZoom img{display:block;margin:auto;max-width:100%;max-height:78dvh;object-fit:contain}
+@media(max-width:900px){.book-toc{top:125px}.book-layout{grid-template-columns:155px minmax(0,1fr);gap:24px}.book-chapter{scroll-margin-top:135px}}
+@media(max-width:720px){.book-layout{display:block;margin-top:18px}.book-toc{position:static;margin-bottom:24px}.book-toc strong{margin-left:0}.book-toc div{display:flex;flex-wrap:wrap;gap:4px}.book-toc a{background:var(--white);font-size:13px;padding:7px 9px}.book-cover{min-height:165px}.book-cover p{max-width:21ch}.book-chapter{margin-bottom:27px}.book-shot{border-radius:12px}.book-chapter h3{margin-top:22px}}

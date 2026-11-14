@@ -226,7 +226,7 @@ class Handler(BaseHTTPRequestHandler):
         self.send_response(status)
         for k,v in [('Content-Type',mime),('Cache-Control','no-store'),('X-Frame-Options','DENY'),
                     ('X-Content-Type-Options','nosniff'),('Referrer-Policy','no-referrer'),
-                    ('Content-Security-Policy',"default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; connect-src 'self'; img-src 'self' data:; form-action 'self'; frame-ancestors 'none'; base-uri 'none'"),
+                    ('Content-Security-Policy',"default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; connect-src 'self'; img-src 'self' data: blob:; form-action 'self'; frame-ancestors 'none'; base-uri 'none'"),
                     ('Content-Length',str(len(value)))]:self.send_header(k,v)
         if cookie is not None and not self.team_http:
             key=TLS_COOKIE if self.secure else COOKIE
@@ -279,6 +279,10 @@ class Handler(BaseHTTPRequestHandler):
             data=data.replace(b'__ATLAS_TEAM_HTTP__',b'yes' if self.team_http else b'no')
             return self.reply(200,data.replace(b'__ATLAS_RELEASE__',current.version.encode()),'text/html;charset=utf-8')
         if not worker:return self.reply(401,{'error':'请先登录 H800'})
+        if self.command=='GET' and re.fullmatch(r'/api/guide-images/[a-z0-9-]{1,40}\.webp',path):
+            image=published.directory/'dist'/'guide-images'/path.rsplit('/',1)[1]
+            if image.is_file():return self.reply(200,image.read_bytes(),'image/webp')
+            return self.reply(404,{'error':'截图不存在'})
         if path=='/api/profile':
             if self.command=='POST':
                 bio=body.get('bio')

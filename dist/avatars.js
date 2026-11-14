@@ -31,7 +31,7 @@ function personLabel(user,editable=true){
 function paintAvatars(){
  if(!overview.user)return;
  $('initials').innerHTML=userAvatar(overview.user);
- if($('profileDialog').open)$('profilePortrait').innerHTML=userAvatar($('profileName').textContent);
+ if($('profileDialog').open)$('profilePortrait').innerHTML=userAvatar($('profileName').textContent,true);
  document.querySelectorAll('.crew-person').forEach(el=>{
   const name=el.lastElementChild.textContent;
   const host=el.firstElementChild.matches('button')?el.firstElementChild:el;
@@ -136,11 +136,16 @@ function showBio(view){
  const mine=view.user===overview.user;
  $('profileBio').innerHTML='<p>'+esc(view.bio||'尚未填写个人简介')+'</p>'+(mine?button('editbio',1,view.bio?'编辑简介':'添加简介','link'):'');
 }
+function editMemberBio(view){
+  $('profileBio').innerHTML='<textarea id="bioDraft" maxlength="240" rows="3" aria-label="个人简介" placeholder="写下你的研究方向或正在做的事">'+esc(view.bio||'')+'</textarea><div class="profile-edit-tools"><small>团队成员可见 · 最多 240 字</small>'+button('cancelbio',1,'取消','link')+button('savebio',1,'保存','outline')+'</div><small role="status" id="bioError"></small>';
+  $('bioDraft').focus();
+}
 async function loadMember(view){
  try{
   const data=await api('profile',{user:view.user});
   if(member!==view)return;
   view.bio=data.bio;view.inventory=view.inventory||data.inventory;showBio(view);showInventory(view.inventory);
+  if(view.editing){view.editing=false;editMemberBio(view)}
   if(view.user===overview.user&&!view.inventory)refreshMyInventory();
  }catch{if(member===view){$('profileBio').innerHTML=button('retryprofile',1,'简介读取失败 · 重试','link');if(!view.inventory)$('profileInventory').textContent='暂时无法读取资源统计'}}
 }
@@ -161,10 +166,11 @@ async function showProfileStats(view,days){
    '<div class="profile-result"><span>成功率 <b>'+usageFormat(rate,'success')+'</b></span><i aria-hidden="true"><i style="width:'+(rate||0)+'%"></i></i><small>'+r.completed+' 成功 / '+r.ended+' 已结束</small></div>';
  }catch{if(member===view&&view.request===request)$('profileStats').innerHTML=button('profiledays',days,'训练统计读取失败 · 重试','link')}
 }
-function openMember(trigger){
+function openMember(trigger,editing=false){
  const user=trigger.dataset.profile, source=trigger.getBoundingClientRect();
- const view={user,trigger,request:0};member=view;
- $('profileName').textContent=user;$('profilePortrait').innerHTML=userAvatar(user);
+ const view={user,trigger,editing,request:0};member=view;
+ $('profileName').textContent=user;$('profilePortrait').innerHTML=userAvatar(user,true);
+ $('profileAvatarEdit').hidden=!editing;
  $('profileBio').textContent='正在读取简介…';$('profileStamp').textContent='';$('profileInventory').textContent='正在读取资源统计…';
  showProfileStats(view,7);
  profileDialog.showModal();
@@ -194,8 +200,7 @@ profileDialog.addEventListener('click',async e=>{
  else if(d.profiledays)showProfileStats(view,Number(d.profiledays));
  else if(d.retryprofile)loadMember(view);
  else if(d.editbio){
-  $('profileBio').innerHTML='<textarea id="bioDraft" maxlength="240" rows="3" aria-label="个人简介" placeholder="写下你的研究方向或正在做的事">'+esc(view.bio)+'</textarea><div class="profile-edit-tools"><small>团队成员可见 · 最多 240 字</small>'+button('cancelbio',1,'取消','link')+button('savebio',1,'保存','outline')+'</div><small role="status" id="bioError"></small>';
-  $('bioDraft').focus();
+  editMemberBio(view);
  }else if(d.cancelbio)showBio(view);
  else if(d.savebio){
   const editor=$('bioDraft');b.disabled=true;editor.disabled=true;b.previousElementSibling.disabled=true;
