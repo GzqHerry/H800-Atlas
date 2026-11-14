@@ -7,7 +7,12 @@ umask 022
 install -d -m 755 "$root" "$root/releases"
 exec 9>"$root/publish.lock"
 flock -x 9
-files="training_eta.py swan_history.py wandb_history.py charts.py gateway.py server.py monitor.py insights.py cpu_usage.py nas.py scheduler.py dist/index.html dist/login.html dist/charts.js dist/charts.css dist/avatars.js dist/crew.webp dist/lunar-cover.webp dist/login-landscape.webp dist/guide.js dist/guide.css dist/guide.html dist/guide-images/*.webp"
+reader="$root/runtime/wandb-0.23.1"
+if ! "$reader/bin/python" -I -c 'from wandb.sdk.internal.datastore import DataStore; from wandb.proto import wandb_internal_pb2' 2>/dev/null; then
+    python3 -m venv "$reader"
+    "$reader/bin/python" -m pip install 'wandb==0.23.1'
+fi
+files="training_eta.py swan_history.py wandb_history.py wandb_runs.py charts.py gateway.py server.py monitor.py insights.py cpu_usage.py nas.py scheduler.py dist/index.html dist/login.html dist/charts.js dist/charts.css dist/avatars.js dist/crew.webp dist/lunar-cover.webp dist/login-landscape.webp dist/guide.js dist/guide.css dist/guide.html dist/guide-images/*.webp"
 version=$(sha256sum $files | sha256sum | cut -c1-16)
 release="$root/releases/$version"
 stage=$(mktemp -d "$root/releases/.stage-XXXXXXXX")

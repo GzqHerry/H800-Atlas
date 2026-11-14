@@ -5,6 +5,7 @@ from collections import Counter
 import nas
 import charts
 import swan_history
+import wandb_runs
 import training_eta
 from datetime import datetime
 from insights import DATASET_ROOTS
@@ -97,7 +98,7 @@ def log_events(path):
     stat=path.stat()
     state=log_indexes.get(path)
     if not state or state['inode']!=stat.st_ino or stat.st_size<state['end'] or (stat.st_size==state['end'] and stat.st_mtime_ns!=state['mtime']):
-        state=dict(inode=stat.st_ino,end=0,carry=b'',events=[],swan={},swan_tail=b'',mtime=0)
+        state=dict(inode=stat.st_ino,end=0,carry=b'',events=[],wandb={},swan={},swan_tail=b'',mtime=0)
         if len(log_indexes)>=32:log_indexes.pop(next(iter(log_indexes)))
         log_indexes[path]=state
     if stat.st_size==state['end']:return state['events']
@@ -116,6 +117,10 @@ def log_events(path):
                 args=tuple(v.decode('utf8','replace') if v else None for v in m.groups())
                 state['events'].append((base+m.start(),*args))
             last=max(data.rfind(b'\r'),data.rfind(b'\n'))
+            if last>=0:
+                for marker in re.finditer(rb'wandb:[^\r\n]*',data[:last]):
+                    for hint in wandb_runs.markers(marker[0]):
+                        state['wandb'][base+marker.start()]=hint
             state['carry']=data[max(last,len(data)-8192,0):]
         state['end']=f.tell()
     state['mtime']=stat.st_mtime_ns
@@ -170,9 +175,7 @@ def job_history(folder,job):
         folder=safe(folder)
         runid=folder.name.rsplit('-',1)[-1]
         path=safe(folder/('run-'+runid+'.wandb'))
-        meta=json.loads(safe(folder/'files/wandb-metadata.json').read_text())
-        owner_job=meta.get('slurm',{}).get('job_id')
-        if owner_job is not None and str(owner_job)!=job:return {},None
+        if wandb_runs.identity(folder,safe) not in ('',job):return {},None
         stat=path.stat()
         state=history_cache.get(path)
         if not state or state['inode']!=stat.st_ino or stat.st_size<state['size']:
@@ -180,14 +183,12 @@ def job_history(folder,job):
             if len(history_cache)>=4:history_cache.pop(next(iter(history_cache)))
             history_cache[path]=state
         if state['size']!=stat.st_size:
-            # Use a fixed per-account environment. Never execute a path from a log.
-            python=H/'Enactive/.venv/bin/python'
+            python=SITE.resolve().parents[1]/'runtime/wandb-0.23.1/bin/python'
             if not python.exists():return {},None
             result=subprocess.run([str(python),'-I','-B',str(SITE/'wandb_history.py'),str(path),
-                                   str(state['offset']),*RUN_METRICS,'epoch'],capture_output=True,timeout=8,check=True)
+                                   str(state['offset'])],capture_output=True,timeout=25,check=True)
             offset,rows=json.loads(result.stdout)
-            for row in rows:
-                step=row.pop('global_step')
+            for step,row in rows:
                 for key,value in row.items():state['metrics'].setdefault(key,{})[step]=value
             state.update(offset=offset,size=stat.st_size)
         return state['metrics'],str(path)
@@ -345,10 +346,11 @@ def read_run_metrics(offsets, focus=None, history=None, swan=None, openpi=None):
         sources[key]='SwanLab · step'
     for key,values in history.items():
         if values:
+            if key!='epoch':labels.setdefault(key,key)
             for axis in ('epoch','sample'):
                 series.pop((key,axis),None)
             series.setdefault((key,'step'),{}).update(values)
-            sources[key]='W&B · global_step'
+            sources[key]='W&B · step'
     metrics=[]
     expanded=None
     for key,label in labels.items():
@@ -374,16 +376,17 @@ def read_run_metrics(offsets, focus=None, history=None, swan=None, openpi=None):
 
 def detail(job,focus=None):
     if not re.fullmatch(r'[0-9]+(?:_[0-9]+)?',job):raise ValueError('作业号无效')
-    raw=command(['sacct','-u',H.name,'-j',job,'-X','-n','-P','-o','JobID,JobName%200,State,ExitCode,Elapsed,StdOut,StdErr'])
+    raw=command(['sacct','-u',H.name,'-j',job,'-X','-n','-P','-o','JobID,JobName%200,State,ExitCode,Elapsed,WorkDir,StdOut,StdErr'])
     rows=[r.split('|') for r in raw.splitlines() if r.split('|')[0]==job]
     if rows:
-        _,name,state,code,elapsed,*paths=rows[0]
+        _,name,state,code,elapsed,workdir,*paths=rows[0]
     else:
         live=command(['squeue','--me','-j',job,'-h','-o','%i|%j|%T|%M|%o'])
         row=next((s.split('|',4) for s in live.splitlines() if s.split('|',1)[0]==job),None)
         if not row:raise ValueError('未找到个人作业')
         _,name,state,elapsed,_=row
         fields=command(['scontrol','show','job','-o',job])
+        workdir=next(iter(re.findall(r'\bWorkDir=(\S+)',fields)),'')
         paths=re.findall(r'\bStd(?:Out|Err)=(\S+)',fields)
         code=''
     matches=[]
@@ -396,6 +399,26 @@ def detail(job,focus=None):
             if p.is_file() and p not in matches:matches.append(p)
         except (OSError,ValueError):pass
     offsets,folder,attempt=attempt_logs(matches,job)
+    discovery=''
+    bases=[Path(workdir)] if Path(workdir).is_absolute() else []
+    bases.extend(p.parent for p in matches)
+    hints=[hint for p,offset in offsets.items()
+           for pos,hint in log_indexes.get(p,{}).get('wandb',{}).items() if pos>=offset]
+    # Guarded restarts must retain the existing attempt boundary check.
+    if attempt['number']>1:
+        if folder:hints=[str(folder)]
+        else:
+            hints=[]
+            for p in matches:
+                marks=[at for at,n,*_ in log_indexes[p]['events'] if n and int(n)==attempt['number']]
+                if marks:hints.extend(v for at,v in log_indexes[p]['wandb'].items() if at>=marks[-1])
+    elif folder and not hints:hints=[str(folder)]
+    auxiliary=bool(re.search(r'(?:^|[-_])(?:wandb[-_]sync|sync[-_]network[-_]check)$',name,re.I))
+    if not auxiliary:
+        folder,discovery=wandb_runs.resolve(job,hints,bases,[H,W,D,S],safe,allow_index=attempt['number']<=1)
+    else:folder=None
+    attempt['run']=folder.name.rsplit('-',1)[-1] if folder else None
+    if folder:attempt['tracker']='W&B'
     history,history_path=job_history(folder,job)
     swan_id,swan,swan_path=swan_run(offsets)
     if swan_id:
@@ -430,6 +453,8 @@ def detail(job,focus=None):
     loss=next((m['points'] for m in result['metrics'] if m['key']=='loss' and m['axis']=='epoch'),[])
     source=[str(p) for p in offsets]+([history_path] if history_path and history else [])
     note='各日志仅取末尾 2 MB。' if result['truncated'] else '读取当前作业的标准输出与错误日志。'
+    if discovery:note+=' '+discovery
+    if folder and not history:note+=' 已定位 run，暂未读到可绘制的本地标量。'
     if openpi:
         source.append(str(export))
         note+=' OpenPI 曲线取自该作业单独导出的 rank 0 原始标量。'

@@ -1,11 +1,11 @@
-"""Read committed W&B history records using the training environment's installed SDK."""
+"""Read numeric history with the Atlas-managed W&B SDK, without a cloud account."""
 import json
 import math
 import sys
 from wandb.proto import wandb_internal_pb2
 from wandb.sdk.internal.datastore import DataStore
 
-def read(path, offset, keys):
+def read(path, offset):
     rows = []
     store = DataStore()
     store.open_for_scan(path)
@@ -28,18 +28,22 @@ def read(path, offset, keys):
         row = {}
         for item in rec.history.item:
             name = item.key or '/'.join(item.nested_key)
-            if not name.startswith(('train/', 'eval/')):
+            if not name or len(name)>160:
                 continue
-            namespace, key = name.split('/', 1)
-            if namespace == 'eval':
-                key = 'eval_' + key
-            if key in keys or key == 'global_step':
-                value = json.loads(item.value_json)
-                if type(value) in (int, float) and math.isfinite(value):
-                    row[key] = value
-        if 'global_step' in row:
-            rows.append(row)
+            try:value=json.loads(item.value_json)
+            except ValueError:continue
+            if type(value) in (int,float) and math.isfinite(value):row[name]=value
+        step=next((row[k] for k in ('train/global_step','global_step','step','_step') if k in row),None)
+        if step is None and rec.history.HasField('step'):step=rec.history.step.num
+        if step is None:continue
+        scalars={}
+        for key,value in row.items():
+            if key.startswith('_') or key in ('train/global_step','global_step','step'):continue
+            name=key.removeprefix('train/')
+            if name.startswith('eval/'):name='eval_'+name[5:]
+            scalars[name]=value
+        if scalars:rows.append([step,scalars])
     return [committed, rows]
 
 if __name__ == '__main__':
-    print(json.dumps(read(sys.argv[1], int(sys.argv[2]), set(sys.argv[3:]))))
+    print(json.dumps(read(sys.argv[1], int(sys.argv[2]))))
