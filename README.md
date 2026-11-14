@@ -4,7 +4,7 @@ H800 Atlas 把个人训练记录、文件、权重和 Slurm 队列放在同一�
 
 ## 同事怎么登录
 
-1. 连上能访问 H800 的内网或 VPN，打开 [团队登录页](http://100.64.0.71:18771/login)。使用已信任集群证书的设备，也可以打开 [HTTPS 入口](https://h800-node1.int.mintibot.com:18770/)。
+1. 连上能访问 H800 的内网或 VPN，打开 [Atlas 域名登录页](https://atlas.int.mintibot.com/login)。也可以使用[原有 IP 入口](http://100.64.0.71:18771/login)或[节点 HTTPS 入口](https://h800-node1.int.mintibot.com:18770/)。
 2. 输入**自己的 H800 SSH 用户名和密码**。Atlas 通过节点本机的 SSH 服务验证身份，再以该 Linux 用户运行请求。浏览器到服务器的 HTTP 连接会明文传输登录信息；需要加密时使用 HTTPS 或下面的 SSH 隧道。
 3. 登录后，右上角会显示当前账号。「文件管理」「训练记录」和 checkpoint 使用该账号的权限，H800 数据集目录由团队共享；「集群看板」展示 Slurm 允许查看的全局作业，并高亮自己的任务。训练剩余时间仅对作业本人显示。
 4. 点击右上角头像可打开[使用指南](http://100.64.0.71:18771/#guide)、编辑个人信息或查看名片。使用完毕，从此菜单选择「退出登录」。会话空闲约 30 分钟或建立满 8 小时后，需要重新登录。
@@ -57,6 +57,13 @@ sh publish.sh
 ```json
 {"address": "100.64.0.71", "port": 18771}
 ```
+
+团队域名在反向代理上终止 TLS，上游为 `http://100.64.0.71:18771`。代理传递 `Host: atlas.int.mintibot.com`（不带端口），并透传浏览器的 Origin。网关在 `gateway.py` 中按 Host 配对校验 POST 请求的 Origin：
+
+| 上游收到的 Host | 允许的 Origin |
+| --- | --- |
+| `atlas.int.mintibot.com` | `https://atlas.int.mintibot.com` |
+| `100.64.0.71:18771` | `http://100.64.0.71:18771` |
 
 HTTPS 入口读取同目录下的 `https.json`，字段为 `address`、`port`、`hostname`、`cert` 和 `key`。后两项填写节点上证书链和私钥的绝对路径。客户端需要信任该证书，证书需覆盖访问域名。配置监听地址或证书后执行 `systemctl --user restart h800-atlas.service`，再把对应网址发给同事。
 

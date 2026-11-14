@@ -236,10 +236,16 @@ class Handler(BaseHTTPRequestHandler):
 
     def handle_request(self):
         host=self.headers.get('Host','')
-        if self.secure or self.team_http:
+        if self.team_http:
+            origin=self.server.origins.get(host.lower())
+            if origin is None:return self.reply(403,{'error':'访问地址无效'})
+        elif self.secure:
             if host.lower() not in self.server.hosts:return self.reply(403,{'error':'访问地址无效'})
+            origin='https://'+host
         elif not re.fullmatch(r'(?:localhost|127\.0\.0\.1)(?::[0-9]{1,5})?',host):
             return self.reply(403,{'error':'访问地址无效'})
+        else:
+            origin='http://'+host
         path=urlsplit(self.path).path
         jar=http.cookies.SimpleCookie()
         jar.load(self.headers.get('Cookie',''))
@@ -257,7 +263,6 @@ class Handler(BaseHTTPRequestHandler):
         body={}
         if self.command=='POST':
             action={'/auth/login':'login','/auth/logout':'logout','/api/upload':'upload','/api/remove-local':'remove-local','/api/avatar':'avatar','/api/profile':'bio','/api/checkpoint-scan':'checkpoint-scan'}.get(path)
-            origin=('https://' if self.secure else 'http://')+host
             if not action or self.headers.get('Origin')!=origin or self.headers.get('X-Atlas-Action')!=action:
                 return self.reply(403,{'error':'请求来源无效'})
             length=int(self.headers.get('Content-Length',0))
@@ -398,7 +403,9 @@ if __name__=='__main__':
         address,port=settings['address'],settings['port']
         intranet=ThreadingHTTPServer((address,port),Handler)
         intranet.team_http=True
-        intranet.hosts={f'{address}:{port}'}
+        # TLS terminates at the domain reverse proxy. Each Host has one browser Origin.
+        intranet.origins={f'{address}:{port}':f'http://{address}:{port}',
+                          'atlas.int.mintibot.com':'https://atlas.int.mintibot.com'}
         threading.Thread(target=intranet.serve_forever,daemon=True).start()
     # Keep the existing owner's tunnel pointing to the same authenticated UI.
     class Unix(socketserver.ThreadingMixIn,socketserver.UnixStreamServer):
