@@ -6,6 +6,65 @@ const crewNames=[
 const crewEditions=['探路者','深空航行','月面勘探'];
 let avatarChoices=new Map(), avatarRevision=0, avatarLoading=false;
 let avatarDraft=null, avatarRead=0, avatarSaving=false;
+let crop=null,drag=null;
+const cropCanvas=$('avatarCrop');
+// The ring spans 80% of the square stage (10% inset on each side).
+const cropDiameter=cropCanvas.width*.8;
+function cropSide(){
+ return Math.min(crop.image.width,crop.image.height)/crop.zoom;
+}
+function drawCrop(){
+ const {image,preview}=crop,side=cropSide(),scale=cropDiameter/side;
+ crop.x=Math.max(side/2,Math.min(image.width-side/2,crop.x));
+ crop.y=Math.max(side/2,Math.min(image.height-side/2,crop.y));
+ const ctx=cropCanvas.getContext('2d');
+ ctx.fillStyle='#202733';ctx.fillRect(0,0,cropCanvas.width,cropCanvas.height);
+ ctx.drawImage(image,cropCanvas.width/2-crop.x*scale,cropCanvas.height/2-crop.y*scale,image.width*scale,image.height*scale);
+ const icon=preview.getContext('2d');
+ icon.imageSmoothingQuality='high';icon.fillStyle='#202733';icon.fillRect(0,0,128,128);
+ icon.drawImage(image,crop.x-side/2,crop.y-side/2,side,side,0,0,128,128);
+}
+function leaveCrop(){
+ if(drag&&cropCanvas.hasPointerCapture(drag.id))cropCanvas.releasePointerCapture(drag.id);
+ drag=null;
+ if(crop)crop.image.close();
+ crop=null;$('avatarCropPanel').hidden=true;$('avatarGallery').hidden=false;
+}
+function startCrop(image){
+ leaveCrop();
+ const preview=document.createElement('canvas');preview.width=preview.height=128;
+ crop={image,preview,x:image.width/2,y:image.height/2,zoom:1};
+ $('avatarPreview').replaceChildren(preview);
+ $('avatarZoom').value=100;$('avatarZoomValue').value='100%';
+ $('avatarGallery').hidden=true;$('avatarCropPanel').hidden=false;
+ $('avatarMessage').textContent='';drawCrop();cropCanvas.focus({preventScroll:true});
+}
+$('avatarZoom').oninput=e=>{
+ if(!crop||avatarSaving)return;
+ crop.zoom=Number(e.target.value)/100;$('avatarZoomValue').value=e.target.value+'%';drawCrop();
+};
+cropCanvas.onpointerdown=e=>{
+ if(!crop||avatarSaving||drag||e.button!==0)return;
+ cropCanvas.setPointerCapture(e.pointerId);drag={id:e.pointerId,x:e.clientX,y:e.clientY};
+};
+cropCanvas.onpointermove=e=>{
+ if(!crop||avatarSaving||drag?.id!==e.pointerId)return;
+ const ratio=cropSide()/(cropCanvas.getBoundingClientRect().width*.8);
+ crop.x-=(e.clientX-drag.x)*ratio;crop.y-=(e.clientY-drag.y)*ratio;
+ drag.x=e.clientX;drag.y=e.clientY;drawCrop();
+};
+cropCanvas.onlostpointercapture=e=>{if(drag?.id===e.pointerId)drag=null};
+cropCanvas.onkeydown=e=>{
+ if(!crop||avatarSaving)return;
+ const delta={ArrowLeft:[1,0],ArrowRight:[-1,0],ArrowUp:[0,1],ArrowDown:[0,-1]}[e.key];
+ if(!delta)return;
+ e.preventDefault();const amount=cropSide()*(e.shiftKey ? 0.1 : 0.01);
+ crop.x+=delta[0]*amount;crop.y+=delta[1]*amount;drawCrop();
+};
+$('avatarGalleryBack').onclick=()=>{
+ avatarRead++;leaveCrop();previewAvatar(avatarDraft);$('avatarSave').disabled=false;
+ $('avatarEditions').querySelector('[aria-pressed=true]')?.focus();
+};
 
 function assignedAvatar(user){
  // A fixed seed keeps already assigned portraits stable across sessions and releases.
@@ -82,24 +141,18 @@ $('avatarUpload').onchange=async e=>{
  try{
   if(file.size>12*1024*1024)throw Error('请选择小于 12 MB 的照片');
   const image=await createImageBitmap(file);
-  try{
-   const canvas=document.createElement('canvas');canvas.width=canvas.height=128;
-   const ctx=canvas.getContext('2d'),side=Math.min(image.width,image.height);
-   ctx.fillStyle='#202733';ctx.fillRect(0,0,128,128);
-   ctx.drawImage(image,(image.width-side)/2,(image.height-side)/2,side,side,0,0,128,128);
-   if(read===avatarRead)previewAvatar(canvas.toDataURL('image/jpeg',0.86));
-  }finally{image.close()}
+  if(read===avatarRead)startCrop(image);else image.close();
  }catch(error){if(read===avatarRead)$('avatarMessage').textContent=error.message.startsWith('请选择')?error.message:'图片无法读取，请选择 JPG、PNG 或 WebP。'}
  finally{if(read===avatarRead)$('avatarSave').disabled=false}
 };
-$('avatarDialog').addEventListener('close',()=>{avatarRead++;$('avatarSave').disabled=false});
+$('avatarDialog').addEventListener('close',()=>{avatarRead++;leaveCrop();$('avatarSave').disabled=false});
 $('avatarDialog').addEventListener('cancel',e=>{if(avatarSaving)e.preventDefault()});
 $('avatarClose').onclick=()=>$('avatarDialog').close();
 $('avatarSave').onclick=async()=>{
  if(avatarSaving)return;
- const draft=avatarDraft;
  avatarSaving=true;$('avatarControls').disabled=true;
  try{
+  const draft=crop?crop.preview.toDataURL('image/jpeg',0.86):avatarDraft;
   const payload=typeof draft==='number'?{preset:draft}:{photo:draft.split(',')[1]};
   const response=await atlasFetch('/api/avatar',{method:'POST',headers:{'Content-Type':'application/json','X-Atlas-Action':'avatar'},body:JSON.stringify(payload)});
   if(response.status===401){loginPage();return}

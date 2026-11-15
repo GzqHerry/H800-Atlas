@@ -196,6 +196,12 @@ i.crew-portrait{background-color:#050505;background-image:var(--crew-sheet);back
 #avatarControls{border:0;padding:0;margin:0;min-width:0}
 .crew-heading{display:flex;align-items:center;gap:12px;margin-bottom:18px}.crew-heading small{color:var(--soft)}#avatarPreview{--crew-size:50px}
 #avatarPresets{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px}
+.crop-stage{position:relative;overflow:hidden;border-radius:14px;background:#202733}
+#avatarCrop{display:block;width:100%;height:auto;touch-action:none;cursor:grab}
+#avatarCrop:active{cursor:grabbing}#avatarCrop:focus-visible{outline:3px solid #70aaff;outline-offset:-3px}
+.crop-stage i{pointer-events:none;position:absolute;inset:10%;border-radius:50%;box-shadow:0 0 0 1.5px #fff,0 0 0 500px #070b12aa}
+.crop-zoom,.crop-foot{display:flex;align-items:center;gap:10px;margin-top:12px}.crop-zoom input{min-width:0;flex:1;accent-color:var(--orange)}.crop-zoom output{font-variant-numeric:tabular-nums;min-width:4ch;text-align:right}
+.crop-foot{justify-content:space-between;flex-wrap:wrap;color:var(--soft)}#avatarPreview canvas{display:block;width:var(--crew-size);height:var(--crew-size);border-radius:50%}
 #avatarEditions{display:flex;margin:0 0 12px}#avatarEditions button{flex:1}
 .crew-option{min-width:0;display:grid;justify-items:center;gap:5px;font-size:12px;color:var(--soft);padding:7px 0;border:1px solid transparent;border-radius:12px;--crew-size:clamp(36px,9vw,50px)}
 .crew-option[aria-pressed=true]{border-color:#498bea;background:color-mix(in srgb,#639af3 12%,var(--white));color:var(--ink)}
