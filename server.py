@@ -183,7 +183,7 @@ def job_history(folder,job):
             if len(history_cache)>=4:history_cache.pop(next(iter(history_cache)))
             history_cache[path]=state
         if state['size']!=stat.st_size:
-            python=SITE.resolve().parents[1]/'runtime/wandb-0.23.1/bin/python'
+            python=wandb_runs.READER
             if not python.exists():return {},None
             result=subprocess.run([str(python),'-I','-B',str(SITE/'wandb_history.py'),str(path),
                                    str(state['offset'])],capture_output=True,timeout=25,check=True)

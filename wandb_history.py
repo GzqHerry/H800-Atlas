@@ -4,6 +4,31 @@ import math
 import sys
 from wandb.proto import wandb_internal_pb2
 from wandb.sdk.internal.datastore import DataStore
+from google.protobuf.message import DecodeError
+
+def embedded_job(path):
+    """Offline SDK runs can keep Slurm metadata solely in environment records."""
+    store=DataStore()
+    try:
+        store.open_for_scan(path)
+        # Environment records normally arrive at startup. Never scan full histories
+        # while trying to identify all runs in a project.
+        for _ in range(512):
+            if store.get_offset()>=4*1024*1024:break
+            data=store.scan_data()
+            if not data:break
+            record=wandb_internal_pb2.Record.FromString(data)
+            if record.HasField('environment'):
+                slurm=record.environment.slurm
+                if slurm.get('array_job_id') and slurm.get('array_task_id'):
+                    return slurm['array_job_id']+'_'+slurm['array_task_id']
+                job=slurm.get('job_id') or slurm.get('jobid')
+                if job:return job
+    except (OSError,AssertionError,ValueError,DecodeError):
+        pass
+    finally:
+        if getattr(store,'_fp',None):store._fp.close()
+    return ''
 
 def read(path, offset):
     rows = []
@@ -46,4 +71,12 @@ def read(path, offset):
     return [committed, rows]
 
 if __name__ == '__main__':
-    print(json.dumps(read(sys.argv[1], int(sys.argv[2]))))
+    if sys.argv[1]=='--jobs':
+        result={}
+        for path in json.load(sys.stdin):
+            # DataStore also raises a plain Exception on unsupported file headers.
+            try:result[path]=embedded_job(path)
+            except Exception:result[path]=''
+        print(json.dumps(result))
+    else:
+        print(json.dumps(read(sys.argv[1], int(sys.argv[2]))))

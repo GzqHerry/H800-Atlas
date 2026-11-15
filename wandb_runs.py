@@ -2,6 +2,7 @@
 import json
 import os
 import re
+import subprocess
 import threading
 import tempfile
 import time
@@ -19,6 +20,8 @@ _by_job = defaultdict(set)
 _probed = {}
 _scanning = False
 _finished = 0
+_embedded = {}
+READER = Path(__file__).resolve().parents[2]/'runtime/wandb-0.23.1/bin/python'
 
 
 def markers(line):
@@ -30,7 +33,7 @@ def markers(line):
         else:yield '@'+m[2].decode()
 
 
-def identity(folder,safe):
+def sidecar_job(folder,safe):
     """Use Slurm metadata when present. An exact attempts/<job> export also has provenance."""
     parts=folder.parts
     job=next((parts[i+1] for i,p in enumerate(parts[:-1]) if p=='attempts' and re.fullmatch(r'\d+(?:_\d+)?',parts[i+1])),None)
@@ -45,17 +48,51 @@ def identity(folder,safe):
     except FileNotFoundError:return job or ''
     except (OSError,ValueError,RuntimeError,AttributeError,TypeError):return 'invalid'
 
+def embedded_jobs(folders,safe):
+    owners={}
+    pending={}
+    for folder in folders:
+        try:
+            match=RUN.fullmatch(folder.name)
+            if not match:continue
+            path=safe(folder/f'run-{match[1]}.wandb')
+            if not path.is_file():continue
+            st=path.stat()
+        except (OSError,RuntimeError):continue
+        signature=(st.st_dev,st.st_ino,st.st_size,st.st_mtime_ns)
+        cached=_embedded.get(path)
+        if cached and (cached[0]==signature or (cached[1] and cached[0][:2]==signature[:2] and st.st_size>cached[0][2])):
+            owners[folder]=cached[1]
+        else:pending[str(path)]=(folder,signature)
+    if pending:
+        try:
+            response=subprocess.run([str(READER),'-I','-B',str(Path(__file__).with_name('wandb_history.py')),'--jobs'],
+                                    input=json.dumps(list(pending)),capture_output=True,text=True,check=True,timeout=12)
+            for name,job in json.loads(response.stdout).items():
+                folder,signature=pending[name]
+                owner=job if re.fullmatch(r'\d+(?:_\d+)?',job) else ''
+                _embedded[Path(name)]=(signature,owner)
+                owners[folder]=owner
+        except (OSError,ValueError,subprocess.SubprocessError):pass
+    return owners
 
-def register(folder,safe):
-    try:
-        path=safe(folder)
-        match=RUN.fullmatch(path.name)
-        if not match or not safe(path/f'run-{match[1]}.wandb').is_file():return
-        owner=identity(path,safe)
-        with _lock:
-            _by_run[match[1]].add(path)
+def identity(folder,safe):
+    return sidecar_job(folder,safe) or embedded_jobs([folder],safe).get(folder,'')
+
+def register(folders,safe):
+    owners={}
+    for folder in folders:
+        try:
+            path=safe(folder)
+            match=RUN.fullmatch(path.name)
+            if match and safe(path/f'run-{match[1]}.wandb').is_file():
+                owners[path]=sidecar_job(path,safe)
+        except (OSError,RuntimeError):continue
+    owners.update(embedded_jobs([p for p,owner in owners.items() if not owner],safe))
+    with _lock:
+        for path,owner in owners.items():
+            _by_run[RUN.fullmatch(path.name)[1]].add(path)
             if owner and owner!='invalid':_by_job[owner].add(path)
-    except (OSError,RuntimeError):pass
 
 
 def probe(directory,safe):
@@ -66,8 +103,7 @@ def probe(directory,safe):
         now=time.monotonic()
         seen,when=_probed.get(directory,(None,0))
         if stamp==seen and now-when<120:return
-        for folder in directory.iterdir():
-            if RUN.fullmatch(folder.name):register(folder,safe)
+        register((p for p in directory.iterdir() if RUN.fullmatch(p.name)),safe)
         _probed[directory]=(stamp,now)
     except (OSError,RuntimeError):pass
 
@@ -79,8 +115,8 @@ def scan(roots,safe):
             if not root.is_dir():continue
             for folder,dirs,_ in os.walk(root,followlinks=False):
                 parent=Path(folder)
-                for name in dirs:
-                    if RUN.fullmatch(name):register(parent/name,safe)
+                runs=[parent/name for name in dirs if RUN.fullmatch(name)]
+                if runs:register(runs,safe)
                 dirs[:]=[n for n in dirs if not (RUN.fullmatch(n) or n in SKIP or n.startswith('checkpoint-'))]
                 # One low-priority scan per worker; never hold up the HTTP request.
                 time.sleep(.002)
