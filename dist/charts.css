@@ -166,7 +166,7 @@ i.crew-portrait{background-color:#050505;background-image:var(--crew-sheet);back
 .profile-link:hover{text-decoration:underline;text-underline-offset:3px}.profile-link:focus-visible{outline:2px solid #5a95df;outline-offset:2px}
 .queue-person-chip{display:inline-flex;align-items:center;gap:5px;padding:2px 3px 2px 8px;border-radius:12px;border:1px solid var(--line)}
 .queue-person-chip>.chip{margin:0;padding:4px 9px}
-#profileDialog{box-sizing:border-box;width:min(540px,calc(100vw - 24px));max-height:90dvh;padding:0;background:var(--white);color:var(--ink);border:1px solid var(--line);border-radius:22px;box-shadow:0 22px 90px #0005;overflow-x:hidden;overflow-y:auto;scrollbar-width:none;overscroll-behavior:contain}
+#profileDialog{box-sizing:border-box;width:min(594px,calc(100vw - 24px));max-height:90dvh;padding:0;background:var(--white);color:var(--ink);border:1px solid var(--line);border-radius:22px;box-shadow:0 22px 90px #0005;overflow-x:hidden;overflow-y:auto;scrollbar-width:none;overscroll-behavior:contain}
 #profileDialog::-webkit-scrollbar{display:none}html:has(#profileDialog[open]){overflow:hidden;scrollbar-gutter:stable}
 #profileDialog::backdrop{background:#080e1a66;backdrop-filter:blur(9px)}
 @media(prefers-reduced-motion:no-preference){#profileDialog[open]::backdrop{animation:metric-focus-in 720ms cubic-bezier(.38,.03,.22,1) both}}
