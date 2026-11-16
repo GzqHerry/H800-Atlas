@@ -120,7 +120,7 @@ html[data-theme=dark] .gpu-telemetry{--util-ink:#8fc7ff;--mem-ink:#cbacf8}
 .gpu-toggle-label{display:flex;justify-content:space-between;font-size:10px;align-items:center}.gpu-toggle-label b{font-weight:550;color:var(--ink)}
 .gpu-strip{display:grid;grid-template-columns:repeat(auto-fit,minmax(14px,1fr));gap:3px;align-items:end;margin:1px 0 4px}.gpu-mini{display:grid;gap:2px;min-width:0;color:var(--soft);font:9px/1.2 var(--mono);text-align:center}
 .gpu-strip[hidden]{display:none}
-.node .gpu-toggle[aria-expanded="false"] .gpu-toggle-label{display:none}
+.node .gpu-toggle[aria-expanded="false"] .gpu-toggle-label,.node-meter .gpu-toggle[aria-expanded="false"] + .meter-detail{display:none}
 .node .gpu-toggle:focus-visible{outline:2px solid var(--fill);outline-offset:2px}
 .cpu-meter{--user-ink:#118870;--kernel-ink:#ae6714}.cpu-detail{--user-ink:#118870;--kernel-ink:#ae6714}
 [data-theme=dark] :is(.cpu-meter,.cpu-detail){--user-ink:#55d5ac;--kernel-ink:#efb463}
@@ -861,7 +861,7 @@ function miniCards(cards,total){
  return indices.map(i=>{
   const c=cards.find(c=>c.index===i)||{},mem=c.memoryTotal>0?100*c.memoryUsed/c.memoryTotal:null;
   const title='GPU '+i+' · 利用率 '+(c.utilization==null?'—':c.utilization+'%')+' · 显存 '+cardGiB(c.memoryUsed)+' / '+cardGiB(c.memoryTotal)+' GiB';
-  return '<span class="gpu-mini" title="'+attr(title)+'">'+i+rail(c.utilization,'util')+rail(mem,'memory')+'</span>';
+  return '<span class="gpu-mini" title="'+attr(title)+'">'+rail(c.utilization,'util')+rail(mem,'memory')+i+'</span>';
  }).join('');
 }
 function jobCardUsage(node,id,cards){
@@ -921,7 +921,7 @@ function paintCpu(){
   panel.querySelector('.cpu-key').style.display='';
   if(!open){
    const count=groups.length||8;
-   if(strip.children.length!==count||!strip.firstElementChild?.matches('.gpu-mini'))strip.innerHTML=Array.from({length:count},(_,i)=>'<span class="gpu-mini">G'+(i+1)+'<i></i><i class="kernel"></i></span>').join('');
+   if(strip.children.length!==count||!strip.firstElementChild?.matches('.gpu-mini'))strip.innerHTML=Array.from({length:count},(_,i)=>'<span class="gpu-mini"><i></i><i class="kernel"></i>G'+(i+1)+'</span>').join('');
    [...strip.children].forEach((cell,i)=>{
     const group=groups[i];
     cell.title=group?'逻辑 CPU '+group.range+' · 用户态 '+pct(group.user)+' · 内核态 '+pct(group.kernel):'等待近期 CPU 采样';
@@ -1006,7 +1006,7 @@ function nodeMeter(label,unit,total,used,free,detail,control=''){
  const width=known?Math.max(0,Math.min(100,used/total*100)):0;
  return '<div class="node-meter '+(label==='CPU'?'cpu-meter':'gpu-meter')+'">'+
   '<div class="node-meter-head"><b>'+label+'</b><span>已分配 '+numeric(used,0)+' / '+numeric(total,0)+' '+unit+'</span><span class="node-meter-free">空闲 '+numeric(free,0)+' '+unit+'</span></div>'+
-  '<div aria-hidden="true" class="node-meter-track'+(known?'':' unknown')+'"><i style="width:'+width+'%"></i></div><div>'+control+'<small>'+detail+'</small></div></div>';
+  '<div aria-hidden="true" class="node-meter-track'+(known?'':' unknown')+'"><i style="width:'+width+'%"></i></div><div>'+control+'<small class="meter-detail">'+detail+'</small></div></div>';
 }
 function monitorToggle(kind,name,open){
  const gpu=kind==='gpu',noun=gpu?'逐卡监控':'逻辑 CPU 明细';
