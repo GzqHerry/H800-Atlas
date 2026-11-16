@@ -101,6 +101,37 @@ html[data-theme=dark]{color-scheme:dark;--paper:#17181c;--ink:#ecedf2;--soft:#b1
 .checkpoint-progress:not(:empty){width:min(100%,360px);margin-top:12px}
 .checkpoint-progress .upload-meter{background:var(--paper);border:1px solid var(--line);border-radius:12px;padding:10px 12px}
 .transfer-line .upload-meter{max-width:680px}
+.surface.task-library{--task-blue:#2868a9;--task-green:#18725e;--task-violet:#8364bf;padding:0;overflow:hidden;background:var(--white)}
+html[data-theme=dark] .task-library{--task-blue:#8ebfff;--task-green:#78d5b7;--task-violet:#b79ae9}
+.task-heading{display:flex;align-items:center;gap:12px;padding:20px 24px 17px;background:linear-gradient(105deg,color-mix(in srgb,var(--task-blue) 9%,var(--white)),var(--white) 65%)}
+.task-heading h2{margin:0}.task-heading small{border:1px solid var(--line);border-radius:20px;padding:3px 9px;font-size:12px;background:var(--white);color:var(--soft)}
+.surface.task-library .task-table{table-layout:fixed;width:100%;min-width:0;margin:0;border-spacing:0;border-collapse:collapse}
+.task-table th,.task-table td{text-align:left;padding:12px 10px}
+.task-table thead th{font-weight:550;font-size:12px;color:var(--soft);background:color-mix(in srgb,var(--line) 23%,var(--white));border-block:1px solid var(--line);white-space:nowrap}
+.task-table th:first-child,.task-table td:first-child{padding-left:24px;width:46%}.task-table th:nth-child(2){width:16%}.task-table th:nth-child(3){width:15%}.task-table th:nth-child(4){width:10%}
+.task-table th:last-child,.task-table td:last-child{padding-right:24px}
+.task-table tbody td{vertical-align:middle;border-bottom:1px solid color-mix(in srgb,var(--line) 75%,transparent)}
+.task-table tbody tr:hover,.task-table tbody tr:focus-within{background:color-mix(in srgb,var(--task-blue) 5%,var(--white))}
+.task-identity{display:grid;grid-template-columns:32px minmax(0,1fr) auto;gap:12px;align-items:center}
+.task-folder{position:relative;width:32px;height:32px;border-radius:9px;background:color-mix(in srgb,var(--task-blue) 12%,var(--white));color:var(--task-blue)}
+.task-folder:before,.task-folder:after{content:"";position:absolute;left:7px;background:currentColor}
+.task-folder:before{top:9px;width:8px;height:4px;border-radius:2px 2px 0 0}.task-folder:after{top:12px;width:18px;height:12px;border-radius:1px 3px 3px 3px;opacity:.85}
+.task-name{display:inline-flex;align-items:baseline;gap:6px 9px;flex-wrap:wrap;padding:0;text-align:left;border:0;background:none;box-shadow:none;color:var(--ink);font:600 15px/1.4 var(--sans);overflow-wrap:anywhere;max-width:100%;cursor:pointer}
+.task-name:hover span{text-decoration:underline;text-underline-offset:3px}.task-name code{font:12px var(--mono);color:var(--task-blue)}
+.task-text small,.task-time small,.task-size small{display:block;color:var(--soft);font-size:11px;line-height:1.5;margin-top:3px}
+.task-text small{letter-spacing:.025em}.task-library .copy-path{margin:0;white-space:nowrap;font-size:11px;color:var(--soft)}
+.task-origins>div{display:flex;gap:4px;flex-wrap:wrap}.task-source{display:inline-flex;align-items:center;gap:5px;padding:3px 7px;border-radius:6px;color:var(--task-blue);background:color-mix(in srgb,currentColor 10%,var(--white));font-size:11px;font-weight:600;white-space:nowrap}
+.task-source.nas{color:var(--task-green)}.task-source i{width:5px;height:5px;border-radius:50%;background:currentColor}.task-source b{border-left:1px solid color-mix(in srgb,currentColor 28%,transparent);padding-left:5px}
+.task-time,.task-count,.task-size{font-variant-numeric:tabular-nums;font-size:13px}.task-count b{font-size:16px}.task-count small{color:var(--soft);font-size:11px}
+.task-capacity{width:min(100%,92px);height:4px;margin-top:6px;border-radius:4px;background:var(--line);overflow:hidden}.task-capacity i{display:block;height:100%;border-radius:inherit;background:var(--task-violet)}.task-capacity:empty{background:none;border-top:1px dashed var(--line)}
+.task-library .pager{padding:12px 24px;margin:0}.task-library .empty{padding-inline:24px}
+@media(max-width:850px){
+ .task-heading{padding:16px}.task-library .task-table,.task-table tbody{display:block}.task-table thead{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%)}
+ .task-table tbody tr{display:grid;grid-template-columns:1fr 1fr 1fr;gap:9px 10px;padding:14px 16px;border-top:1px solid var(--line)}
+ .task-table tbody td,.task-table tbody td:first-child,.task-table tbody td:last-child{display:block;width:auto;padding:0;border:0}
+ .task-main{grid-column:1/-1}.task-origins{grid-column:1/-1}.task-time:before,.task-count:before,.task-size:before{display:block;color:var(--soft);font:11px/1.6 var(--sans)}
+ .task-time:before{content:"最近保存"}.task-count:before{content:"Checkpoints"}.task-size:before{content:"已盘点大小"}.task-library .pager{padding:12px 16px}
+}
 .upload-sampled{display:block;color:var(--soft);font-size:11px;margin-top:5px;font-weight:400}
 .atlas-path-tip{position:fixed;z-index:10000;box-sizing:border-box;width:max-content;max-width:min(36rem,calc(100vw - 24px));padding:9px 12px;border:1px solid #ffffff26;border-radius:9px;background:#20242c;color:#f7f8fa;box-shadow:0 5px 18px #0003;font:12px/1.55 var(--mono);overflow-wrap:anywhere;white-space:pre-wrap;pointer-events:none}
 .atlas-path-tip[hidden]{display:none}
@@ -621,6 +652,38 @@ document.addEventListener('keydown',e=>{if(e.key==='Escape'&&pathAnchor){hidePat
 document.addEventListener('close',hidePathTip,true);
 window.addEventListener('resize',placePathTip);document.addEventListener('scroll',placePathTip,true);
 function groupLabel(g){const parts=g.path.split('/');return ['preflight','checkpoints','ckpts','output','outputs'].includes(g.name)?parts.slice(-2).join(' / '):g.name}
+function taskIdentity(g){
+ const full=groupLabel(g), tokens=full.replace(/^train_/,'').split('_');
+ const code=tokens.findIndex(t=>/^[a-f0-9]{8}$/i.test(t)&&! /^(?:19|20)\d{6}$/.test(t));
+ if(code<1)return {title:full,context:'',code:''};
+ const tail=tokens.slice(code+1).filter(t=>!/^\d{8}$/.test(t));
+ const settings=tail.filter(t=>/^[egb]\d+$/i.test(t));
+ const variant=tail.filter(t=>!settings.includes(t)).join(' · ');
+ const family=tokens.slice(0,code).join(' ').toUpperCase();
+ return {title:variant||family,code:tokens[code],context:[variant&&family,settings.join(' · ').toUpperCase()].filter(Boolean).join('　·　')};
+}
+function taskRow(g,peak){
+ const id=taskIdentity(g),full=groupLabel(g);
+ const name='<span>'+esc(id.title)+'</span>'+(id.code?'<code>'+esc(id.code)+'</code>':'');
+ const origin=(label,n)=>n?'<span class="task-source '+label.toLowerCase()+'"><i></i>'+label+'<b>'+n+'</b></span>':'';
+ const known=g.unmeasured<g.count;
+ const size=known?fmt(g.bytes):'待统计';
+ const fill=known?'<i style="width:'+Math.min(100,100*g.bytes/peak)+'%"></i>':'';
+ const date=g.updated?new Date(g.updated*1000):null;
+ const time=date?'<time datetime="'+date.toISOString()+'">'+esc(date.toLocaleDateString('zh-CN'))+'<small>'+esc(date.toLocaleTimeString('zh-CN',{hour12:false}))+'</small></time>':'时间未知';
+ return '<tr><td class="task-main"><div class="task-identity"><i class="task-folder" aria-hidden="true"></i><div class="task-text">'+
+  button('group',g.path,name,'task-name','title="'+attr(full)+'" aria-label="'+attr(full)+'"')+(id.context?'<small>'+esc(id.context)+'</small>':'')+'</div>'+copyButton(g.path)+'</div></td>'+
+  '<td class="task-origins"><div>'+origin('H800',g.h800)+origin('NAS',g.nas)+'</div></td><td class="task-time">'+time+'</td>'+
+  '<td class="task-count"><b>'+g.count+'</b><small> 个</small></td><td class="task-size"><b>'+size+'</b><div class="task-capacity" aria-hidden="true">'+fill+'</div>'+
+  (known&&g.unmeasured?'<small>另有 '+g.unmeasured+' 项待统计</small>':'')+'</td></tr>';
+}
+function taskList(groups,matching){
+ const peak=Math.max(1,...groups.map(g=>g.bytes));
+ const rows=matching.slice(groupIndex*12,groupIndex*12+12).map(g=>taskRow(g,peak)).join('');
+ return '<section class="surface task-library"><div class="task-heading"><h2>训练任务</h2><small>'+matching.length+' 个目录</small></div>'+
+  (rows?'<table class="task-table"><thead><tr><th scope="col">训练输出目录</th><th scope="col">副本来源</th><th scope="col" aria-sort="descending">最近保存 ↓</th><th scope="col">Checkpoints</th><th scope="col">已盘点大小</th></tr></thead><tbody>'+rows+'</tbody></table>':'<p class="empty">没有匹配的训练任务。</p>')+
+  pageControls('gpage',groupIndex,matching.length,12)+'</section>';
+}
 function pageControls(key,index,total,limit){let max=Math.ceil(total/limit);return max>1?'<div class="pager">'+(index?button(key,index-1,'上一页'):'')+'<small>'+String(index+1)+' / '+max+'</small>'+(index+1<max?button(key,index+1,'下一页'):'')+'</div>':''}
 function tableMarkup(headers,rows){return '<div class="scroll"><table><thead><tr>'+headers.map(x=>'<th>'+x+'</th>').join('')+'</tr></thead><tbody>'+rows.join('')+'</tbody></table></div>'}
 function atStep(n,step){return n==null?'':n===step?'保存步':'最近记录 · step '+n}
@@ -682,7 +745,7 @@ async function resourceView(){
  }
  const matching=groups.filter(g=>g.path.toLowerCase().includes(assetQuery.toLowerCase()));
  groupIndex=Math.min(groupIndex,Math.max(0,Math.ceil(matching.length/12)-1));
- return tabs+ckGraphics(groups)+form+'<section class="surface"><div class="line"><h2>训练任务</h2><small>'+matching.length+' 个父目录'+(live?'':' · 生成记录')+'</small></div>'+tableMarkup(['训练输出目录','副本来源','最新 checkpoint ↓','Checkpoint 数','已盘点大小'],matching.slice(groupIndex*12,groupIndex*12+12).map(g=>'<tr><td>'+button('group',g.path,esc(groupLabel(g)),'name')+' '+copyButton(g.path)+'</td><td>'+[g.h800?'H800 · '+g.h800:'',g.nas?'NAS · '+g.nas:''].filter(Boolean).join('<br>')+'</td><td>'+esc(updatedLabel(g))+'</td><td>'+g.count+'</td><td>'+fmt(g.bytes)+(g.unmeasured?'<small class="sample-step">'+g.unmeasured+' 项大小待统计</small>':'')+'</td></tr>'))+pageControls('gpage',groupIndex,matching.length,12)+'</section>'+storage
+ return tabs+ckGraphics(groups)+form+taskList(groups,matching)+storage
 }
 async function fetchCluster(){if(clusterRequest)return clusterRequest;
  clusterRequest=api('cluster').then(data=>{clusterData=data;clusterError=''}).catch(()=>{clusterError='Slurm 暂时无法读取'}).finally(()=>{clusterRequest=null});return clusterRequest}
