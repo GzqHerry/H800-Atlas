@@ -1,14 +1,14 @@
-"""Publish inference checkpoints to Grus with the signed-in user's SSH identity."""
+"""Publish inference checkpoints to the configured SSH model stores."""
 import hashlib
 import json
 import os
 import re
 import shlex
+import stat
 import subprocess
 from pathlib import Path
 
-ROOT = '/mnt/data0/arx_ckpts'
-SSH = ['ssh', '-o', 'BatchMode=yes', '-o', 'StrictHostKeyChecking=yes',
+SSH = ['ssh', '-o', 'StrictHostKeyChecking=yes',
        '-o', 'ConnectTimeout=10', '-o', 'ServerAliveInterval=30', '-o', 'ServerAliveCountMax=4']
 SIDECARS = (
     'checkpoint_manifest.json', 'normalization.json', 'vla_metadata.json', 'trainer_state.json',
@@ -19,9 +19,12 @@ SIDECARS = (
 REMOTE = """
 import fcntl, hashlib, json, os, pathlib, re, shutil, socket, sys
 q = json.load(sys.stdin)
-if socket.gethostname().split('.')[0].lower() != 'grus':
-    raise ValueError('SSH destination is not Grus')
-root = pathlib.Path('/mnt/data0/arx_ckpts')
+label = q['target']
+hostname, directory = {'Grus': ('grus', '/mnt/data0/arx_ckpts'),
+                       'Tianji': ('marvin-thor', '/WD/tianji/models')}[label]
+if socket.gethostname().split('.')[0].lower() != hostname:
+    raise ValueError('Unexpected SSH host for ' + label)
+root = pathlib.Path(directory)
 group, name = q['group'], q['name']
 if group in ('', '.', '..') or '/' in group or not re.fullmatch(r'(?:checkpoint-|global_step_)?[0-9]+', name):
     raise ValueError('Invalid checkpoint destination')
@@ -32,9 +35,9 @@ if not re.fullmatch(r'[a-f0-9]{32}',q['version']):
 stage = parent / ('.' + name + '.atlas-' + q['version'])
 for path in (root, parent, final, stage):
     if path.resolve() != path:
-        raise ValueError('Unexpected link in Grus destination')
+        raise ValueError('Unexpected link in checkpoint destination')
 if not root.is_dir():
-    raise ValueError('Grus checkpoint volume is unavailable')
+    raise ValueError('Checkpoint volume unavailable on ' + label)
 parent.mkdir(exist_ok=True)
 files = q['files']
 if not files or any(not n or n in ('.','..') or pathlib.Path(n).name != n for n in files):
@@ -62,7 +65,7 @@ if q['action'] == 'prepare':
         needed = sum(max(0, rec['size'] - (stage/n).stat().st_size)
                      if (stage/n).exists() else rec['size'] for n, rec in files.items())
         if shutil.disk_usage(root).free < needed:
-            raise ValueError('Insufficient space on Grus')
+            raise ValueError('Insufficient space on ' + label)
 elif q['action'] == 'publish':
     if not final.exists():
         verify(stage)
@@ -79,7 +82,7 @@ elif q['action'] == 'publish':
     finally:
         os.close(fd)
 else:
-    raise ValueError('Unknown Grus request')
+    raise ValueError('Unknown transfer request')
 print(json.dumps(dict(done=final.is_dir(), stage=str(stage), final=str(final))))
 """
 
@@ -106,7 +109,7 @@ def inference_files(path):
             names.add(weight)
             break
     else:
-        raise ValueError('没有找到可供 Grus 推理使用的模型权重或分片索引')
+        raise ValueError('没有找到可供推理使用的模型权重或分片索引')
     names.update(n for n in SIDECARS if (path / n).exists())
     result = {}
     for name in sorted(names):
@@ -118,9 +121,24 @@ def inference_files(path):
     return result
 
 
-def upload(path, job, update, transfer):
-    # The historical transfer uses gzq on Grus. Other accounts use their own SSH config.
-    host = 'gzq@100.64.0.41' if Path.home().name == 'gzqherry' else '100.64.0.41'
+def connection(target):
+    if target == 'Grus':
+        host = 'gzq@100.64.0.41' if Path.home().name == 'gzqherry' else '100.64.0.41'
+    elif target == 'Tianji':
+        host = 'user@172.30.1.208'
+        password = Path.home()/'.config/h800-atlas/tianji.password'
+        if password.exists():
+            info = password.lstat()
+            if not stat.S_ISREG(info.st_mode) or info.st_uid != os.getuid() or info.st_mode & 0o077:
+                raise PermissionError('Tianji 密码文件须为本人所有，并设置为 600 权限')
+            return host, ['sshpass', '-f', str(password), *SSH, '-o', 'NumberOfPasswordPrompts=1']
+    else:
+        raise ValueError('未知的推理权重上传目标')
+    return host, [*SSH, '-o', 'BatchMode=yes']
+
+
+def upload(path, job, update, transfer, target_name='Grus'):
+    host, ssh = connection(target_name)
     source = inference_files(path)
     size = sum(st[2] for st in source.values())
     files = {}
@@ -135,19 +153,19 @@ def upload(path, job, update, transfer):
         raise ValueError('校验期间推理文件发生变化，请重试')
     version = hashlib.sha256(json.dumps([str(path), os.getuid(), files], sort_keys=True).encode()).hexdigest()[:32]
     def remote(action):
-        request = dict(action=action, group=Path(job['meta']['group']).name, name=path.name,
+        request = dict(action=action, target=target_name, group=Path(job['meta']['group']).name, name=path.name,
                        version=version, files=files)
-        proc = subprocess.run(SSH + [host, 'python3 -c ' + shlex.quote(REMOTE)],
+        proc = subprocess.run(ssh + [host, 'python3 -c ' + shlex.quote(REMOTE)],
                               input=json.dumps(request), capture_output=True, text=True, timeout=3600)
         if proc.returncode:
             reason = (proc.stderr.strip().splitlines() or ['SSH 请求失败'])[-1]
-            raise RuntimeError('Grus：' + reason[:300])
+            raise RuntimeError(target_name + '：' + reason[:300])
         return json.loads(proc.stdout)
     target = remote('prepare')
     update('校验中' if target['done'] else '传输中', destination=target['final'])
     if not target['done']:
         cmd = ['rsync', '-rt', '--checksum', '--partial', '--protect-args', '--info=progress2',
-               '--outbuf=L', '-e', shlex.join(SSH), '--']
+               '--outbuf=L', '-e', shlex.join(ssh), '--']
         transfer(cmd + [str(path / n) for n in files] + [host + ':' + target['stage'] + '/'], update)
     if inference_files(path) != source:
         raise ValueError('传输期间推理文件发生变化，请重试')

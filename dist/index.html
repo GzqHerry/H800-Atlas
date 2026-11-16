@@ -572,7 +572,7 @@ async function fetchNAS(){
  try{nasEntry=await api('nas');nasIssue=nasEntry.note||(nasEntry.partial?'部分 NAS 目录不可读':'')}catch{nasIssue='NAS 暂时无法读取'}
  nasWhen=Date.now()
 }
-const uploadTarget=t=>t.action==='upload-grus'?'Grus':'NAS';
+const uploadTarget=t=>({'upload-grus':'Grus','upload-tianji':'Tianji'})[t.action]||'NAS';
 const transferDone=t=>t.state==='完成'||t.state==='失败';
 function uploadMeter(t){
  const done=t.state==='完成',failed=t.state==='失败',moving=t.state==='传输中';
@@ -607,9 +607,9 @@ function refreshTransferViews(){
  for(const el of document.querySelectorAll('[data-progress-for]')){
   el.innerHTML=checkpointProgress(el.dataset.progressFor);
  }
- for(const b of document.querySelectorAll('[data-upload],[data-grus]')){
+ for(const b of document.querySelectorAll('[data-upload]')){
   if(b.dataset.submitting)continue;
-  const dest=b.dataset.grus?'Grus':'NAS',path=b.dataset.grus||b.dataset.upload;
+  const dest=b.dataset.destination||'NAS',path=b.dataset.upload;
   const job=transferRows.find(t=>t.source===path&&t.action!=='remove'&&uploadTarget(t)===dest);
   b.disabled=!!job&&!transferDone(job);
   b.textContent=b.disabled?dest+' · '+job.state:'上传到 '+dest;
@@ -767,7 +767,7 @@ function checkpointLocations(c){
  }
  if(c.present&&overview.roots.some(root=>c.path.startsWith(root+'/'))){
   if(overview.checkpointUploadEnabled)html+=button('upload',c.path,'上传到 NAS','outline')+' ';
-  html+=button('grus',c.path,'上传到 Grus','outline','title="上传推理权重、配置和 tokenizer 到 Grus"');
+  html+=['Grus','Tianji'].map(dest=>button('upload',c.path,'上传到 '+dest,'outline','data-destination="'+dest+'" title="上传推理权重、配置和 tokenizer 到 '+dest+'"')).join(' ');
   if(overview.checkpointUploadEnabled&&c.copies.some(x=>x.verified))html+=' '+button('removeck',c.path,'删除 H800 本地副本','outline ck-danger');
   html+='<div class="checkpoint-progress" data-progress-for="'+attr(c.path)+'">'+checkpointProgress(c.path)+'</div>';
  }
@@ -1191,8 +1191,7 @@ document.addEventListener('click',async e=>{const b=e.target.closest('button');i
  else if(d.group)setResource('ck',d.group);
  else if(d.backgroups)setResource('ck');
  else if(d.gpage!==undefined){groupIndex=+d.gpage;render()}
- else if(d.upload)await sendCheckpoint(b,d.upload);
- else if(d.grus)await sendCheckpoint(b,d.grus,'Grus');
+ else if(d.upload)await sendCheckpoint(b,d.upload,d.destination||'NAS');
  else if(d.gputoggle){if(expandedGpus.has(d.gputoggle))expandedGpus.delete(d.gputoggle);else expandedGpus.add(d.gputoggle);paintGpu()}
  else if(d.cputoggle){if(expandedCpus.has(d.cputoggle))expandedCpus.delete(d.cputoggle);else expandedCpus.add(d.cputoggle);paintCpu()}
  else if(d.cpugroup!==undefined){const node=b.closest('[data-gpu-node]');selectedCpuGroup.set(node.dataset.gpuNode,Number(d.cpugroup));paintCpu();node.querySelector('.cpu-groups [aria-pressed=true]')?.focus({preventScroll:true})}

@@ -249,8 +249,9 @@ def worker(jid):
             if original.is_symlink():raise ValueError('不能操作链接目录')
             path=original.resolve(strict=True)
             if str(path)!=job['meta']['resolved'] or not path.is_dir():raise ValueError('Checkpoint 源目录已更改')
-            if job.get('action')=='upload-grus':
-                grus.upload(path,job,update,transfer_files)
+            inference_target={'upload-grus':'Grus','upload-tianji':'Tianji'}.get(job.get('action'))
+            if inference_target:
+                grus.upload(path,job,update,transfer_files,inference_target)
                 return
             if job.get('action')=='remove':
                 update('重新校验')
