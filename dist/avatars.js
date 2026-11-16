@@ -224,8 +224,9 @@ $('coverFile').onchange=async e=>{
   const bitmap=await createImageBitmap(file);
   if(read!==coverRead||!coverDialog.open){bitmap.close();return}
   coverBitmap?.close();coverBitmap=bitmap;
-  const canvas=document.createElement('canvas');canvas.width=1200;canvas.height=240;
-  $('coverPreview').replaceChildren(canvas);$('coverPan').value='50';$('coverPosition').hidden=bitmap.width===5*bitmap.height;
+  const canvas=document.createElement('canvas');canvas.width=1200;canvas.height=264;
+  $('coverPreview').replaceChildren(canvas);$('coverPan').value='50';
+  $('coverPosition').hidden=bitmap.width*canvas.height===bitmap.height*canvas.width;
   drawCover();$('coverMsg').textContent='';$('coverSave').disabled=false;
  }catch(err){if(read===coverRead){$('coverSave').disabled=wasDisabled;$('coverMsg').textContent=err.message.startsWith('请选择')?err.message:'图片无法读取，请选择其他照片。'}}
 };

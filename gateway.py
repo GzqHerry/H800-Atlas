@@ -76,7 +76,7 @@ def save_cover(user, body):
         cover = None
     elif set(body) == {'photo'} and isinstance(body['photo'], str):
         with Image.open(io.BytesIO(base64.b64decode(body['photo'], validate=True)), formats=['JPEG']) as image:
-            if image.size != (1200, 240):
+            if image.size not in ((1200, 264), (1200, 240)):
                 raise ValueError('invalid dimensions')
             cover = jpeg_data(image, 89)
     else:
