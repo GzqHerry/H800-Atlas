@@ -89,19 +89,42 @@ def checkpoint_groups(home):
         path=Path(value)
         if CK_NAME.fullmatch(path.name):
             groups[path.parent][path.name]=entry[1]
-    # Refresh each recognised task directory, including checkpoints saved since the inventory.
-    for parent, names in groups.items():
-        try:
-            for child in parent.iterdir():
-                if CK_NAME.fullmatch(child.name) and child.is_dir():
-                    names.setdefault(child.name,None)
-        except OSError:
-            pass
+    tasks=set(groups)
     for catalog in (home/'.local/share/h800-atlas/checkpoint-scans').glob('*.json'):
         for folder in json.loads(catalog.read_text()):
             path=Path(folder)
             if CK_NAME.fullmatch(path.name) and path.is_dir():
                 groups[path.parent].setdefault(path.name,None)
+            if CK_NAME.fullmatch(path.name):
+                tasks.add(path.parent)
+    # Discover sibling runs in personal output collections. Inspect names only,
+    # never recurse into weights or walk a user's entire workspace.
+    personal=(home, *(Path(base)/home.name for base in ('/workspace','/data','/scratch')))
+    collections={root/'Enactive'/'output' for root in personal}
+    for task in tasks:
+        collection=task.parent
+        if collection.name in ('output','outputs','train_runs','enactive-runs','checkpoints') and any(root in collection.parents for root in personal):
+            collections.add(collection)
+    for collection in collections:
+        try:
+            if collection.resolve(strict=True)!=collection:continue
+            with os.scandir(collection) as entries:
+                for entry in entries:
+                    if not entry.name.startswith('.') and entry.is_dir(follow_symlinks=False):
+                        if CK_NAME.fullmatch(entry.name):
+                            tasks.add(collection)
+                        else:
+                            tasks.add(Path(entry.path))
+        except OSError:
+            continue
+    for task in tasks:
+        try:
+            with os.scandir(task) as entries:
+                for entry in entries:
+                    if CK_NAME.fullmatch(entry.name) and entry.is_dir(follow_symlinks=False):
+                        groups[task].setdefault(entry.name,None)
+        except OSError:
+            continue
     return groups
 
 def scan_checkpoints(home, value):
