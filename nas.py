@@ -10,6 +10,7 @@ import subprocess
 import sys
 import time
 import uuid
+import grus
 from pathlib import Path
 
 HOME = Path.home()
@@ -202,6 +203,17 @@ def remove_verified_copy(path, job, update):
     update('完成',percent=100,bytes=size,staging=None)
 
 
+def transfer_files(cmd, update):
+    with subprocess.Popen(cmd,stdout=subprocess.PIPE,stderr=subprocess.STDOUT,text=True,errors='replace') as proc:
+        last=0;tail=''
+        for line in proc.stdout:
+            tail=line.strip() or tail
+            m=re.search(r'\b(\d+)%',line)
+            if m and time.monotonic()-last>=1:
+                update('传输中',percent=min(99,int(m[1])));last=time.monotonic()
+        if proc.wait():raise RuntimeError('rsync 失败：'+tail[:240])
+
+
 def worker(jid):
     with (JOBS/'submit.lock').open('a') as lock:
         fcntl.flock(lock,fcntl.LOCK_SH)
@@ -216,6 +228,9 @@ def worker(jid):
             if original.is_symlink():raise ValueError('不能操作链接目录')
             path=original.resolve(strict=True)
             if str(path)!=job['meta']['resolved'] or not path.is_dir():raise ValueError('Checkpoint 源目录已更改')
+            if job.get('action')=='upload-grus':
+                grus.upload(path,job,update,transfer_files)
+                return
             if job.get('action')=='remove':
                 update('重新校验')
                 remove_verified_copy(path,job,update)
@@ -232,14 +247,7 @@ def worker(jid):
             if not target['done']:
                 update('传输中',bytes=size)
                 cmd=base+['--partial','--info=progress2','--outbuf=L']+endpoints(target['stage'])
-                with subprocess.Popen(cmd,stdout=subprocess.PIPE,stderr=subprocess.STDOUT,text=True,errors='replace') as proc:
-                    last=0;tail=''
-                    for line in proc.stdout:
-                        tail=line.strip() or tail
-                        m=re.search(r'\b(\d+)%',line)
-                        if m and time.monotonic()-last>=1:
-                            update('传输中',percent=min(99,int(m[1])));last=time.monotonic()
-                    if proc.wait():raise RuntimeError('rsync 失败：'+tail[:240])
+                transfer_files(cmd,update)
             update('校验中')
             check=subprocess.run(base+['--checksum','--dry-run','--itemize-changes','--delete']+
                  endpoints(target['final'] if target['done'] else target['stage']),capture_output=True,text=True,check=True)

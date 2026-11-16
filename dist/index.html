@@ -468,12 +468,12 @@ async function fetchNAS(){
 function transferPanel(){
  const uploads=transferRows.filter(t=>t.meta?.kind==='checkpoint');
  if(!uploads.length)return '';
- return '<section class="surface transfer-box"><h2>Checkpoint 操作记录</h2>'+uploads.slice(0,15).map(t=>'<div class="transfer-line"><div class="line"><b>'+(t.action==='remove'?'删除本地副本 · ':'上传 · ')+esc(groupLabel({name:t.meta.group.split('/').pop(),path:t.meta.group})+' / '+t.meta.name)+'</b><span class="badge">'+esc(t.state)+(t.state==='传输中'?' '+numeric(t.percent,0)+'%':'')+'</span></div>'+(t.destination?'<code class="path">'+esc(t.destination)+'</code>':'')+(t.error?'<small class="feedback">'+esc(t.error)+'</small>':'')+'</div>').join('')+'</section>'
+ return '<section class="surface transfer-box"><h2>Checkpoint 操作记录</h2>'+uploads.slice(0,15).map(t=>'<div class="transfer-line"><div class="line"><b>'+(t.action==='remove'?'删除本地副本 · ':t.action==='upload-grus'?'上传到 Grus · ':'上传到 NAS · ')+esc(groupLabel({name:t.meta.group.split('/').pop(),path:t.meta.group})+' / '+t.meta.name)+'</b><span class="badge">'+esc(t.state)+(t.state==='传输中'?' '+numeric(t.percent,0)+'%':'')+'</span></div>'+(t.destination?'<code class="path">'+esc(t.destination)+'</code>':'')+(t.error?'<small class="feedback">'+esc(t.error)+'</small>':'')+'</div>').join('')+'</section>'
 }
 async function pollTransfers(){
  if(!live||page!==3||assetTab!=='ck'||uploadPolling||document.hidden)return;uploadPolling=true;
  try{
- const next=await api('uploads');const finished=next.some(n=>n.state==='完成'&&!transferRows.some(o=>o.id===n.id&&o.state==='完成'));
+ const next=await api('uploads');const finished=next.some(n=>['完成','失败'].includes(n.state)&&!transferRows.some(o=>o.id===n.id&&o.state===n.state));
  transferRows=next;if(finished){ckSources=null;groupDetails.clear();groupList=null;await render()}else if($('transfers'))$('transfers').innerHTML=transferPanel()
  }catch{}finally{uploadPolling=false}
 }
@@ -487,11 +487,11 @@ async function removeLocal(b,path){
   transferRows=[job,...transferRows.filter(t=>t.id!==job.id)];$('transfers').innerHTML=transferPanel();b.textContent='等待复核';
  }catch(e){b.disabled=false;$('status').textContent=e.message}
 }
-async function sendCheckpoint(b,path){
+async function sendCheckpoint(b,path,destination='NAS'){
  b.disabled=true;b.textContent='正在提交…';
- try{const r=await atlasFetch('/api/upload',{method:'POST',headers:{'Content-Type':'application/json','X-Atlas-Action':'upload'},body:JSON.stringify({path})});if(r.status===401){loginPage();return}const job=await r.json();if(!r.ok)throw Error(job.error||'提交失败');
- transferRows=[job,...transferRows.filter(t=>t.id!==job.id)];if($('transfers'))$('transfers').innerHTML=transferPanel();b.textContent='已提交至 NAS'
- }catch(e){b.textContent='重试上传';b.disabled=false;$('status').textContent=e.message}
+ try{const r=await atlasFetch('/api/upload',{method:'POST',headers:{'Content-Type':'application/json','X-Atlas-Action':'upload'},body:JSON.stringify({path,destination})});if(r.status===401){loginPage();return}const job=await r.json();if(!r.ok)throw Error(job.error||'提交失败');
+ transferRows=[job,...transferRows.filter(t=>t.id!==job.id)];if($('transfers'))$('transfers').innerHTML=transferPanel();b.textContent='已提交至 '+destination
+ }catch(e){b.textContent='重试上传到 '+destination;b.disabled=false;$('status').textContent=e.message}
 }
 
 function assetColumn(items,i){const matching=items.filter(a=>(a.name+' '+a.path).toLowerCase().includes(assetQuery.toLowerCase()));const start=Math.min(assetPage[i]*10,Math.max(0,Math.floor((matching.length-1)/10)*10));
@@ -524,9 +524,10 @@ function checkpointLocations(c){
  for(const copy of c.copies){
   html+='<div class="ck-location"><span class="badge '+(copy.verified?'completed':'pending')+'">'+(copy.verified?'已上传 NAS · 已校验':'NAS · 待校验')+'</span>'+copyButton(copy.destination)+'<code class="path">'+esc(copy.destination)+'</code></div>';
  }
- if(c.present&&overview.checkpointUploadEnabled&&overview.roots.some(root=>c.path.startsWith(root+'/'))){
-  html+=button('upload',c.path,'上传到 NAS','outline');
-  if(c.copies.some(x=>x.verified))html+=' '+button('removeck',c.path,'删除 H800 本地副本','outline ck-danger');
+ if(c.present&&overview.roots.some(root=>c.path.startsWith(root+'/'))){
+  if(overview.checkpointUploadEnabled)html+=button('upload',c.path,'上传到 NAS','outline')+' ';
+  html+=button('grus',c.path,'上传到 Grus','outline','title="上传推理权重、配置和 tokenizer 到 /mnt/data0/arx_ckpts"');
+  if(overview.checkpointUploadEnabled&&c.copies.some(x=>x.verified))html+=' '+button('removeck',c.path,'删除 H800 本地副本','outline ck-danger');
  }
  return html;
 }
@@ -758,6 +759,7 @@ document.addEventListener('click',async e=>{const b=e.target.closest('button');i
  else if(d.backgroups)setResource('ck');
  else if(d.gpage!==undefined){groupIndex=+d.gpage;render()}
  else if(d.upload)await sendCheckpoint(b,d.upload);
+ else if(d.grus)await sendCheckpoint(b,d.grus,'Grus');
  else if(d.inspectcmd)await showCommand(d.inspectcmd);
  else if(d.ranktoggle){rankOpen=!rankOpen;render()}
  else if(d.copy)await copyPath(b,d.copy);

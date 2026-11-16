@@ -26,6 +26,8 @@ H800 Atlas 把个人训练记录、文件、权重和 Slurm 队列放在同一�
 
 曲线来自当前作业可读的 Slurm 输出、W&B 本地历史、OpenPI 导出和 SwanLab 标量记录。Atlas 会读取 Slurm 日志中 W&B 公布的 run 路径或 ID，在提交目录、日志目录和作业专属导出中查找，并在需要时后台索引个人 home、workspace、data 和 scratch 目录。索引按本地 run 元数据的 Slurm 作业号或已知 run ID 匹配。没有匹配或出现多个候选时，点击「关联 W&B run」选择候选或填写 run 目录、.wandb 文件的绝对路径。关联按登录账号和作业号保存在个人 home 中，可在训练详情更改。团队统一使用部署时安装的 W&B 读取器，训练环境无需额外安装 Atlas 依赖。首次部署读取器需要 Python venv、pip 以及可用的软件包源。运行节点私有磁盘上的 run 需要导出到登录节点可读的位置；如果训练关闭了相关元数据，可在该作业自己的 Slurm 日志中保留 W&B 初始化时输出的 run 路径。训练完成预估会随迭代速度变化。
 
+在「资源目录 → Checkpoints」打开某次训练，点击权重旁的「上传到 Grus」。Atlas 使用当前 H800 用户的 SSH 身份，将推理权重、配置和可用的 tokenizer 等配套文件写入 `/mnt/data0/arx_ckpts/<训练目录名>/<checkpoint 名>/`。后台逐文件比对 SHA-256 后发布，进度、目标路径和错误显示在「Checkpoint 操作记录」。此副本用于推理，训练恢复所需的优化器和随机状态保存在 H800 或完整的 NAS 备份中。同事需在 H800 配置到 Grus 的 SSH 公钥和已核实的主机指纹，可在自己的 SSH 配置中为 Grus 的 IP 设置远端用户名。
+
 ### TensorBoard 和 metrics.log
 
 在「训练记录」选择作业后，Atlas 会从 Slurm 提交目录和可读的作业日志目录查找指标。可以将输出放在 `runs/slurm-<作业号>/` 下，也可以在作业独占的提交目录写入含 `job_id` 的 `SUBMISSION.json`，再把指标写到其 `results/<实验名>/` 下。多人或多作业复用同一目录时，建议使用每个作业独立的子目录。保留分配后重启的训练可以用 `attempts/<次数>/` 隔离各次输出。

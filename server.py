@@ -598,7 +598,9 @@ def route(method, target, body):
         except ValueError as exc:return 400,dict(error=str(exc))
         return 200,dict(result,inventory=profile_inventory())
     if method=='POST' and u.path in ('/api/upload','/api/remove-local'):
-        if not nas.enabled(): raise PermissionError('此账号尚未配置 NAS')
+        destination=body.get('destination','NAS') if u.path=='/api/upload' else 'NAS'
+        if destination not in ('NAS','Grus'):return 400,{'error':'未知的上传目标'}
+        if destination=='NAS' and not nas.enabled(): raise PermissionError('此账号尚未配置 NAS')
         path=Path(body.get('path',''))
         if path.name not in checkpoint_groups(H).get(path.parent,{}):
             return 400,{'error':'请选择已登记的 H800 checkpoint'}
@@ -606,6 +608,7 @@ def route(method, target, body):
         if not source.is_dir() or path.is_symlink():
             return 400,{'error':'本地 checkpoint 目录不可用'}
         action='remove' if u.path=='/api/remove-local' else 'upload'
+        if destination=='Grus':action='upload-grus'
         if action=='remove' and not any(c['verified'] and c['source']==str(path) for c in nas.remote('checkpoints')):
             return 409,{'error':'未找到已校验的 NAS 副本'}
         return 202,nas.enqueue(dict(name=path.name,group=str(path.parent),path=str(path),resolved=str(source),kind='checkpoint'),action)
