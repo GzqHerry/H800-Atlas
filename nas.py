@@ -8,6 +8,7 @@ import shlex
 import shutil
 import subprocess
 import sys
+import tempfile
 import time
 import uuid
 import grus
@@ -15,7 +16,8 @@ from pathlib import Path
 
 HOME = Path.home()
 SCRATCH = Path('/scratch') / HOME.name
-JOBS = SCRATCH / 'h800-atlas-uploads'
+LEGACY_JOBS = SCRATCH / 'h800-atlas-uploads'
+JOBS = HOME / '.local/share/h800-atlas/uploads'
 # Each SSH user supplies their own NAS key and known_hosts.
 NAS_ROOT = '/mnt/orion/data/public/' + ('gzq' if HOME.name=='gzqherry' else 'users/'+HOME.name)
 def enabled():
@@ -121,14 +123,25 @@ def remote(action, **params):
 
 def write_job(job):
     path=JOBS/(job['id']+'.json')
-    temp=path.with_suffix('.tmp')
-    temp.write_text(json.dumps(job,ensure_ascii=False))
-    temp.replace(path)
+    job['updated']=int(time.time())
+    with tempfile.NamedTemporaryFile(dir=JOBS,mode='w',delete=False) as temp:
+        try:
+            json.dump(job,temp,ensure_ascii=False)
+            temp.flush()
+            os.replace(temp.name,path)
+        finally:Path(temp.name).unlink(missing_ok=True)
 
 def job_list():
-    if not JOBS.exists():return []
-    rows=[json.loads(p.read_text()) for p in JOBS.glob('*.json')]
-    return sorted(rows,key=lambda j:-j['started'])
+    rows={}
+    for folder in (LEGACY_JOBS,JOBS):
+        for p in folder.glob('*.json'):
+            try:
+                row=json.loads(p.read_text())
+                row.setdefault('updated',int(p.stat().st_mtime))
+                rows[row['id']]=row
+            except (OSError,KeyError,ValueError):
+                continue
+    return sorted(rows.values(),key=lambda j:-j['started'])
 
 def enqueue(checkpoint, action='upload'):
     JOBS.mkdir(mode=0o700,parents=True,exist_ok=True)
@@ -208,9 +221,12 @@ def transfer_files(cmd, update):
         last=0;tail=''
         for line in proc.stdout:
             tail=line.strip() or tail
-            m=re.search(r'\b(\d+)%',line)
+            m=re.match(r'\s*([\d,]+)\s+(\d+)%',line)
             if m and time.monotonic()-last>=1:
-                update('传输中',percent=min(99,int(m[1])));last=time.monotonic()
+                # A transient status-store failure must not close rsync's output pipe.
+                try:update('传输中',percent=min(99,int(m[2])),processedBytes=int(m[1].replace(',','')))
+                except OSError:pass
+                last=time.monotonic()
         if proc.wait():raise RuntimeError('rsync 失败：'+tail[:240])
 
 
