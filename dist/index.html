@@ -218,8 +218,15 @@ html[data-theme=dark] .upload-meter.moving{--meter:#5599ff;--tip:#79c9ff}
 <input id="ckScanPath" required placeholder="/workspace/用户名/训练输出目录" autocomplete="off">
 <small>检索该目录及其子目录，按训练任务加入你的 Checkpoints。</small><p id="ckScanFeedback" role="status"></p>
 <div class="tools"><button type="button" class="outline" id="ckScanClose">关闭</button><button class="outline" id="ckScanSubmit">开始检索</button></div>
-</form></dialog><dialog id="profileDialog" aria-labelledby="profileName">
-<div class="profile-cover"><button id="profileClose" type="button" aria-label="关闭个人名片" autofocus>×</button></div>
+</form></dialog>
+<dialog id="portraitViewer" class="profile-media" aria-labelledby="viewerName"><button class="media-close" id="viewerClose" aria-label="关闭头像大图" autofocus>×</button><div id="viewerImage"></div><h2 id="viewerName"></h2></dialog>
+<dialog id="coverDialog" class="profile-media" aria-labelledby="coverTitle"><div class="cover-head"><h2 id="coverTitle">名片封面</h2><button class="media-close" id="coverClose" aria-label="关闭封面编辑" autofocus>×</button></div>
+<div id="coverPreview" class="profile-cover" role="img" aria-label="封面预览"></div>
+<div class="cover-tools"><button class="outline" id="chooseCover">选择照片</button><input id="coverFile" type="file" accept="image/*" hidden><button class="link" id="defaultCover">恢复默认封面</button></div>
+<label id="coverPosition" hidden>取景位置 <input type="range" id="coverPan" min="0" max="100" value="50"></label>
+<div class="cover-footer"><small id="coverMsg" role="status"></small><button class="outline" id="coverSave" disabled>保存封面</button></div></dialog>
+<dialog id="profileDialog" aria-labelledby="profileName">
+<div class="profile-cover" id="profileCover"><button id="coverEdit" type="button" aria-label="更换名片封面" hidden><span>更换封面</span></button><button id="profileClose" type="button" aria-label="关闭个人名片" autofocus>×</button></div>
 <div class="profile-body"><div id="profilePortrait"></div><button id="profileAvatarEdit" data-editavatar hidden>更换头像</button><h2 id="profileName"></h2>
 <div id="profileBio" aria-live="polite"></div>
 <section class="profile-section"><div class="profile-heading"><h3>训练概览</h3><div id="profilePeriods" class="studio-switch" role="group" aria-label="训练统计周期"></div></div><div id="profileStats" aria-live="polite"></div></section>
@@ -229,15 +236,21 @@ let H='',roots=[];
 let page=0,live=false,jobsAvailable=false,jobList=[],overview={mounts:[]},asset=null,dir=H,offset=0,query='',generation=0,assetTab='ck',fileRows=[];
 const cached={},snapLinks={};
 const teamHttp='__ATLAS_TEAM_HTTP__'==='yes';
+function savedSession(){
+ try{const s=JSON.parse(localStorage.getItem('atlas-session'));return s?.expires>Date.now()?s.token:null}catch{return null}
+}
+const tabToken=teamHttp?savedSession():null;
+if(teamHttp)window.addEventListener('storage',e=>{if(e.key==='atlas-session'&&savedSession()!==tabToken)location.reload()});
 function loginPage(){
  if(teamHttp){
+  if(savedSession()===tabToken)localStorage.removeItem('atlas-session');
   sessionStorage.removeItem('atlas-session');
   location.replace('/login'+location.hash);
  }else location.reload();
 }
 function atlasFetch(path,options={}){
  if(teamHttp){
-  const token=sessionStorage.getItem('atlas-session');
+  const token=tabToken;
   if(!token){loginPage();return Promise.reject(Error('请登录'))}
   options={...options,credentials:'omit',headers:{...options.headers,Authorization:'Bearer '+token}};
  }
@@ -1280,7 +1293,7 @@ async function checkVersion(){
 setInterval(()=>{tickBoard();pollGpu();pollCpu()},1000);document.addEventListener('visibilitychange',()=>{if(!document.hidden&&page===4){pollGpu();pollCpu();tickBoard();fetchCluster().then(()=>{if(page===4)render()})}});
 setInterval(checkVersion,10000);document.addEventListener('visibilitychange',()=>{if(!document.hidden)checkVersion()});
 window.addEventListener('pageshow',e=>{if(e.persisted)location.reload()});
-if(teamHttp&&!sessionStorage.getItem('atlas-session'))loginPage();else {
+if(teamHttp&&!tabToken)loginPage();else {
 setInterval(pollRuns,10000);document.addEventListener('visibilitychange',()=>{if(!document.hidden)pollRuns()});setInterval(pollTransfers,4500);locationState();setTheme(savedTheme());$('theme').onchange=e=>{let choice=e.target.value;try{localStorage.setItem('h800-theme',choice)}catch{}setTheme(choice)};matchMedia('(prefers-color-scheme: dark)').addEventListener('change',()=>{if($('theme').value==='system')setTheme('system')});window.addEventListener('popstate',()=>{locationState();render(true)});setInterval(async()=>{if(page===4&&live&&!document.hidden){await fetchCluster();if(page===4)render()}},15000);$('refresh').onclick=sync;window.addEventListener('resize',draw);render();sync();setInterval(()=>{if(live&&!document.hidden&&page===0)sync()},60000)
 }
 </script></body></html>

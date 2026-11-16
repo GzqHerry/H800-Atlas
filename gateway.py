@@ -2,6 +2,7 @@
 from typing import NamedTuple
 import collections
 import base64
+import hashlib
 import io
 import http.cookies
 import json
@@ -10,6 +11,7 @@ from pathlib import Path
 import re
 import secrets
 import select
+import shutil
 import ssl
 import socketserver
 import subprocess
@@ -26,8 +28,7 @@ ROOT = Path(__file__).resolve().parent.parent.parent
 CURRENT = ROOT / 'current'
 RUN = Path(os.environ['XDG_RUNTIME_DIR'])
 OLD_SOCKET = Path('/scratch') / Path.home().name / 'h800-observatory.sock'
-MAX_IDLE = 1800
-MAX_AGE = 8 * 3600
+MAX_AGE = 24 * 3600
 COOKIE = 'h800atlas_session'
 TLS_COOKIE = '__Host-h800atlas_session'
 sessions = {}
@@ -56,7 +57,32 @@ def remember_outcomes(user, phases):
 
 
 def avatar_catalog():
-    return {p.stem: json.loads(p.read_bytes()) for p in AVATARS.glob('*.json')}
+    result = {}
+    for p in AVATARS.glob('*.json'):
+        value = json.loads(p.read_bytes())
+        result[p.stem] = value['thumb'] if isinstance(value, dict) else value
+    return result
+
+
+def jpeg_data(image, quality):
+    output = io.BytesIO()
+    image.convert('RGB').save(output, 'JPEG', quality=quality)
+    return 'data:image/jpeg;base64,' + base64.b64encode(output.getvalue()).decode('ascii')
+
+
+def save_cover(user, body):
+    from PIL import Image
+    if body == {'default': True}:
+        cover = None
+    elif set(body) == {'photo'} and isinstance(body['photo'], str):
+        with Image.open(io.BytesIO(base64.b64decode(body['photo'], validate=True)), formats=['JPEG']) as image:
+            if image.size != (1200, 240):
+                raise ValueError('invalid dimensions')
+            cover = jpeg_data(image, 89)
+    else:
+        raise ValueError('invalid cover')
+    save_json(PROFILES/'covers'/(user+'.json'), cover)
+    return cover
 
 
 def save_avatar(user, body):
@@ -67,15 +93,13 @@ def save_avatar(user, body):
         from PIL import Image
         raw = base64.b64decode(body['photo'], validate=True)
         with Image.open(io.BytesIO(raw), formats=['JPEG']) as image:
-            if image.size != (128, 128):
+            if image.size not in ((128, 128),(512, 512)):
                 raise ValueError('invalid dimensions')
-            output = io.BytesIO()
-            image.convert('RGB').save(output, 'JPEG', quality=85)
-        avatar = 'data:image/jpeg;base64,' + base64.b64encode(output.getvalue()).decode('ascii')
+            avatar = dict(full=jpeg_data(image, 91), thumb=jpeg_data(image.resize((128,128),getattr(Image, "Resampling", Image).LANCZOS),85))
     else:
         raise ValueError('invalid avatar')
     save_json(AVATARS/(user+'.json'), avatar)
-    return avatar
+    return avatar['thumb'] if isinstance(avatar,dict) else avatar
 
 
 def save_json(path, value):
@@ -121,21 +145,13 @@ def refresh_releases():
 
 class Worker:
     def __init__(self, user, password):
-        self.user = user
-        self.tmp = tempfile.TemporaryDirectory(dir=RUN, prefix='atlas-')
-        control = self.tmp.name + '/ssh'
-        self.base = ['/usr/bin/ssh', '-F', '/dev/null', '-oControlPath='+control,
-                     '-oStrictHostKeyChecking=yes',
-                     '-oUserKnownHostsFile='+str(ROOT/'known_hosts'),
-                     '-oGlobalKnownHostsFile=/dev/null', '-oPubkeyAuthentication=no',
-                     '-oConnectTimeout=6', '-l', user, '127.0.0.1']
-        self.lock = threading.Lock()
-        self.child = None
-        self.version = None
-        self.born = self.seen = time.monotonic()
+        self.attach(user, Path(tempfile.mkdtemp(dir=RUN, prefix='h800-atlas-session-')), time.monotonic())
         try:
             # sshpass consumes the password from an inherited pipe, never argv or env.
-            result = subprocess.run(['/usr/bin/sshpass', '-d', '0', '/usr/bin/ssh',
+            # The authenticated master outlives a web gateway release. systemd also
+            # terminates it at the session deadline if the gateway is offline.
+            result = subprocess.run(['systemd-run','--user','--scope','--quiet','--unit='+self.directory.name,
+                '--property=RuntimeMaxSec='+str(MAX_AGE)+'s','--','/usr/bin/sshpass', '-d', '0', '/usr/bin/ssh',
                 '-M', '-N', '-f', '-oPreferredAuthentications=password',
                 '-oNumberOfPasswordPrompts=1', '-oServerAliveInterval=30',
                 '-oServerAliveCountMax=2', *self.base[1:]], input=password.encode()+b'\n',
@@ -147,6 +163,15 @@ class Worker:
         except BaseException:
             self.close()
             raise
+
+    def attach(self, user, directory, born):
+        self.user, self.directory, self.born = user, directory, born
+        self.base = ['/usr/bin/ssh', '-F', '/dev/null', '-oControlPath='+str(directory/'ssh'),
+                     '-oStrictHostKeyChecking=yes', '-oUserKnownHostsFile='+str(ROOT/'known_hosts'),
+                     '-oGlobalKnownHostsFile=/dev/null', '-oPubkeyAuthentication=no',
+                     '-oConnectTimeout=6', '-l', user, '127.0.0.1']
+        self.lock = threading.Lock()
+        self.child = self.version = None
 
     def read(self, seconds):
         if not select.select([self.child.stdout], [], [], seconds)[0]:
@@ -167,9 +192,9 @@ class Worker:
 
     def call(self, method, target, body):
         with self.lock:
-            if not os.path.isdir(self.tmp.name):raise PermissionError()
-            if self.version!=published.version or self.child is None:self.start()
+            if not self.directory.is_dir():raise PermissionError()
             try:
+                if self.version!=published.version or self.child is None:self.start()
                 self.child.stdin.write(json.dumps(dict(method=method,target=target,body=body)).encode()+b'\n')
                 self.child.stdin.flush()
                 return self.read(70)
@@ -193,11 +218,30 @@ class Worker:
             self.stop_child()
             subprocess.run([*self.base[:-1], '-O', 'exit', self.base[-1]],
                            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=5)
-            self.tmp.cleanup()
+            shutil.rmtree(self.directory, ignore_errors=True)
 
 
 def expired(worker, now):
-    return now-worker.seen>=MAX_IDLE or now-worker.born>=MAX_AGE
+    return now-worker.born>=MAX_AGE
+
+
+def restore_sessions():
+    for directory in RUN.glob('h800-atlas-session-*'):
+        if directory.is_symlink() or not directory.is_dir() or directory.stat().st_uid != os.getuid():
+            continue
+        try:
+            data=json.loads((directory/'session.json').read_bytes())
+            key,user,born=data['hash'],data['user'],data['born']
+            if not re.fullmatch('[0-9a-f]{64}',key) or not re.fullmatch(r'[a-zA-Z0-9_][a-zA-Z0-9_.-]{0,63}',user):
+                raise ValueError('invalid session')
+            if not (directory/'ssh').is_socket() or not 0 <= time.monotonic()-born < MAX_AGE:
+                raise ValueError('expired session')
+        except (OSError,ValueError,KeyError,TypeError):
+            shutil.rmtree(directory,ignore_errors=True)
+            continue
+        worker=Worker.__new__(Worker)
+        worker.attach(user,directory,born)
+        sessions[key]=worker
 
 
 def cleanup():
@@ -231,9 +275,9 @@ class Handler(BaseHTTPRequestHandler):
                     ('X-Content-Type-Options','nosniff'),('Referrer-Policy','no-referrer'),
                     ('Content-Security-Policy',"default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; connect-src 'self'; img-src 'self' data: blob:; form-action 'self'; frame-ancestors 'none'; base-uri 'none'"),
                     ('Content-Length',str(len(value)))]:self.send_header(k,v)
-        if cookie is not None and not self.team_http:
-            key=TLS_COOKIE if self.secure else COOKIE
-            self.send_header('Set-Cookie',key+'='+cookie+'; Path=/; HttpOnly; SameSite=Strict'+('; Secure' if self.secure else '')+('; Max-Age=0' if not cookie else ''))
+        if cookie is not None and not self.bearer:
+            key=TLS_COOKIE if self.cookie_secure else COOKIE
+            self.send_header('Set-Cookie',key+'='+cookie+'; Path=/; HttpOnly; SameSite=Strict'+('; Secure' if self.cookie_secure else '')+'; Max-Age='+str(MAX_AGE if cookie else 0))
         self.end_headers()
         self.wfile.write(value)
 
@@ -249,27 +293,29 @@ class Handler(BaseHTTPRequestHandler):
             return self.reply(403,{'error':'访问地址无效'})
         else:
             origin='http://'+host
+        self.cookie_secure=origin.startswith('https://')
+        self.bearer=self.team_http and not self.cookie_secure
         path=urlsplit(self.path).path
         jar=http.cookies.SimpleCookie()
         jar.load(self.headers.get('Cookie',''))
-        key=TLS_COOKIE if self.secure else COOKIE
+        key=TLS_COOKIE if self.cookie_secure else COOKIE
         token=jar[key].value if key in jar else ''
-        if self.team_http:
+        if self.bearer:
             # Other services share this IP. Cookies are shared across ports.
             scheme,_,credential=self.headers.get('Authorization','').partition(' ')
             token=credential if scheme=='Bearer' else ''
+        token=hashlib.sha256(token.encode()).hexdigest()
         now=time.monotonic()
         with guard:
             worker=sessions.get(token)
             if worker and expired(worker,now):worker=None
-            if worker and path!='/api/version':worker.seen=now
         body={}
         if self.command=='POST':
-            action={'/auth/login':'login','/auth/logout':'logout','/api/upload':'upload','/api/remove-local':'remove-local','/api/avatar':'avatar','/api/profile':'bio','/api/checkpoint-scan':'checkpoint-scan','/api/wandb-link':'wandb-link'}.get(path)
+            action={'/auth/login':'login','/auth/logout':'logout','/api/upload':'upload','/api/remove-local':'remove-local','/api/avatar':'avatar','/api/profile-cover':'cover','/api/profile':'bio','/api/checkpoint-scan':'checkpoint-scan','/api/wandb-link':'wandb-link'}.get(path)
             if not action or self.headers.get('Origin')!=origin or self.headers.get('X-Atlas-Action')!=action:
                 return self.reply(403,{'error':'请求来源无效'})
             length=int(self.headers.get('Content-Length',0))
-            limit=65536 if path=='/api/avatar' else 8192
+            limit=768*1024 if path in ('/api/avatar','/api/profile-cover') else 8192
             if not 0<=length<=limit or (not length and path!='/auth/logout'):
                 return self.reply(400,{'error':'请求大小无效'})
             if length:
@@ -282,9 +328,9 @@ class Handler(BaseHTTPRequestHandler):
                 return self.reply(200,{'ok':True},cookie='')
         if self.command=='GET' and (path in ('/','/index.html') or (self.team_http and path=='/login')):
             current=published
-            show_app=(path!='/login') if self.team_http else bool(worker)
+            show_app=(path!='/login') if self.bearer else bool(worker)
             data=current.app if show_app else current.login
-            data=data.replace(b'__ATLAS_TEAM_HTTP__',b'yes' if self.team_http else b'no')
+            data=data.replace(b'__ATLAS_TEAM_HTTP__',b'yes' if self.bearer else b'no')
             return self.reply(200,data.replace(b'__ATLAS_RELEASE__',current.version.encode()),'text/html;charset=utf-8')
         if not worker:return self.reply(401,{'error':'请先登录 H800'})
         if self.command=='GET' and path=='/api/gpu-live':
@@ -305,7 +351,17 @@ class Handler(BaseHTTPRequestHandler):
             user=parse_qs(urlsplit(self.path).query).get('user',[''])[0]
             if not re.fullmatch(r'[a-zA-Z0-9_][a-zA-Z0-9_.-]{0,63}',user):
                 return self.reply(400,{'error':'账号无效'})
-            return self.reply(200,dict(bio=profile_value(user,'bios',''),inventory=member_inventory(user)))
+            return self.reply(200,dict(bio=profile_value(user,'bios',''),inventory=member_inventory(user),cover=profile_value(user,'covers',None)))
+        if self.command=='POST' and path=='/api/profile-cover':
+            try:cover=save_cover(worker.user,body)
+            except (ValueError,OSError):return self.reply(400,{'error':'封面保存失败，请重新选择图片'})
+            return self.reply(200,{'cover':cover})
+        if self.command=='GET' and path=='/api/avatar-preview':
+            user=parse_qs(urlsplit(self.path).query).get('user',[''])[0]
+            if not re.fullmatch(r'[a-zA-Z0-9_][a-zA-Z0-9_.-]{0,63}',user):return self.reply(400,{'error':'账号无效'})
+            try:value=json.loads((AVATARS/(user+'.json')).read_bytes())
+            except FileNotFoundError:value=None
+            return self.reply(200,{'avatar':value['full'] if isinstance(value,dict) else value})
         if self.command=='GET' and path=='/api/profile-inventory':
             last=profile_value(worker.user,'inventory',None)
             if last and time.time()-last['stamp']<1800:return self.reply(200,member_inventory(worker.user,last))
@@ -327,6 +383,8 @@ class Handler(BaseHTTPRequestHandler):
             if grant and (code!=202 or data.get('id')!=grant.name):
                 grant.unlink(missing_ok=True)
         except (OSError,subprocess.SubprocessError):
+            if subprocess.run([*worker.base[:-1],'-O','check',worker.base[-1]],capture_output=True,timeout=3).returncode==0:
+                return self.reply(503,{'error':'H800 暂时未响应，登录仍然有效，请重试'})
             with guard:removed=sessions.pop(token,None)
             if removed:removed.close()
             return self.reply(401,{'error':'SSH 会话已断开，请重新登录'},cookie='')
@@ -364,13 +422,18 @@ class Handler(BaseHTTPRequestHandler):
         except PermissionError:return self.reply(401,{'error':'H800 用户名或密码错误'})
         finally:auth_slots.release()
         key=secrets.token_urlsafe(32)
+        digest=hashlib.sha256(key.encode()).hexdigest()
+        try:save_json(worker.directory/'session.json',dict(hash=digest,user=worker.user,born=worker.born))
+        except OSError:
+            worker.close()
+            raise
         with guard:
             attempts.pop(user,None)
             old=sessions.pop(token,None)
-            sessions[key]=worker
+            sessions[digest]=worker
         if old:old.close()
         result={'user':user}
-        if self.team_http:result['session']=key
+        if self.bearer:result.update(session=key,maxAge=MAX_AGE)
         self.reply(200,result,cookie=key)
 
     def do_GET(self):
@@ -404,6 +467,7 @@ class TeamHTTPS(ThreadingHTTPServer):
 if __name__=='__main__':
     os.umask(0o077)
     published=read_release()
+    restore_sessions()
     threading.Thread(target=refresh_releases,daemon=True).start()
     listener=ThreadingHTTPServer(('127.0.0.1',18768),Handler)
     config=Path.home()/'.config/h800-atlas/https.json'

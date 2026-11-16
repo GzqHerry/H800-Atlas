@@ -34,9 +34,10 @@ document.getElementById('login').addEventListener('submit',async e=>{
   if(!response.ok){const v=await response.json();throw Error(v.error||'登录失败')}
   password.value='';
   if('__ATLAS_TEAM_HTTP__'==='yes'){
-   const {session}=await response.json();sessionStorage.setItem('atlas-session',session);
-   location.replace('/'+location.hash);
-  }else location.reload()
+   const {session,maxAge}=await response.json();
+   localStorage.setItem('atlas-session',JSON.stringify({token:session,expires:Date.now()+maxAge*1000}));
+  }
+  location.replace('/'+location.hash);
  }catch(err){error.textContent=err.name==='TimeoutError'?'H800 登录响应超时，请稍后重试。':err.message;password.focus();password.select()}
  finally{button.disabled=false;button.textContent='登录'}
 });

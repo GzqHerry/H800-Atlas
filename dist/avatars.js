@@ -21,8 +21,9 @@ function drawCrop(){
  ctx.fillStyle='#202733';ctx.fillRect(0,0,cropCanvas.width,cropCanvas.height);
  ctx.drawImage(image,cropCanvas.width/2-crop.x*scale,cropCanvas.height/2-crop.y*scale,image.width*scale,image.height*scale);
  const icon=preview.getContext('2d');
- icon.imageSmoothingQuality='high';icon.fillStyle='#202733';icon.fillRect(0,0,128,128);
- icon.drawImage(image,crop.x-side/2,crop.y-side/2,side,side,0,0,128,128);
+ const size=preview.width;
+ icon.imageSmoothingQuality='high';icon.fillStyle='#202733';icon.fillRect(0,0,size,size);
+ icon.drawImage(image,crop.x-side/2,crop.y-side/2,side,side,0,0,size,size);
 }
 function leaveCrop(){
  if(drag&&cropCanvas.hasPointerCapture(drag.id))cropCanvas.releasePointerCapture(drag.id);
@@ -32,7 +33,7 @@ function leaveCrop(){
 }
 function startCrop(image){
  leaveCrop();
- const preview=document.createElement('canvas');preview.width=preview.height=128;
+ const preview=document.createElement('canvas');preview.width=preview.height=512;
  crop={image,preview,x:image.width/2,y:image.height/2,zoom:1};
  $('avatarPreview').replaceChildren(preview);
  $('avatarZoom').value=100;$('avatarZoomValue').value='100%';
@@ -87,10 +88,13 @@ function userAvatar(user,editable=false){
 function personLabel(user,editable=true){
  return '<span class="crew-person">'+userAvatar(user,editable)+button('profile',user,esc(user),'profile-link','aria-haspopup="dialog"')+'</span>';
 }
+function profilePortrait(user){
+ return user===overview.user?userAvatar(user,true):button('viewportrait',user,userAvatar(user),'crew-edit portrait-zoom','aria-haspopup="dialog" aria-label="'+attr('查看 '+user+' 的头像大图')+'"');
+}
 function paintAvatars(){
  if(!overview.user)return;
  $('initials').innerHTML=userAvatar(overview.user);
- if($('profileDialog').open)$('profilePortrait').innerHTML=userAvatar($('profileName').textContent,true);
+ if($('profileDialog').open)$('profilePortrait').innerHTML=profilePortrait($('profileName').textContent);
  document.querySelectorAll('.crew-person').forEach(el=>{
   const name=el.lastElementChild.textContent;
   const host=el.firstElementChild.matches('button')?el.firstElementChild:el;
@@ -167,6 +171,79 @@ setInterval(syncAvatars,60000);
 document.addEventListener('visibilitychange',()=>{if(!document.hidden)syncAvatars()});
 
 const profileDialog=$('profileDialog');
+const portraitViewer=$('portraitViewer'),coverDialog=$('coverDialog');
+let portraitRead=0,coverRead=0,coverBitmap=null,coverSaving=false,coverOwner=null;
+async function openPortrait(view){
+ const read=++portraitRead;
+ $('viewerName').textContent=view.user;
+ $('viewerImage').innerHTML=userAvatar(view.user);
+ portraitViewer.showModal();
+ try{
+  const {avatar}=await api('avatar-preview',{user:view.user});
+  if(read===portraitRead&&portraitViewer.open&&member===view&&avatar!=null)$('viewerImage').innerHTML=portrait(avatar);
+ }catch{/* The catalog thumbnail is already visible. */}
+}
+$('viewerClose').onclick=()=>portraitViewer.close();
+portraitViewer.addEventListener('click',e=>{
+ if(e.target===portraitViewer){const r=portraitViewer.getBoundingClientRect();if(e.clientX<r.left||e.clientX>r.right||e.clientY<r.top||e.clientY>r.bottom)portraitViewer.close()}
+});
+portraitViewer.addEventListener('close',()=>{portraitRead++;$('viewerImage').replaceChildren()});
+function applyCover(el,photo){
+ el.style.backgroundImage=photo?'url("'+photo+'")':'';
+ el.classList.toggle('custom-cover',!!photo);
+}
+function discardCoverImage(){
+ coverRead++;coverBitmap?.close();coverBitmap=null;$('coverPreview').replaceChildren();$('coverPosition').hidden=true;
+}
+function openCoverEditor(view){
+ coverOwner=view;discardCoverImage();applyCover($('coverPreview'),view.cover);
+ $('coverMsg').textContent='';$('coverSave').disabled=true;
+ coverDialog.showModal();
+}
+function drawCover(){
+ const image=coverBitmap,canvas=$('coverPreview').firstElementChild;
+ if(!image||!canvas)return;
+ const ratio=canvas.width/canvas.height,w=Math.min(image.width,image.height*ratio),h=w/ratio,f=Number($('coverPan').value)/100;
+ const ctx=canvas.getContext('2d');ctx.fillStyle='#17191d';ctx.fillRect(0,0,canvas.width,canvas.height);ctx.imageSmoothingQuality='high';
+ ctx.drawImage(image,(image.width-w)*f,(image.height-h)*f,w,h,0,0,canvas.width,canvas.height);
+}
+$('chooseCover').onclick=()=>$('coverFile').click();
+$('coverPan').oninput=drawCover;
+$('coverFile').onchange=async e=>{
+ const file=e.target.files[0];e.target.value='';if(!file||coverSaving)return;
+ const read=++coverRead,wasDisabled=$('coverSave').disabled;$('coverSave').disabled=true;
+ try{
+  if(file.size>12*1024*1024)throw Error('请选择小于 12 MB 的照片');
+  const bitmap=await createImageBitmap(file);
+  if(read!==coverRead||!coverDialog.open){bitmap.close();return}
+  coverBitmap?.close();coverBitmap=bitmap;
+  const canvas=document.createElement('canvas');canvas.width=1200;canvas.height=240;
+  $('coverPreview').replaceChildren(canvas);$('coverPan').value='50';$('coverPosition').hidden=bitmap.width===5*bitmap.height;
+  drawCover();$('coverMsg').textContent='';$('coverSave').disabled=false;
+ }catch(err){if(read===coverRead){$('coverSave').disabled=wasDisabled;$('coverMsg').textContent=err.message.startsWith('请选择')?err.message:'图片无法读取，请选择其他照片。'}}
+};
+$('defaultCover').onclick=()=>{
+ discardCoverImage();applyCover($('coverPreview'),null);$('coverMsg').textContent='';$('coverSave').disabled=!coverOwner?.cover;
+};
+$('coverClose').onclick=()=>coverDialog.close();
+coverDialog.addEventListener('cancel',e=>{if(coverSaving)e.preventDefault()});
+coverDialog.addEventListener('close',()=>{discardCoverImage();coverOwner=null});
+$('coverSave').onclick=async()=>{
+ const view=coverOwner;
+ if(coverSaving||!view||view!==member||view.user!==overview.user)return;
+ coverSaving=true;
+ for(const b of coverDialog.querySelectorAll('button,input'))b.disabled=true;
+ try{
+  const payload=coverBitmap?{photo:$('coverPreview').firstElementChild.toDataURL('image/jpeg',.9).split(',')[1]}:{default:true};
+  const response=await atlasFetch('/api/profile-cover',{method:'POST',headers:{'Content-Type':'application/json','X-Atlas-Action':'cover'},body:JSON.stringify(payload)});
+  if(response.status===401){loginPage();return}
+  if(!response.ok)throw Error();
+  const {cover}=await response.json();
+  if(member===view){view.cover=cover;applyCover($('profileCover'),cover)}
+  coverDialog.close();
+ }catch{$('coverMsg').textContent='封面保存失败，请重试。'}
+ finally{coverSaving=false;for(const b of coverDialog.querySelectorAll('button,input'))b.disabled=false}
+};
 let member=null, inventoryRequest=null, inventoryFetched=0;
 function refreshMyInventory(){
  if(!inventoryRequest&&Date.now()-inventoryFetched>1800000){
@@ -197,6 +274,8 @@ async function loadMember(view){
  try{
   const data=await api('profile',{user:view.user});
   if(member!==view)return;
+  view.cover=data.cover||null;applyCover($('profileCover'),view.cover);
+  $('coverEdit').hidden=view.user!==overview.user;
   view.bio=data.bio;view.inventory=view.inventory||data.inventory;showBio(view);showInventory(view.inventory);
   if(view.editing){view.editing=false;editMemberBio(view)}
   if(view.user===overview.user&&!view.inventory)refreshMyInventory();
@@ -222,7 +301,8 @@ async function showProfileStats(view,days){
 function openMember(trigger,editing=false){
  const user=trigger.dataset.profile, source=trigger.getBoundingClientRect();
  const view={user,trigger,editing,request:0};member=view;
- $('profileName').textContent=user;$('profilePortrait').innerHTML=userAvatar(user,true);
+ $('profileName').textContent=user;$('profilePortrait').innerHTML=profilePortrait(user);
+ applyCover($('profileCover'),null);$('coverEdit').hidden=true;
  $('profileAvatarEdit').hidden=!editing;
  $('profileBio').textContent='正在读取简介…';$('profileStamp').textContent='';$('profileInventory').textContent='正在读取资源统计…';
  showProfileStats(view,7);
@@ -250,6 +330,8 @@ profileDialog.addEventListener('click',async e=>{
  if(!b)return;
  const d=b.dataset;
  if(b.id==='profileClose')profileDialog.close();
+ else if(d.viewportrait)openPortrait(view);
+ else if(b.id==='coverEdit'&&view.user===overview.user)openCoverEditor(view);
  else if(d.profiledays)showProfileStats(view,Number(d.profiledays));
  else if(d.retryprofile)loadMember(view);
  else if(d.editbio){
@@ -267,6 +349,7 @@ profileDialog.addEventListener('click',async e=>{
  }
 });
 profileDialog.addEventListener('close',()=>{
+ for(const id of ['portraitViewer','coverDialog'])if($(id).open)$(id).close();
  const link=member?.trigger;member=null;
  profileDialog.getAnimations().forEach(a=>a.cancel());
  if(link?.isConnected)link.focus({preventScroll:true});
