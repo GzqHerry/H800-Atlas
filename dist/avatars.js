@@ -80,16 +80,15 @@ function portrait(value){
  }
  return '<img alt="" class="crew-portrait" src="'+attr(value)+'">';
 }
-function userAvatar(user,editable=false){
- const image=portrait(avatarChoices.get(user)??assignedAvatar(user));
- return editable&&user===overview.user?
-  '<button class="crew-edit" data-editavatar aria-label="更换我的头像">'+image+'</button>':image;
+function userAvatar(user){
+ return portrait(avatarChoices.get(user)??assignedAvatar(user));
 }
 function personLabel(user,editable=true){
- return '<span class="crew-person">'+userAvatar(user,editable)+button('profile',user,esc(user),'profile-link','aria-haspopup="dialog"')+'</span>';
+ const image=editable&&user===overview.user?profilePortrait(user):userAvatar(user);
+ return '<span class="crew-person">'+image+button('profile',user,esc(user),'profile-link','aria-haspopup="dialog"')+'</span>';
 }
 function profilePortrait(user){
- return user===overview.user?userAvatar(user,true):button('viewportrait',user,userAvatar(user),'crew-edit portrait-zoom','aria-haspopup="dialog" aria-label="'+attr('查看 '+user+' 的头像大图')+'"');
+ return button('viewportrait',user,userAvatar(user),'crew-edit portrait-zoom','aria-haspopup="dialog" aria-label="'+attr('查看 '+user+' 的头像大图')+'"');
 }
 function paintAvatars(){
  if(!overview.user)return;
@@ -163,24 +162,32 @@ $('avatarSave').onclick=async()=>{
   if(!response.ok)throw Error();
   const {avatar}=await response.json();
   avatarRevision++;avatarChoices.set(overview.user,avatar);paintAvatars();$('avatarDialog').close();
+  if(portraitViewer.open&&$('viewerName').textContent===overview.user){
+   portraitRead++;$('viewerImage').innerHTML=portrait(draft);
+  }
  }catch{$('avatarMessage').textContent='头像保存失败，请重试。'}
  finally{avatarSaving=false;$('avatarControls').disabled=false}
 };
-document.addEventListener('click',e=>{if(e.target.closest('[data-editavatar]'))openAvatarPicker()});
+document.addEventListener('click',e=>{
+ const preview=e.target.closest('[data-viewportrait]');
+ if(preview)openPortrait(preview.dataset.viewportrait);
+ else if(e.target.closest('[data-editavatar]'))openAvatarPicker();
+});
 setInterval(syncAvatars,60000);
 document.addEventListener('visibilitychange',()=>{if(!document.hidden)syncAvatars()});
 
 const profileDialog=$('profileDialog');
 const portraitViewer=$('portraitViewer'),coverDialog=$('coverDialog');
 let portraitRead=0,coverRead=0,coverBitmap=null,coverSaving=false,coverOwner=null;
-async function openPortrait(view){
+async function openPortrait(user){
  const read=++portraitRead;
- $('viewerName').textContent=view.user;
- $('viewerImage').innerHTML=userAvatar(view.user);
+ $('viewerName').textContent=user;
+ $('viewerImage').innerHTML=userAvatar(user);
+ $('viewerEdit').hidden=user!==overview.user;
  portraitViewer.showModal();
  try{
-  const {avatar}=await api('avatar-preview',{user:view.user});
-  if(read===portraitRead&&portraitViewer.open&&member===view&&avatar!=null)$('viewerImage').innerHTML=portrait(avatar);
+  const {avatar}=await api('avatar-preview',{user});
+  if(read===portraitRead&&portraitViewer.open&&avatar!=null)$('viewerImage').innerHTML=portrait(avatar);
  }catch{/* The catalog thumbnail is already visible. */}
 }
 $('viewerClose').onclick=()=>portraitViewer.close();
@@ -330,7 +337,6 @@ profileDialog.addEventListener('click',async e=>{
  if(!b)return;
  const d=b.dataset;
  if(b.id==='profileClose')profileDialog.close();
- else if(d.viewportrait)openPortrait(view);
  else if(b.id==='coverEdit'&&view.user===overview.user)openCoverEditor(view);
  else if(d.profiledays)showProfileStats(view,Number(d.profiledays));
  else if(d.retryprofile)loadMember(view);

@@ -185,6 +185,8 @@ i.crew-portrait{background-color:#050505;background-image:var(--crew-sheet);back
 #viewerImage{--crew-size:min(238px,62vw,55dvh);margin:6px 0 14px;line-height:0}
 #viewerImage .crew-portrait{box-shadow:0 0 0 1px #ffffff30,0 12px 24px #0005}
 #viewerName{font-size:19px;margin:0;overflow-wrap:anywhere}
+#viewerEdit{margin-top:14px;padding:7px 18px;border:1px solid #555962;border-radius:999px;background:#2a2d34;color:#f4f5f8;font:inherit;font-size:14px;cursor:pointer}
+#viewerEdit:hover,#viewerEdit:focus-visible{background:#393e48;border-color:#838996}
 #coverDialog{width:min(510px,calc(100vw - 28px));padding:18px}
 .cover-head,.cover-tools,.cover-footer,#coverPosition:not([hidden]){display:flex;align-items:center;gap:12px}
 .cover-head,.cover-footer{justify-content:space-between}.cover-head h2{margin:0;font-size:20px}
