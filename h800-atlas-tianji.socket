@@ -1,0 +1,9 @@
+[Unit]
+Description=H800 Atlas shared Tianji upload endpoint
+
+[Socket]
+ListenSequentialPacket=@h800-atlas.tianji
+Accept=yes
+
+[Install]
+WantedBy=sockets.target

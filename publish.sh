@@ -18,6 +18,7 @@ if ! "$tb_reader/bin/python" -I -c 'from tensorboard.compat.proto import event_p
     "$tb_reader/bin/python" -m pip install 'tensorboard==2.20.0'
 fi
 files="job_artifacts.py training_eta.py swan_history.py wandb_history.py wandb_runs.py charts.py gateway.py server.py monitor.py insights.py cpu_usage.py gpu_usage.py nas.py grus.py scheduler.py dist/index.html dist/login.html dist/charts.js dist/charts.css dist/avatars.js dist/crew.webp dist/lunar-cover.webp dist/login-landscape.webp dist/guide.js dist/guide.css dist/guide.html dist/guide-images/*.webp"
+files="$files tianji.py"
 version=$(sha256sum $files | sha256sum | cut -c1-16)
 release="$root/releases/$version"
 stage=$(mktemp -d "$root/releases/.stage-XXXXXXXX")
@@ -79,9 +80,11 @@ mv -Tf "$root/current.new" "$root/current"
 unitdir="$HOME/.config/systemd/user"
 mkdir -p "$unitdir"
 install -m 644 h800-atlas.service "$unitdir/h800-atlas.service"
+install -m 644 h800-atlas-tianji.socket h800-atlas-tianji@.service "$unitdir/"
 install -d -m 2750 "$root/samples"
 install -m 644 h800-atlas-sample.service h800-atlas-sample.timer "$unitdir/"
 systemctl --user daemon-reload
+systemctl --user enable --now h800-atlas-tianji.socket
 systemctl --user enable h800-atlas.service
 if [ -f "$old/gateway.py" ] && cmp -s "$old/gateway.py" "$release/gateway.py"; then
     systemctl --user start h800-atlas.service

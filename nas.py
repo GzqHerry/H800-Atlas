@@ -12,6 +12,7 @@ import tempfile
 import time
 import uuid
 import grus
+import tianji
 from pathlib import Path
 
 HOME = Path.home()
@@ -147,7 +148,7 @@ def job_list():
             job.update(state='失败',error='操作进程已退出，请重试以复核目标文件。')
     return sorted(rows.values(),key=lambda j:-j['started'])
 
-def enqueue(checkpoint, action='upload'):
+def enqueue(checkpoint, action='upload', job_id=None):
     JOBS.mkdir(mode=0o700,parents=True,exist_ok=True)
     with (JOBS/'submit.lock').open('a') as lock:
         fcntl.flock(lock,fcntl.LOCK_EX)
@@ -159,7 +160,7 @@ def enqueue(checkpoint, action='upload'):
                 else:
                     if j.get('action','upload')!=action:raise ValueError('该 checkpoint 已有任务在执行')
                     return j
-        job=dict(id=uuid.uuid4().hex,source=checkpoint['path'],meta=checkpoint,action=action,started=int(time.time()),state='等待复核' if action=='remove' else '待传输',percent=0)
+        job=dict(id=job_id or uuid.uuid4().hex,source=checkpoint['path'],meta=checkpoint,action=action,started=int(time.time()),state='等待复核' if action=='remove' else '待传输',percent=0)
         # Worker takes this same lock before reading the submitted record.
         child=subprocess.Popen([sys.executable,__file__,job['id']],start_new_session=True,
                                stdin=subprocess.DEVNULL,stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL)
@@ -220,8 +221,8 @@ def remove_verified_copy(path, job, update):
     update('完成',percent=100,bytes=size,staging=None)
 
 
-def transfer_files(cmd, update):
-    with subprocess.Popen(cmd,stdout=subprocess.PIPE,stderr=subprocess.STDOUT,text=True,errors='replace') as proc:
+def transfer_files(cmd, update, *, pass_fds=()):
+    with subprocess.Popen(cmd,stdout=subprocess.PIPE,stderr=subprocess.STDOUT,text=True,errors='replace',pass_fds=pass_fds) as proc:
         last=0;tail=''
         for line in proc.stdout:
             tail=line.strip() or tail
@@ -249,9 +250,11 @@ def worker(jid):
             if original.is_symlink():raise ValueError('不能操作链接目录')
             path=original.resolve(strict=True)
             if str(path)!=job['meta']['resolved'] or not path.is_dir():raise ValueError('Checkpoint 源目录已更改')
-            inference_target={'upload-grus':'Grus','upload-tianji':'Tianji'}.get(job.get('action'))
-            if inference_target:
-                grus.upload(path,job,update,transfer_files,inference_target)
+            if job['action']=='upload-tianji':
+                tianji.upload(path,job,update)
+                return
+            if job.get('action')=='upload-grus':
+                grus.upload(path,job,update,transfer_files)
                 return
             if job.get('action')=='remove':
                 update('重新校验')

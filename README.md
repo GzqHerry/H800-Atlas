@@ -13,6 +13,10 @@ H800 Atlas 把个人训练记录、文件、权重和 Slurm 队列放在同一�
 
 ## 可以做什么
 
+同事使用自己的 H800 账号登录后，在「资源目录 → Checkpoints」里打开训练任务，点击「上传到 Tianji」即可。Atlas 使用公共账号 `user`，将推理所需文件保存到 `/WD/tianji/models/<训练目录名>/<checkpoint 名>/`。进度与 SHA-256 校验结果显示在个人操作记录中。若同名目录已有不同内容，页面会提示校验失败并保留已有文件。
+
+Tianji 的 SSH 凭据只需由 Atlas 部署账号配置一次。发布脚本启用 `h800-atlas-tianji.socket`。每次上传由登录用户的进程打开 checkpoint，由服务端使用已验证的 SSH 主机密钥和部署账号的认证配置连接 Tianji。采用密码认证时，凭据文件为部署账号的 `~/.config/h800-atlas/tianji.password`，权限设为 `600`。
+
 | 页面 | 常用操作 |
 | --- | --- |
 | 工作台 | 查看作业总数、运行中和排队中的作业、checkpoint 数量，以及各存储位置的余量。`/home` 使用当前用户的 30 GiB 配额计算。 |

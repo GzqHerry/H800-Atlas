@@ -617,7 +617,10 @@ def route(method, target, body):
         if destination in ('Grus','Tianji'):action='upload-'+destination.lower()
         if action=='remove' and not any(c['verified'] and c['source']==str(path) for c in nas.remote('checkpoints')):
             return 409,{'error':'未找到已校验的 NAS 副本'}
-        return 202,nas.enqueue(dict(name=path.name,group=str(path.parent),path=str(path),resolved=str(source),kind='checkpoint'),action)
+        grant=body.get('tianjiGrant') if action=='upload-tianji' else None
+        if action=='upload-tianji' and not re.fullmatch('[0-9a-f]{32}',grant or ''):
+            return 403,dict(error='请通过 Atlas 登录后提交 Tianji 上传')
+        return 202,nas.enqueue(dict(name=path.name,group=str(path.parent),path=str(path),resolved=str(source),kind='checkpoint'),action,grant)
     routes={'/api/job-command':lambda:lookup_command(q.get('id','')),'/api/nas':nas.catalog,'/api/uploads':nas.job_list,'/api/cluster':cluster,'/api/checkpoint-groups':lambda:checkpoint_index(H),'/api/checkpoints':lambda:checkpoint_detail(H,q.get('group',''),safe),'/api/size':lambda:measure(q),'/api/overview':overview,'/api/jobs':jobs,'/api/files':lambda:files(q),'/api/detail':lambda:detail(q.get('id',''),(q.get('metric'),q.get('axis')))}
     routes['/api/checkpoint-sources']=checkpoint_sources
     routes['/api/training-summary']=lambda:charts.training_summary(H,safe)

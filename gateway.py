@@ -20,6 +20,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import parse_qs, urlsplit
 from gpu_usage import live_gpu_sample
 from cpu_usage import live_cpu_sample
+import tianji
 
 ROOT = Path(__file__).resolve().parent.parent.parent
 CURRENT = ROOT / 'current'
@@ -317,8 +318,14 @@ class Handler(BaseHTTPRequestHandler):
         if not path.startswith('/api/'):return self.reply(404,{'error':'页面不存在'})
         if self.command=='GET' and path=='/api/training-usage':
             body={'outcomes':{p.stem:json.loads(p.read_bytes()) for p in (PROFILES/'outcomes').glob('*.json')}}
+        grant=None
+        if self.command=='POST' and path=='/api/upload' and body.get('destination')=='Tianji':
+            grant=tianji.authorize(worker.user,body.get('path'))
+            body['tianjiGrant']=grant.name
         try:
             code,data=worker.call(self.command,self.path,body)
+            if grant and (code!=202 or data.get('id')!=grant.name):
+                grant.unlink(missing_ok=True)
         except (OSError,subprocess.SubprocessError):
             with guard:removed=sessions.pop(token,None)
             if removed:removed.close()

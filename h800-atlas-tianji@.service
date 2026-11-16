@@ -1,0 +1,10 @@
+[Unit]
+Description=H800 Atlas Tianji transfer
+
+[Service]
+ExecStart=/usr/bin/python3 -E -s -B /workspace/gzqherry/h800-atlas-team/current/tianji.py
+StandardInput=socket
+StandardOutput=journal
+UMask=0077
+NoNewPrivileges=yes
+LimitCORE=0

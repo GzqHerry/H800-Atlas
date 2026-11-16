@@ -87,13 +87,13 @@ print(json.dumps(dict(done=final.is_dir(), stage=str(stage), final=str(final))))
 """
 
 
-def inference_files(path):
+def inference_files(path, *, descriptor_view=False):
     names = {'config.json'}
     for stem, suffix in (('model', '.safetensors'), ('pytorch_model', '.bin')):
         weight = stem + suffix
         index = path / (weight + '.index.json')
         if index.is_file():
-            if index.is_symlink():
+            if index.is_symlink() and not descriptor_view:
                 raise ValueError('不支持链接权重索引')
             content = json.loads(index.read_text())
             mapping = content.get('weight_map') if isinstance(content, dict) else None
@@ -114,7 +114,7 @@ def inference_files(path):
     result = {}
     for name in sorted(names):
         file = path / name
-        if file.is_symlink() or not file.is_file():
+        if (file.is_symlink() and not descriptor_view) or not file.is_file():
             raise ValueError('推理文件缺失或为链接：' + name)
         st = file.stat()
         result[name] = (st.st_dev, st.st_ino, st.st_size, st.st_mtime_ns)
@@ -137,9 +137,11 @@ def connection(target):
     return host, [*SSH, '-o', 'BatchMode=yes']
 
 
-def upload(path, job, update, transfer, target_name='Grus'):
+def upload(path, job, update, transfer, target_name='Grus', *, source_fds=(), source_uid=None):
     host, ssh = connection(target_name)
-    source = inference_files(path)
+    def inventory():
+        return inference_files(path, descriptor_view=bool(source_fds))
+    source = inventory()
     size = sum(st[2] for st in source.values())
     files = {}
     update('计算 SHA-256', bytes=size)
@@ -149,9 +151,9 @@ def upload(path, job, update, transfer, target_name='Grus'):
             for block in iter(lambda: stream.read(8 * 1024 * 1024), b''):
                 digest.update(block)
         files[name] = dict(size=st[2], sha256=digest.hexdigest())
-    if inference_files(path) != source:
+    if inventory() != source:
         raise ValueError('校验期间推理文件发生变化，请重试')
-    version = hashlib.sha256(json.dumps([str(path), os.getuid(), files], sort_keys=True).encode()).hexdigest()[:32]
+    version = hashlib.sha256(json.dumps([job['source'], os.getuid() if source_uid is None else source_uid, files], sort_keys=True).encode()).hexdigest()[:32]
     def remote(action):
         request = dict(action=action, target=target_name, group=Path(job['meta']['group']).name, name=path.name,
                        version=version, files=files)
@@ -166,8 +168,14 @@ def upload(path, job, update, transfer, target_name='Grus'):
     if not target['done']:
         cmd = ['rsync', '-rt', '--checksum', '--partial', '--protect-args', '--info=progress2',
                '--outbuf=L', '-e', shlex.join(ssh), '--']
-        transfer(cmd + [str(path / n) for n in files] + [host + ':' + target['stage'] + '/'], update)
-    if inference_files(path) != source:
+        if source_fds:
+            cmd.insert(1, '--copy-links')
+        args = cmd + [str(path / n) for n in files] + [host + ':' + target['stage'] + '/']
+        if source_fds:
+            transfer(args, update, pass_fds=source_fds)
+        else:
+            transfer(args, update)
+    if inventory() != source:
         raise ValueError('传输期间推理文件发生变化，请重试')
     update('校验中')
     remote('publish')
