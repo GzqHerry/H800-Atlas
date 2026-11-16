@@ -179,7 +179,7 @@ html[data-theme=dark] .task-library{--task-blue:#8ebfff;--task-green:#78d5b7;--t
 .task-text small,.task-time small,.task-size small{display:block;color:var(--soft);font-size:11px;line-height:1.5;margin-top:3px}
 .task-text small{letter-spacing:.025em}.task-library .copy-path{margin:0;white-space:nowrap;font-size:11px;color:var(--soft)}
 .task-origins>div{display:flex;gap:4px;flex-wrap:wrap}.task-source{display:inline-flex;align-items:center;gap:5px;padding:3px 7px;border-radius:6px;color:var(--task-blue);background:color-mix(in srgb,currentColor 10%,var(--white));font-size:11px;font-weight:600;white-space:nowrap}
-.task-source.nas{color:var(--task-green)}.task-source i{width:5px;height:5px;border-radius:50%;background:currentColor}.task-source b{border-left:1px solid color-mix(in srgb,currentColor 28%,transparent);padding-left:5px}
+.task-source.grus{color:var(--task-violet,var(--purple,#9461cd))}.task-source.nas{color:var(--task-green)}.task-source i{width:5px;height:5px;border-radius:50%;background:currentColor}.task-source b{border-left:1px solid color-mix(in srgb,currentColor 28%,transparent);padding-left:5px}
 .task-time,.task-count,.task-size{font-variant-numeric:tabular-nums;font-size:13px}.task-count b{font-size:16px}.task-count small{color:var(--soft);font-size:11px}
 .task-capacity{width:min(100%,92px);height:4px;margin-top:6px;border-radius:4px;background:var(--line);overflow:hidden}.task-capacity i{display:block;height:100%;border-radius:inherit;background:var(--task-violet)}.task-capacity:empty{background:none;border-top:1px dashed var(--line)}
 .task-library .pager{padding:12px 24px;margin:0}.task-library .empty{padding-inline:24px}
@@ -740,7 +740,7 @@ for(const event of ['pointerout','focusout'])document.addEventListener(event,e=>
 document.addEventListener('keydown',e=>{if(e.key==='Escape'&&pathAnchor){hidePathTip();e.preventDefault()}});
 document.addEventListener('close',hidePathTip,true);
 window.addEventListener('resize',placePathTip);document.addEventListener('scroll',placePathTip,true);
-function groupLabel(g){const parts=g.path.split('/');return ['preflight','checkpoints','ckpts','output','outputs'].includes(g.name)?parts.slice(-2).join(' / '):g.name}
+function groupLabel(g){if(g.path==='/mnt/data0/arx_ckpts')return 'Grus 根目录';const parts=g.path.split('/');return ['preflight','checkpoints','ckpts','output','outputs'].includes(g.name)?parts.slice(-2).join(' / '):g.name}
 function taskIdentity(g){
  const full=groupLabel(g), tokens=full.replace(/^train_/,'').split('_');
  const code=tokens.findIndex(t=>/^[a-f0-9]{8}$/i.test(t)&&! /^(?:19|20)\d{6}$/.test(t));
@@ -761,8 +761,8 @@ function taskRow(g,peak){
  const date=g.updated?new Date(g.updated*1000):null;
  const time=date?'<time datetime="'+date.toISOString()+'">'+esc(date.toLocaleDateString('zh-CN'))+'<small>'+esc(date.toLocaleTimeString('zh-CN',{hour12:false}))+'</small></time>':'时间未知';
  return '<tr><td class="task-main"><div class="task-identity"><i class="task-folder" aria-hidden="true"></i><div class="task-text">'+
-  button('group',g.path,name,'task-name','title="'+attr(full)+'" aria-label="'+attr(full)+'"')+(id.context?'<small>'+esc(id.context)+'</small>':'')+'</div>'+copyButton(g.path)+'</div></td>'+
-  '<td class="task-origins"><div>'+origin('H800',g.h800)+origin('NAS',g.nas)+'</div></td><td class="task-time">'+time+'</td>'+
+  button('group',g.path,name,'task-name','title="'+attr(full)+'" aria-label="'+attr(full)+'"')+(id.context?'<small>'+esc(id.context)+'</small>':'')+'</div>'+copyButton(g.copyPath)+'</div></td>'+
+  '<td class="task-origins"><div>'+origin('H800',g.h800)+origin('NAS',g.nas)+origin('Grus',g.grus)+'</div></td><td class="task-time">'+time+'</td>'+
   '<td class="task-count"><b>'+g.count+'</b><small> 个</small></td><td class="task-size"><b>'+size+'</b><div class="task-capacity" aria-hidden="true">'+fill+'</div>'+
   (known&&g.unmeasured?'<small>另有 '+g.unmeasured+' 项待统计</small>':'')+'</td></tr>';
 }
@@ -778,6 +778,7 @@ function tableMarkup(headers,rows){return '<div class="scroll"><table><thead><tr
 function atStep(n,step){return n==null?'':n===step?'保存步':'最近记录 · step '+n}
 function checkpointLocations(c){
  let html=c.present?'<div class="ck-location"><span class="badge">H800</span>'+copyButton(c.path)+'</div>':'';
+ if(c.grus)html+='<div class="ck-location"><span class="task-source grus"><i></i>Grus · 推理权重</span>'+copyButton(c.grus.destination)+'</div>';
  for(const copy of c.copies){
   html+='<div class="ck-location"><span class="badge '+(copy.verified?'completed':'pending')+'">'+(copy.verified?'已上传 NAS · 已校验':'NAS · 待校验')+'</span>'+copyButton(copy.destination)+'</div>';
  }
@@ -793,14 +794,19 @@ function sourceGroups(items){
  const grouped=new Map();
  for(const row of items){
   let g=grouped.get(row.group);
-  if(!g){g={path:row.group,name:row.group.split('/').pop(),count:0,bytes:0,unmeasured:0,updated:0,h800:0,nas:0};grouped.set(row.group,g)}
+  if(!g){g={path:row.group,name:row.group.split('/').pop(),count:0,bytes:0,unmeasured:0,updated:0,h800:0,nas:0,grus:0,copyPath:row.group};grouped.set(row.group,g)}
   g.count++;g.bytes+=row.bytes||0;if(row.bytes==null)g.unmeasured++;
   if(row.present)g.h800++;if(row.copies.length)g.nas++;
+  if(row.grus){
+   g.grus++;
+   if(ckStore==='Grus'||(!g.h800&&!g.nas))g.copyPath=row.grus.destination.slice(0,row.grus.destination.lastIndexOf('/'));
+  }
+  if(ckStore!=='Grus'&&(row.present||row.copies.length))g.copyPath=row.group;
   g.updated=Math.max(g.updated,row.updated);
  }
  return [...grouped.values()].sort((a,b)=>b.updated-a.updated||a.path.localeCompare(b.path));
 }
-function groupDetailView(g,items){return '<article class="surface below"><div class="line">'+button('backgroups','1','← 全部训练任务','link')+'<small>'+items.length+' 个 checkpoint</small></div><h2 class="long-title">'+esc(groupLabel(g))+'</h2>'+copyButton(g.path)+tableMarkup(['Checkpoint / 路径','更新时间 ↓','Step','Epoch / 总轮数','训练 loss','学习率','盘点大小'],items.map(c=>'<tr><td><b>'+esc(c.name)+'</b>'+checkpointLocations(c)+'</td><td>'+esc(updatedLabel(c))+'</td><td>'+numeric(c.step,0)+'</td><td>'+numeric(c.epoch)+' / '+numeric(c.epochs,0)+'</td><td>'+numeric(c.loss,8)+'<small class="sample-step">'+atStep(c.lossStep,c.step)+'</small></td><td>'+esc(c.lr==null?'—':Number(c.lr).toExponential(3))+'<small class="sample-step">'+atStep(c.lrStep,c.step)+'</small></td><td>'+fmt(c.bytes)+'</td></tr>'))+'<p class="disk-note">Epoch 取自训练状态。loss 和学习率显示保存步或之前最近一次记录；— 表示缺少对应数据。</p></article>'}
+function groupDetailView(g,items){return '<article class="surface below"><div class="line">'+button('backgroups','1','← 全部训练任务','link')+'<small>'+items.length+' 个 checkpoint</small></div><h2 class="long-title">'+esc(groupLabel(g))+'</h2>'+copyButton(g.copyPath)+tableMarkup(['Checkpoint / 路径','更新时间 ↓','Step','Epoch / 总轮数','训练 loss','学习率','盘点大小'],items.map(c=>'<tr><td><b>'+esc(c.name)+'</b>'+checkpointLocations(c)+'</td><td>'+esc(updatedLabel(c))+'</td><td>'+numeric(c.step,0)+'</td><td>'+numeric(c.epoch)+' / '+numeric(c.epochs,0)+'</td><td>'+numeric(c.loss,8)+'<small class="sample-step">'+atStep(c.lossStep,c.step)+'</small></td><td>'+esc(c.lr==null?'—':Number(c.lr).toExponential(3))+'<small class="sample-step">'+atStep(c.lrStep,c.step)+'</small></td><td>'+fmt(c.bytes)+'</td></tr>'))+'<p class="disk-note">Epoch 取自训练状态。loss 和学习率显示保存步或之前最近一次记录；— 表示缺少对应数据。</p></article>'}
 async function resourceView(){
  const tab=assetTab,chosen=groupPath;
  let tabs='<div class="tags asset-tabs">'+button('assetnav','ck','Checkpoints','tab','aria-pressed="'+(tab==='ck')+'"')+button('assetnav','datasets','Datasets','tab','aria-pressed="'+(tab==='datasets')+'"')+'</div>';
@@ -821,8 +827,10 @@ async function resourceView(){
  return tabs+datasetGraphics(all)+locations+(nasIssue?'<p class="feedback">'+esc(nasIssue)+'</p>':'')+chooser+form+list+storage}
  if(!ckSources)ckSources=await api('checkpoint-sources');
  try{await readTransfers()}catch{}
- tabs+='<div class="tools" aria-label="Checkpoint 来源">'+button('openscan','1','按路径检索','outline')+[['all','全部来源'],['H800','H800'],['NAS','NAS']].map(([id,n])=>button('ckstore',id,n,'chip','aria-pressed="'+(ckStore===id)+'"')).join('')+'</div>'+(ckSources.note?'<p class="feedback">'+esc(ckSources.note)+'</p>':'')+'<div id="transfers">'+transferPanel()+'</div>';
- const items=ckSources.items.filter(c=>ckStore==='all'||(ckStore==='H800'?c.present:c.copies.length));
+ tabs+='<div class="tools" aria-label="Checkpoint 来源">'+button('openscan','1','按路径检索','outline')+[['all','全部来源'],['H800','H800'],['NAS','NAS'],['Grus','Grus']].map(([id,n])=>button('ckstore',id,n,'chip','aria-pressed="'+(ckStore===id)+'"')).join('')+'</div>'+(ckSources.note?'<p class="feedback">'+esc(ckSources.note)+'</p>':'')+'<div id="transfers">'+transferPanel()+'</div>';
+ const items=ckStore==='Grus'
+  ?ckSources.items.filter(c=>c.grus).map(c=>({...c,bytes:c.grus.bytes,updated:c.grus.updated}))
+  :ckSources.items.filter(c=>ckStore==='all'||(ckStore==='H800'?c.present:c.copies.length));
  const groups=sourceGroups(items);
  if(chosen){
   const g=groups.find(x=>x.path===chosen);

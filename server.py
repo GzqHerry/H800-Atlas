@@ -3,6 +3,7 @@ from pathlib import Path
 from urllib.parse import urlsplit, parse_qs
 from collections import Counter
 import nas
+import grus
 import charts
 import swan_history
 import wandb_runs
@@ -576,6 +577,29 @@ def checkpoint_sources():
         row=rows.setdefault(str(path),dict(path=str(path),group=str(path.parent),name=path.name,present=False,bytes=c['bytes'],updated=c['updated'],copies=[]))
         row['copies'].append(c)
         row['updated']=max(row['updated'],c['updated'])
+    try:
+        remote = grus.checkpoints()
+    except (OSError, ValueError, subprocess.SubprocessError):
+        remote = {'items': []}
+        note = ' · '.join(filter(None, (note, '当前账号暂时无法读取 Grus')))
+    if remote.get('partial'):
+        note = ' · '.join(filter(None, (note, '部分 Grus 目录不可读取或缺少推理文件')))
+    parents = {}
+    for row in rows.values():
+        parent = Path(row['group'])
+        parents.setdefault(parent.name, set()).add(parent)
+    for copy in remote['items']:
+        destination = Path(copy['destination'])
+        candidates = parents.get(destination.parent.name, set()) if destination.parent != Path('/mnt/data0/arx_ckpts') else set()
+        if len(candidates) == 1:
+            group = next(iter(candidates))
+        else:
+            group = destination.parent
+        key = str(group / destination.name)
+        row = rows.setdefault(key, dict(path=key, group=str(group), name=destination.name,
+                                        present=False, bytes=copy['bytes'], updated=copy['updated'], copies=[]))
+        row['grus'] = copy
+        row['updated'] = max(row['updated'], copy['updated'])
     return dict(items=list(rows.values()),note=note)
 
 def route(method, target, body):
