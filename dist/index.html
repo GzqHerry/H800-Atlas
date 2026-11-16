@@ -101,6 +101,25 @@ html[data-theme=dark]{color-scheme:dark;--paper:#17181c;--ink:#ecedf2;--soft:#b1
 .checkpoint-progress:not(:empty){width:min(100%,360px);margin-top:12px}
 .checkpoint-progress .upload-meter{background:var(--paper);border:1px solid var(--line);border-radius:12px;padding:10px 12px}
 .transfer-line .upload-meter{max-width:680px}
+.surface.ds-library{--task-blue:#2868a9;--task-green:#18725e;overflow:hidden;padding:0}
+html[data-theme=dark] .ds-library{--task-blue:#8ebfff;--task-green:#78d5b7}
+.ds-list{list-style:none;margin:0;padding:0}
+.ds-row{display:grid;grid-template-columns:minmax(0,1fr) minmax(82px,10%) minmax(96px,12%) 82px;align-items:center;gap:18px;padding:16px 24px;border-top:1px solid var(--line)}
+.ds-row:hover,.ds-row:focus-within{background:color-mix(in srgb,var(--task-blue) 4%,var(--white))}
+.ds-row .ds-identity h3{margin:0;font:600 16px/1.4 var(--sans);color:var(--ink);overflow-wrap:anywhere}
+.ds-identity>small,.ds-stat small,.ds-actions small{color:var(--soft);font-size:12px}
+.ds-tags,.ds-robot{display:flex;align-items:center;gap:6px}.ds-tags{flex-wrap:wrap;margin:6px 0 4px}
+.robot-0{--robot-color:light-dark(#8050a3,#d3a6f2)}.robot-1{--robot-color:light-dark(#965d18,#f5be77)}
+.robot-2{--robot-color:light-dark(#ad4967,#f8a8c1)}.robot-3{--robot-color:light-dark(#5c61aa,#b8bafa)}
+.robot-4{--robot-color:light-dark(#88640a,#e7cb72)}.robot-5{--robot-color:light-dark(#4f7326,#aed784)}
+.robot-6{--robot-color:light-dark(#8b5544,#edb19b)}
+.ds-tags .ds-robot{color:var(--robot-color);background:color-mix(in srgb,var(--robot-color) 12%,var(--white));border-radius:6px;padding:3px 7px;font-size:11px;font-weight:600}
+.ds-robot i{width:7px;height:7px;flex:none;border-radius:2px;background:var(--robot-color)}
+.robot-options .ds-robot{display:inline-flex}.robot-options .ds-robot[aria-pressed=true]{border-color:var(--robot-color);color:var(--robot-color);background:color-mix(in srgb,var(--robot-color) 12%,var(--white))}
+.ds-stat{display:grid;gap:3px;font-variant-numeric:tabular-nums}.ds-stat strong{font-size:17px;font-weight:550}.ds-episodes strong{font-size:23px;color:var(--ink);letter-spacing:-.025em}
+.ds-actions{display:grid;justify-items:end;gap:5px}.ds-actions .copy-path{white-space:nowrap}.ds-library .pager,.ds-library .empty{margin:0;padding:14px 24px}
+.ds-graphics .donut{background:conic-gradient(#4088f2 0 var(--portion),#3fa58e var(--portion) 100%)}.ds-graphics .key-dot.alt{background:#3fa58e}
+@media(max-width:650px){.ds-row{grid-template-columns:minmax(0,1fr) minmax(0,1fr) auto;gap:8px 12px;padding:14px 16px}.ds-identity{grid-column:1/-1}.ds-library .task-heading{padding:16px}.ds-episodes strong{font-size:20px}}
 .surface.task-library{--task-blue:#2868a9;--task-green:#18725e;--task-violet:#8364bf;padding:0;overflow:hidden;background:var(--white)}
 html[data-theme=dark] .task-library{--task-blue:#8ebfff;--task-green:#78d5b7;--task-violet:#b79ae9}
 .task-heading{display:flex;align-items:center;gap:12px;padding:20px 24px 17px;background:linear-gradient(105deg,color-mix(in srgb,var(--task-blue) 9%,var(--white)),var(--white) 65%)}
@@ -506,7 +525,7 @@ function datasetGraphics(rows){
  const counts=new Map();for(const d of rows)counts.set(d.kind,(counts.get(d.kind)||0)+1);
  const total=rows.length,episodes=rows.reduce((sum,x)=>sum+(x.kind==='LeRobot'?x.episodes||0:0),0);
  const places=[['H800',rows.filter(d=>d.location!=='NAS').length],['NAS',rows.filter(d=>d.location==='NAS').length]];
- return '<div class="res-graphics"><section class="surface graphic"><h2>数据资源分布</h2><div class="visual-flex"><div class="donut" style="--portion:'+Math.round((places[0][1]/(total||1))*100)+'%"><strong>'+total+'</strong></div><div><p><i class="key-dot"></i> H800　'+places[0][1]+'</p><p><i class="key-dot alt"></i> NAS　'+places[1][1]+'</p><small>按数据副本计数</small></div></div></section>'+graphBars('资源类型',[...counts].sort((a,b)=>b[1]-a[1]),'已记录 '+episodes.toLocaleString()+' 条 LeRobot episodes','violet')+'</div>'
+ return '<div class="res-graphics ds-graphics"><section class="surface graphic"><h2>数据资源分布</h2><div class="visual-flex"><div class="donut" style="--portion:'+Math.round((places[0][1]/(total||1))*100)+'%"><strong>'+total+'</strong></div><div><p><i class="key-dot"></i> H800　'+places[0][1]+'</p><p><i class="key-dot alt"></i> NAS　'+places[1][1]+'</p><small>按数据副本计数</small></div></div></section>'+graphBars('资源类型',[...counts].sort((a,b)=>b[1]-a[1]),'已记录 '+episodes.toLocaleString()+' 条 LeRobot episodes','violet')+'</div>'
 }
 function ckGraphics(groups){
  const top=[...groups].sort((a,b)=>b.bytes-a.bytes).slice(0,4);
@@ -594,8 +613,26 @@ async function sendCheckpoint(b,path,destination='NAS'){
  finally{delete b.dataset.submitting}
 }
 
-function assetColumn(items,i){const matching=items.filter(a=>(a.name+' '+a.path).toLowerCase().includes(assetQuery.toLowerCase()));const start=Math.min(assetPage[i]*10,Math.max(0,Math.floor((matching.length-1)/10)*10));
- return '<section class="surface"><div class="line"><h2>'+(i?'Checkpoints':'Datasets')+'</h2><small>'+(i&&!live?'历史汇总':matching.length+' 项')+'</small></div><small>'+(i?'权重与训练状态文件 · 历史盘点':'按更新时间 · 最新在前')+'</small>'+matching.slice(start,start+10).map(a=>'<div class="asset"><b>'+esc(a.name)+'</b><small class="sample-step">'+esc(a.location||'H800')+' · '+esc(a.robot)+' · '+esc(a.kind)+(a.jobId?' · 作业 '+esc(a.jobId.slice(0,12)):'')+' · '+esc(updatedLabel(a))+'</small><span class="mono">'+(i?fmt(a.bytes)+(a.present===false?' · 本地目录缺失':''):esc(a.episodes)+' 条 / '+esc(a.frames)+' 帧')+'</span> '+(copyButton(a.path)+' '+(live&&a.location!=='NAS'?button('measure',a.path,sizes.get(a.path)||'统计占用','link'):(a.bytes!=null?fmt(a.bytes):'')))+'</div>').join('')+(!matching.length?'<p class="empty">没有匹配项。</p>':'')+'<div class="pager">'+(start?button('ap',i+':'+(start/10-1),'上一页'):'')+(matching.length>10?'<small>'+Math.floor(start/10+1)+' / '+Math.ceil(matching.length/10)+'</small>':'')+(start+10<matching.length?button('ap',i+':'+(start/10+1),'下一页'):'')+'</div></section>'}
+function datasetList(items,tones){
+ const query=assetQuery.trim().toLowerCase();
+ const rows=items.filter(d=>(d.name+' '+d.path).toLowerCase().includes(query))
+  .sort((a,b)=>(b.updated||0)-(a.updated||0)||a.path.localeCompare(b.path));
+ assetPage[0]=Math.min(assetPage[0],Math.max(0,Math.ceil(rows.length/10)-1));
+ const count=n=>n!=null&&Number.isFinite(Number(n))?Number(n).toLocaleString('zh-CN'):'—';
+ const cards=rows.slice(assetPage[0]*10,assetPage[0]*10+10).map(d=>{
+  const location=d.location||'H800';
+  const robot=d.robot?'<span class="ds-robot robot-'+tones.get(d.robot)+'"><i></i>'+esc(d.robot)+'</span>':'';
+  const store='<span class="task-source '+(location==='NAS'?'nas':'h800')+'"><i></i>'+esc(location)+'</span>';
+  const meta=[d.kind,d.jobId?'作业 '+d.jobId.slice(0,12):'',updatedLabel(d)].filter(Boolean).map(esc).join(' · ');
+  const size=live&&location!=='NAS'?button('measure',d.path,sizes.get(d.path)||'统计占用','link'):(d.bytes!=null?'<small>'+fmt(d.bytes)+'</small>':'');
+  return '<li class="ds-row"><div class="ds-identity"><h3>'+esc(d.name)+'</h3><div class="ds-tags">'+robot+store+'</div><small>'+meta+'</small></div>'+
+   '<div class="ds-stat ds-episodes"><small>Episodes</small><strong>'+count(d.episodes)+'</strong></div>'+
+   '<div class="ds-stat"><small>帧数</small><strong>'+count(d.frames)+'</strong></div>'+
+   '<div class="ds-actions">'+copyButton(d.path)+size+'</div></li>';
+ }).join('');
+ return '<section class="surface ds-library"><div class="task-heading"><h2>Datasets</h2><small>'+rows.length+' 项</small></div>'+
+  (cards?'<ul class="ds-list">'+cards+'</ul>':'<p class="empty">没有匹配的数据集。</p>')+pageControls('dspage',assetPage[0],rows.length,10)+'</section>';
+}
 let robotFilter='';
 
 let ckStore='all',ckSources=null;
@@ -721,11 +758,14 @@ async function resourceView(){
  if(live)await fetchNAS();
  const nas=nasEntry,all=[...a.datasets,...(nas?.datasets||[])];
  const byStore=all.filter(d=>storeFilter==='all'||(d.location||'H800')===storeFilter);
- const locations='<div class="tools"><label for="ds-store">存储位置</label><select id="ds-store" class="theme">'+[['all','全部位置'],['H800','H800'],['NAS','NAS']].map(([id,n])=>'<option value="'+id+'" '+(id===storeFilter?'selected':'')+'>'+n+'</option>').join('')+'</select>'+(nas?.enabled?'<small>NAS 剩余 '+fmt(nas.free)+'</small> '+copyButton(nas.root):'')+'</div>';
- const options=[...new Set([...(storeFilter==='NAS'?[]:a.robots),...byStore.map(d=>d.robot)].filter(Boolean))];
- const chooser='<div class="tools robot-filter" role="group" aria-label="机器人 / 来源"><span>机器人 / 来源</span><div class="robot-options">'+['',...options].map(r=>button('robot',r,esc(r||'全部来源'),'chip','aria-pressed="'+(r===robotFilter)+'"')).join('')+'</div></div>';
+ const locations='<div class="tools ds-stores" role="group" aria-label="存储位置"><span>存储位置</span>'+[['all','全部位置'],['H800','H800'],['NAS','NAS']].map(([id,n])=>button('dsstore',id,n,'chip','aria-pressed="'+(id===storeFilter)+'"')).join('')+(nas?.enabled?'<small>NAS 剩余 '+fmt(nas.free)+'</small> '+copyButton(nas.root):'')+'</div>';
+ const robots=[...new Set([...(a.robots||[]),...all.map(d=>d.robot)].filter(Boolean))].sort();
+ const tones=new Map(robots.map((robot,i)=>[robot,i%7]));
+ const visibleRobots=new Set(storeFilter==='NAS'?[]:a.robots);
+ byStore.forEach(d=>visibleRobots.add(d.robot));
+ const chooser='<div class="tools robot-filter" role="group" aria-label="机器人 / 来源"><span>机器人 / 来源</span><div class="robot-options">'+['',...robots.filter(r=>visibleRobots.has(r))].map(r=>button('robot',r,(r?'<i></i>':'')+esc(r||'全部来源'),r?'chip ds-robot robot-'+tones.get(r):'chip','aria-pressed="'+(r===robotFilter)+'"')).join('')+'</div></div>';
  const nasEmpty=storeFilter==='NAS'&&nas?.enabled&&!nasIssue&&!byStore.length;
- const list=nasEmpty?'<section class="surface"><h2>NAS 数据集</h2><p class="empty">当前 NAS 目录中没有检索到数据集。</p>'+button('nascheckpoints','1','查看 NAS Checkpoints →','link')+'</section>':assetColumn(byStore.filter(d=>!robotFilter||d.robot===robotFilter),0);
+ const list=nasEmpty?'<section class="surface"><h2>NAS 数据集</h2><p class="empty">当前 NAS 目录中没有检索到数据集。</p>'+button('nascheckpoints','1','查看 NAS Checkpoints →','link')+'</section>':datasetList(byStore.filter(d=>!robotFilter||d.robot===robotFilter),tones);
  return tabs+datasetGraphics(all)+locations+(nasIssue?'<p class="feedback">'+esc(nasIssue)+'</p>':'')+chooser+form+list+storage}
  if(!ckSources)ckSources=await api('checkpoint-sources');
  try{await readTransfers()}catch{}
@@ -960,10 +1000,11 @@ document.addEventListener('click',async e=>{const b=e.target.closest('button');i
  else if(d.root)openDir(d.root);
  else if(d.offset!==undefined){offset=+d.offset;render()}
  else if(d.entry!==undefined){let f=fileRows[+d.entry];if(f.directory){let next=f.target&&roots.some(r=>f.target===r||f.target.startsWith(r+'/'))?f.target:f.path;openDir(next)}else{selectedFile=f.path;$('fileDetail').innerHTML=fileInfo(f);document.querySelectorAll('[data-entry]').forEach(el=>el.classList.toggle('chosen',el===b))}}
- else if(d.ap){let [i,n]=d.ap.split(':').map(Number);assetPage[i]=n;render()}
+ else if(d.dspage!==undefined){assetPage[0]=+d.dspage;render()}
+ else if(d.dsstore){storeFilter=d.dsstore;robotFilter='';assetPage[0]=0;render()}
  else if(d.measure){b.disabled=true;b.textContent='统计中…';try{let v=await api('size',{path:d.measure});let s=v.bytes==null?v.note:fmt(v.bytes);if(v.bytes!=null)sizes.set(d.measure,s);b.textContent=s}catch{b.textContent='统计失败，再试一次'}b.disabled=false}
 });
-document.addEventListener('change',e=>{if(e.target.id==='rankPartition'){rankPartition=e.target.value;render()}if(e.target.id==='ds-store'){storeFilter=e.target.value;robotFilter='';assetPage[0]=0;render()}});document.addEventListener('submit',e=>{e.preventDefault();let q=new FormData(e.target).get('q')||'';if(e.target.id==='finder'){query=q;offset=0}else if(e.target.id==='assetFinder'){assetQuery=q;groupIndex=0;assetPage=[0,0]}render()});
+document.addEventListener('change',e=>{if(e.target.id==='rankPartition'){rankPartition=e.target.value;render()}});document.addEventListener('submit',e=>{e.preventDefault();let q=new FormData(e.target).get('q')||'';if(e.target.id==='finder'){query=q;offset=0}else if(e.target.id==='assetFinder'){assetQuery=q;groupIndex=0;assetPage=[0,0]}render()});
 $('ckScanClose').onclick=()=>$('ckScanDialog').close();
 $('ckScanForm').onsubmit=async e=>{
  e.preventDefault();e.stopPropagation();

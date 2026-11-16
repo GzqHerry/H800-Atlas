@@ -141,6 +141,10 @@ def job_list():
                 rows[row['id']]=row
             except (OSError,KeyError,ValueError):
                 continue
+    for job in rows.values():
+        if job['state'] in ('完成','失败') or not job.get('pid'):continue
+        if not Path('/proc',str(job['pid'])).exists():
+            job.update(state='失败',error='操作进程已退出，请重试以复核目标文件。')
     return sorted(rows.values(),key=lambda j:-j['started'])
 
 def enqueue(checkpoint, action='upload'):
@@ -231,7 +235,8 @@ def transfer_files(cmd, update):
 
 
 def worker(jid):
-    with (JOBS/'submit.lock').open('a') as lock:
+    # Home is NFS: a shared lock requires a readable file descriptor.
+    with (JOBS/'submit.lock').open('a+') as lock:
         fcntl.flock(lock,fcntl.LOCK_SH)
         job=json.loads((JOBS/(jid+'.json')).read_text())
     def update(state,**extra):
