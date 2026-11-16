@@ -170,7 +170,7 @@ i.crew-portrait{background-color:#050505;background-image:var(--crew-sheet);back
 #profileDialog::-webkit-scrollbar{display:none}html:has(#profileDialog[open]){overflow:hidden;scrollbar-gutter:stable}
 #profileDialog::backdrop{background:#080e1a66;backdrop-filter:blur(9px)}
 @media(prefers-reduced-motion:no-preference){#profileDialog[open]::backdrop{animation:metric-focus-in 720ms cubic-bezier(.38,.03,.22,1) both}}
-.profile-cover{aspect-ratio:1200/264;background:#060708 var(--lunar-cover) no-repeat right 14% bottom 28%/auto 180%;position:relative}
+.profile-cover{aspect-ratio:1250/330;background:#060708 var(--lunar-cover) no-repeat right 14% bottom 28%/auto 180%;position:relative}
 .profile-cover.custom-cover{background-position:center;background-size:cover}
 #coverEdit{position:absolute;inset:0;width:100%;height:100%;padding:0;border:0;background:transparent;text-align:right}
 #coverEdit span{position:absolute;bottom:10px;right:12px;padding:4px 10px;border-radius:20px;color:white;background:#14171dcc;font:500 12px/1.4 var(--sans);opacity:0;transition:opacity .18s}

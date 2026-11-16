@@ -224,7 +224,7 @@ $('coverFile').onchange=async e=>{
   const bitmap=await createImageBitmap(file);
   if(read!==coverRead||!coverDialog.open){bitmap.close();return}
   coverBitmap?.close();coverBitmap=bitmap;
-  const canvas=document.createElement('canvas');canvas.width=1200;canvas.height=264;
+  const canvas=document.createElement('canvas');canvas.width=1250;canvas.height=330;
   $('coverPreview').replaceChildren(canvas);$('coverPan').value='50';
   $('coverPosition').hidden=bitmap.width*canvas.height===bitmap.height*canvas.width;
   drawCover();$('coverMsg').textContent='';$('coverSave').disabled=false;
