@@ -72,6 +72,10 @@ def cluster():
                         nodes[host]['jobs'].append(job)
         training_eta.attach(rows)
         for job in rows:
+            for hosts, ids in job.pop('cpuLayout', {}).items():
+                for host in expand_nodes(hosts):
+                    if host in nodes:
+                        nodes[host].setdefault('jobCpuIds', {})[job['id']] = ids
             for hosts, cards in job.pop('gpuLayout', {}).items():
                 for host in expand_nodes(hosts):
                     if host in nodes:

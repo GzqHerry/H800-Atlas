@@ -33,8 +33,10 @@ def job_records(job=None):
     for line in raw.splitlines():
         f = dict(re.findall(r'\b(JobId|ArrayJobId|ArrayTaskId|UserId|JobName|JobState|StartTime|StdOut|StdErr|Command|ReqTRES|AllocTRES)=(\S+)',line))
         if 'JobId' not in f:continue
-        f['gpuLayout'] = {host: allocation_indices(gres) for host, gres in re.findall(
-            r'\bNodes=(\S+)\s+CPU_IDs=\S*\s+Mem=\S*\s+GRES=(\S*)', line)}
+        layouts = re.findall(r'\bNodes=(\S+)\s+CPU_IDs=(\S*)\s+Mem=\S*\s+GRES=(\S*)', line)
+        f['gpuLayout'] = {host: allocation_indices(gres) for host, _, gres in layouts}
+        f['cpuLayout'] = {host: ids for host, ids, _ in layouts
+                          if re.fullmatch(r'\d+(?:-\d+)?(?:,\d+(?:-\d+)?)*', ids)}
         key = f['JobId']
         if f.get('ArrayTaskId','').isdigit():
             key = f['ArrayJobId']+'_'+f['ArrayTaskId']
@@ -186,6 +188,7 @@ def attach(jobs):
             if user!=job['user']:continue
             if job['state']=='RUNNING':
                 job['gpuLayout']=f['gpuLayout']
+                job['cpuLayout']=f['cpuLayout']
             resource_key='ReqTRES' if job['state']=='PENDING' else 'AllocTRES'
             resources=dict(re.findall(r'([^,=]+)=([^,=]+)',f.get(resource_key,'')))
             if resources:

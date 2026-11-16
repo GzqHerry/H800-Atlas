@@ -120,6 +120,21 @@ html[data-theme=dark] .gpu-telemetry{--util-ink:#8fc7ff;--mem-ink:#cbacf8}
 .gpu-toggle-label{display:flex;justify-content:space-between;font-size:10px;align-items:center}.gpu-toggle-label b{font-weight:550;color:var(--ink)}
 .gpu-strip{display:grid;grid-template-columns:repeat(auto-fit,minmax(14px,1fr));gap:3px;align-items:end;margin:1px 0 4px}.gpu-mini{display:grid;gap:2px;min-width:0;color:var(--soft);font:9px/1.2 var(--mono);text-align:center}
 .gpu-strip[hidden]{display:none}
+.node .gpu-toggle[aria-expanded="false"] .gpu-toggle-label{display:none}
+.node .gpu-toggle:focus-visible{outline:2px solid var(--fill);outline-offset:2px}
+.cpu-meter{--user-ink:#118870;--kernel-ink:#ae6714}.cpu-detail{--user-ink:#118870;--kernel-ink:#ae6714}
+[data-theme=dark] :is(.cpu-meter,.cpu-detail){--user-ink:#55d5ac;--kernel-ink:#efb463}
+.cpu-strip{display:grid;grid-template-columns:repeat(8,minmax(0,1fr));gap:3px;margin:1px 0 4px}.cpu-strip[hidden],.cpu-detail[hidden]{display:none}
+.cpu-strip .gpu-mini i{background:linear-gradient(to right,var(--user-ink) var(--pct),var(--rail) var(--pct))}
+.cpu-strip .gpu-mini i.kernel{background:linear-gradient(to right,var(--kernel-ink) var(--pct),var(--rail) var(--pct))}
+.cpu-strip .gpu-mini i.missing{background:none}
+.cpu-strip.cpu-assigned{display:flex;align-items:center;gap:5px;overflow:hidden;min-height:20px}.cpu-assigned small,.cpu-ids{font:10px var(--mono);color:var(--soft)}.cpu-ids{padding:2px 4px;border:1px solid var(--line);border-radius:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.cpu-strip.cpu-assigned[hidden]{display:none}
+.cpu-job-ranges{grid-column:1/-1}
+.cpu-detail .cpu-job-ranges{display:grid;grid-template-columns:max-content 1fr;gap:5px 12px;font:12px/1.6 var(--mono);color:var(--soft)}.cpu-job-ranges b{color:var(--ink);overflow-wrap:anywhere}
+.cpu-detail{margin:14px 0 18px;font-variant-numeric:tabular-nums}.cpu-detail h3{margin:0;font-size:14px}
+.cpu-key{display:flex;align-items:center;gap:12px;font-size:11px;color:var(--soft);margin:6px 0 10px}.cpu-key span::before{content:'';display:inline-block;width:8px;height:5px;margin-right:5px;border-radius:4px;background:var(--user-ink)}.cpu-key span+span::before{background:var(--kernel-ink)}
+.cpu-groups{display:flex;flex-wrap:wrap;gap:4px;margin-bottom:9px}.cpu-groups button{border:1px solid var(--line);border-radius:6px;padding:3px 6px;color:var(--soft);background:transparent;font:11px var(--mono)}.cpu-groups button[aria-pressed=true]{background:color-mix(in srgb,var(--user-ink) 12%,var(--white));border-color:var(--user-ink);color:var(--ink)}
+.cpu-cores{display:grid;grid-template-columns:repeat(auto-fit,minmax(65px,1fr));gap:5px}.cpu-core{padding:5px 6px;border-radius:6px;border:1px solid var(--line);background:var(--paper);font:10px/1.6 var(--mono);color:var(--soft)}.cpu-core b{float:right;color:var(--ink);font-weight:550}.cpu-core i{height:3px;display:block;clear:both;border-radius:2px;background:linear-gradient(to right,var(--user-ink) var(--u),var(--kernel-ink) var(--u) var(--b),var(--line) var(--b))}
 .gpu-mini i{display:block;height:3px;border-radius:2px;background:linear-gradient(to right,var(--util-ink) var(--pct),var(--rail) var(--pct))}.gpu-mini i.memory{background:linear-gradient(to right,var(--mem-ink) var(--pct),var(--rail) var(--pct))}.gpu-mini i.missing{background:none;border-bottom:1px dashed var(--soft)}
 .job-gpus{margin:6px 0 2px}.job-gpus small{color:var(--soft);font-size:10px}.job-gpu-list{display:flex;flex-wrap:wrap;gap:4px;margin-top:3px}.job-gpu-list span{border:1px solid var(--line);border-radius:5px;padding:2px 5px;display:inline-flex;gap:5px;align-items:baseline;font:10px/1.4 var(--mono);white-space:nowrap}.job-gpu-list b{color:var(--ink)}.job-gpu-list em,.job-gpu-list i{font-style:normal;color:var(--util-ink)}.job-gpu-list i{color:var(--mem-ink)}
 .surface.ds-library{--task-blue:#2868a9;--task-green:#18725e;overflow:hidden;padding:0}
@@ -808,7 +823,8 @@ async function resourceView(){
  groupIndex=Math.min(groupIndex,Math.max(0,Math.ceil(matching.length/12)-1));
  return tabs+ckGraphics(groups)+form+taskList(groups,matching)+storage
 }
-const expandedGpus=new Set();
+const expandedGpus=new Set(),expandedCpus=new Set(),selectedCpuGroup=new Map();
+let cpuSnapshot=null,cpuRequest=false,cpuLastPoll=-Infinity;
 let gpuSnapshot=null,gpuRequest=false,clusterClock=0,clusterClockAt=0;
 function boardNow(){return clusterClock+(performance.now()-clusterClockAt)/1000}
 async function fetchCluster(){if(clusterRequest)return clusterRequest;
@@ -863,6 +879,81 @@ function jobCardUsage(node,id,cards){
 function replaceReadout(el,html){
  if(el&&el.lastReadout!==html){el.innerHTML=html;el.lastReadout=html}
 }
+function cpuGroups(rows){
+ const groups=[];
+ const size=Math.ceil(rows.length/8);
+ for(let i=0;i<rows.length;i+=size){
+  const members=rows.slice(i,i+size);
+  const sampled=members.filter(r=>Number.isFinite(r[1]));
+  const mean=col=>sampled.length?sampled.reduce((sum,r)=>sum+r[col],0)/sampled.length:null;
+  groups.push({range:members[0][0]+'–'+members[members.length-1][0],members,user:mean(1),kernel:mean(2)});
+ }
+ return groups;
+}
+function paintCpu(){
+ if(page!==4||!clusterData||document.hidden)return;
+ for(const el of document.querySelectorAll('[data-gpu-node]')){
+  const name=el.dataset.gpuNode,open=expandedCpus.has(name);
+  const rows=(boardNow()-cpuSnapshot?.stamp<7&&cpuSnapshot?.nodes?.[name])||[];
+  const groups=cpuGroups(rows),toggle=el.querySelector('[data-cputoggle]'),strip=toggle.querySelector('.cpu-strip'),panel=el.querySelector('.cpu-detail');
+  toggle.setAttribute('aria-expanded',String(open));
+  toggle.title='逻辑 CPU 分组 · 绿色为用户态，琥珀色为内核态';
+  strip.hidden=open;panel.hidden=!open;
+  const pct=v=>Number.isFinite(v)?v.toFixed(1)+'%':'—';
+  const aggregate=el.querySelector('[data-cpu-mean]');
+  const node=clusterData.nodes.find(n=>n.name===name),baseline=node?.cpu?.busy;
+  const measured=rows.filter(r=>Number.isFinite(r[1]));
+  aggregate.textContent=measured.length?pct(Math.min(100,measured.reduce((sum,r)=>sum+r[1]+r[2],0)/measured.length)):(baseline==null?'暂无':pct(baseline));
+  const assignments=Object.entries(node?.jobCpuIds||{});
+  const fallback=!rows.length&&assignments.length>0;
+  if(strip.classList.toggle('cpu-assigned',fallback)){
+   const ranges=assignments.flatMap(([,ids])=>ids.split(','));
+   strip.innerHTML='<small>已分配</small>'+ranges.slice(0,4).map(r=>'<span class="cpu-ids">'+esc(r)+'</span>').join('')+(ranges.length>4?'<small>…</small>':'');
+   toggle.title='Slurm 已分配 CPU 编号 · 暂无逐核利用率';
+   panel.querySelector('h3').textContent='Slurm 已分配 CPU 编号';
+   panel.querySelector('[data-cpu-status]').textContent='暂无逐核利用率';
+   panel.querySelector('.cpu-key').style.display='none';
+   replaceReadout(panel.querySelector('.cpu-groups'),'');
+   replaceReadout(panel.querySelector('.cpu-cores'),'<div class="cpu-job-ranges">'+assignments.map(([job,ids])=>'<span>#'+esc(job)+'</span><b>'+esc(ids)+'</b>').join('')+'</div>');
+   continue;
+  }
+  panel.querySelector('h3').textContent='逻辑 CPU 利用率';
+  panel.querySelector('.cpu-key').style.display='';
+  if(!open){
+   const count=groups.length||8;
+   if(strip.children.length!==count||!strip.firstElementChild?.matches('.gpu-mini'))strip.innerHTML=Array.from({length:count},(_,i)=>'<span class="gpu-mini">G'+(i+1)+'<i></i><i class="kernel"></i></span>').join('');
+   [...strip.children].forEach((cell,i)=>{
+    const group=groups[i];
+    cell.title=group?'逻辑 CPU '+group.range+' · 用户态 '+pct(group.user)+' · 内核态 '+pct(group.kernel):'等待近期 CPU 采样';
+    [...cell.children].forEach((bar,j)=>{
+     const value=j?group?.kernel:group?.user;
+     bar.classList.toggle('missing',!Number.isFinite(value));
+     bar.style.setProperty('--pct',Number.isFinite(value)?pct(value):'0%');
+    });
+   });
+   continue;
+  }
+  panel.querySelector('[data-cpu-status]').textContent=measured.length?rows.length+' 个逻辑 CPU · '+new Date(cpuSnapshot.stamp*1000).toLocaleTimeString('zh-CN',{hour12:false}):'等待近期 CPU 采样';
+  const index=Math.min(selectedCpuGroup.get(name)||0,Math.max(0,groups.length-1));
+  const choices=groups.map((g,i)=>button('cpugroup',i,g.range,'','aria-label="逻辑 CPU '+g.range+'" aria-pressed="'+(i===index)+'"')).join('');
+  replaceReadout(panel.querySelector('.cpu-groups'),choices);
+  const cells=(groups[index]?.members||[]).map(([id,user,kernel])=>{
+   if(user==null)return '<div class="cpu-core" title="等待近期采样">#'+id+' <b>—</b></div>';
+   const busy=Math.min(100,user+kernel);
+   return '<div class="cpu-core" title="CPU '+id+' · 用户态 '+pct(user)+' · 内核态 '+pct(kernel)+'">#'+id+' <b>'+Math.round(busy)+'%</b><i style="--u:'+pct(user)+';--b:'+pct(busy)+'"></i></div>';
+  }).join('');
+  replaceReadout(panel.querySelector('.cpu-cores'),cells);
+ }
+}
+function cpuPanel(name){
+ return '<section class="cpu-detail" id="cpu-detail-'+attr(name)+'" hidden><div class="gpu-telemetry-head"><h3>逻辑 CPU 利用率</h3><small data-cpu-status></small></div><div class="cpu-key"><span>用户态</span><span>内核态</span></div><div class="cpu-groups" role="group" aria-label="选择 CPU 编号范围"></div><div class="cpu-cores"></div></section>';
+}
+async function pollCpu(){
+ if(page!==4||!live||document.hidden||cpuRequest||performance.now()-cpuLastPoll<1800)return;
+ cpuRequest=true;cpuLastPoll=performance.now();
+ try{const data=await api('cpu-live');if(data.nodes)cpuSnapshot=data}
+ catch{}finally{cpuRequest=false;paintCpu()}
+}
 function paintGpu(){
  if(page!==4||!clusterData||document.hidden)return;
  const now=boardNow();
@@ -874,7 +965,6 @@ function paintGpu(){
   const cards=(direct?fresh:n.gpuCards||[]).filter(c=>now-c.sampled<75);
   const open=expandedGpus.has(n.name),toggle=el.querySelector('[data-gputoggle]'),panel=el.querySelector('.gpu-detail');
   toggle.setAttribute('aria-expanded',String(open));
-  toggle.querySelector('.gpu-toggle-label span').textContent=open?'收起 ▴':'展开 ▾';
   toggle.title='蓝色为 GPU 利用率，紫色为已用显存'+(direct?'':' · 暂无实时采样');
   const strip=toggle.querySelector('.gpu-strip');strip.hidden=open;
   if(!open)replaceReadout(strip,miniCards(cards,n.gpu?.total));
@@ -918,14 +1008,16 @@ function nodeMeter(label,unit,total,used,free,detail,control=''){
   '<div class="node-meter-head"><b>'+label+'</b><span>已分配 '+numeric(used,0)+' / '+numeric(total,0)+' '+unit+'</span><span class="node-meter-free">空闲 '+numeric(free,0)+' '+unit+'</span></div>'+
   '<div aria-hidden="true" class="node-meter-track'+(known?'':' unknown')+'"><i style="width:'+width+'%"></i></div><div>'+control+'<small>'+detail+'</small></div></div>';
 }
+function monitorToggle(kind,name,open){
+ const gpu=kind==='gpu',noun=gpu?'逐卡监控':'逻辑 CPU 明细';
+ return button(kind+'toggle',name,'<span class="'+kind+'-strip"></span><span class="gpu-toggle-label"><b>'+noun+'</b><span>收起 ▴</span></span>','gpu-toggle','aria-label="'+attr(name+' '+noun)+'" aria-expanded="'+open+'" aria-controls="'+kind+'-detail-'+attr(name)+'"');
+}
 function resourceGrid(n){
  const g=n.gpu||{},c=n.cpu||{},capacity=c.effective??c.total;
  const cpuFree=capacity!=null&&c.allocated!=null?Math.max(0,capacity-c.allocated):null;
  const gpuDetail='整卡 '+numeric(g.whole,0)+' 张 · 分片占用 '+numeric(g.shared,0)+' 张'+(g.blocked?' · 节点不可新分配':'');
- const cpuDetail='物理配置 '+numeric(c.total,0)+' 核 · 负载 '+numeric(c.load,2)+' · 实测 '+(c.busy==null?'暂无':numeric(c.busy,1)+'%');
- const open=expandedGpus.has(n.name);
- const control=button('gputoggle',n.name,'<span class="gpu-strip"></span><span class="gpu-toggle-label"><b>逐卡监控</b><span>'+ (open?'收起 ▴':'展开 ▾')+'</span></span>','gpu-toggle','aria-expanded="'+open+'" aria-controls="gpu-detail-'+attr(n.name)+'"');
- return '<div class="node-res">'+nodeMeter('GPU','张',g.total,g.used,g.free,gpuDetail,control)+nodeMeter('CPU','核',capacity,c.allocated,cpuFree,cpuDetail)+'</div>';
+ const cpuDetail='物理配置 '+numeric(c.total,0)+' 核 · 负载 '+numeric(c.load,2)+' · 实测 <span data-cpu-mean>'+(c.busy==null?'暂无':numeric(c.busy,1)+'%')+'</span>';
+ return '<div class="node-res">'+nodeMeter('GPU','张',g.total,g.used,g.free,gpuDetail,monitorToggle('gpu',n.name,expandedGpus.has(n.name)))+nodeMeter('CPU','核',capacity,c.allocated,cpuFree,cpuDetail,monitorToggle('cpu',n.name,expandedCpus.has(n.name)))+'</div>';
 }
 function gpuCardPanel(node){
  const cards=node.gpuCards||[],total=node.gpu?.total;
@@ -1029,7 +1121,7 @@ async function clusterView(){
  queuePage=Math.min(queuePage,Math.max(0,Math.ceil(filtered.length/25)-1));
  const counts=[['可见节点',c.nodes.length],['占用节点的用户',new Set(c.nodes.flatMap(n=>n.jobs.map(j=>j.user))).size],['排队人数',users.size],['待调度作业',pending.length]];
  const tiles='<div class="summary">'+counts.map(([k,v])=>'<div class="stat"><small>'+k+'</small><strong>'+v+'</strong></div>').join('')+'</div>';
- const nodes=c.nodes.map(n=>'<article class="surface node" data-gpu-node="'+attr(n.name)+'"><div class="line"><h2>'+esc(n.name)+'</h2>'+nodeBadge(n.state)+'</div><small>'+esc(n.hardware)+'</small>'+resourceGrid(n)+'<div class="gpu-detail" id="gpu-detail-'+attr(n.name)+'" hidden></div>'+(n.reason&&n.reason!=='none'?'<p class="feedback">'+esc(n.reason)+'</p>':'')+(n.jobs.length?'<div class="node-jobs">'+n.jobs.map(j=>nodeJob(j,c.owner,c.stamp)).join('')+'</div>':'<p class="empty">未见已分配作业</p>')+'</article>').join('');
+ const nodes=c.nodes.map(n=>'<article class="surface node" data-gpu-node="'+attr(n.name)+'"><div class="line"><h2>'+esc(n.name)+'</h2>'+nodeBadge(n.state)+'</div><small>'+esc(n.hardware)+'</small>'+resourceGrid(n)+'<div class="gpu-detail" id="gpu-detail-'+attr(n.name)+'" hidden></div>'+cpuPanel(n.name)+(n.reason&&n.reason!=='none'?'<p class="feedback">'+esc(n.reason)+'</p>':'')+(n.jobs.length?'<div class="node-jobs">'+n.jobs.map(j=>nodeJob(j,c.owner,c.stamp)).join('')+'</div>':'<p class="empty">未见已分配作业</p>')+'</article>').join('');
  const queue='<section class="surface below queue-board"><h2>排队用户与作业</h2><div class="tools">'+button('quser','','全部 · '+pending.length,'chip','aria-pressed="'+(!queueUser)+'"')+sorted.map(([u,n])=>'<span class="queue-person-chip">'+personLabel(u,false)+button('quser',u,String(n),'chip','aria-label="筛选 '+attr(u)+' 的 '+n+' 个排队作业" title="筛选此用户的排队作业" aria-pressed="'+(queueUser===u)+'"')+'</span>').join('')+'</div>'+tableMarkup(['用户 / 作业号','任务与启动命令','状态与原因','分区 / 资源','申请时限','提交时间 <small class="tz">'+esc(c.zone)+'</small>','预计开始 <small class="tz">'+esc(c.zone)+'</small>'],filtered.slice(queuePage*25,queuePage*25+25).map(j=>pendingRow(j,c.owner,c.zone)))+pageControls('qpage',queuePage,filtered.length,25)+'</section>';
  return '<div class="line cluster-time"><small>'+esc(clusterError?clusterError+' · 保留上次采样':'GPU 逐秒采样 · 调度每 15 秒更新')+' · '+displayTime(c.stamp)+' · 队列时间 '+esc(c.zone)+'</small>'+button('resample',1,'立即采样','link')+'</div>'+tiles+predictionPanel(c)+priorityPanel(c)+'<div class="node-grid">'+nodes+'</div>'+queue
 }
@@ -1079,7 +1171,7 @@ async function render(navigation=false){
   }
   const html=page===0?dashboard():page===1?await filesView(g):page===2?runs():page===4?await clusterView():await resourceView();
   if(g!==generation)return;
-  $('content').innerHTML=html;if(page===4){paintGpu();tickBoard();pollGpu()}if(page===3&&assetTab==='ck')refreshTransferViews();draw();
+  $('content').innerHTML=html;if(page===4){paintGpu();paintCpu();tickBoard();pollGpu();pollCpu()}if(page===3&&assetTab==='ck')refreshTransferViews();draw();
   if(page===2&&selectedJob)await loadDetail(jobList.find(j=>j.id===selectedJob),g);
  }catch(e){
   if(g===generation)$('content').innerHTML='<p class="surface feedback">'+esc(e.message)+' '+button('page',page,'重试','link')+' '+(page===1?button('root',H,'返回 home','link'):'')+'</p>';
@@ -1102,6 +1194,8 @@ document.addEventListener('click',async e=>{const b=e.target.closest('button');i
  else if(d.upload)await sendCheckpoint(b,d.upload);
  else if(d.grus)await sendCheckpoint(b,d.grus,'Grus');
  else if(d.gputoggle){if(expandedGpus.has(d.gputoggle))expandedGpus.delete(d.gputoggle);else expandedGpus.add(d.gputoggle);paintGpu()}
+ else if(d.cputoggle){if(expandedCpus.has(d.cputoggle))expandedCpus.delete(d.cputoggle);else expandedCpus.add(d.cputoggle);paintCpu()}
+ else if(d.cpugroup!==undefined){const node=b.closest('[data-gpu-node]');selectedCpuGroup.set(node.dataset.gpuNode,Number(d.cpugroup));paintCpu();node.querySelector('.cpu-groups [aria-pressed=true]')?.focus({preventScroll:true})}
  else if(d.inspectcmd)await showCommand(d.inspectcmd);
  else if(d.ranktoggle){rankOpen=!rankOpen;render()}
  else if(d.copy)await copyPath(b,d.copy);
@@ -1162,7 +1256,7 @@ async function checkVersion(){
  versionCheck=true;
  try{const v=await api('version');if(v.release!==document.querySelector('meta[name="atlas-release"]').content)location.reload()}catch{}finally{versionCheck=false}
 }
-setInterval(()=>{tickBoard();pollGpu()},1000);document.addEventListener('visibilitychange',()=>{if(!document.hidden&&page===4){pollGpu();tickBoard();fetchCluster().then(()=>{if(page===4)render()})}});
+setInterval(()=>{tickBoard();pollGpu();pollCpu()},1000);document.addEventListener('visibilitychange',()=>{if(!document.hidden&&page===4){pollGpu();pollCpu();tickBoard();fetchCluster().then(()=>{if(page===4)render()})}});
 setInterval(checkVersion,10000);document.addEventListener('visibilitychange',()=>{if(!document.hidden)checkVersion()});
 window.addEventListener('pageshow',e=>{if(e.persisted)location.reload()});
 if(teamHttp&&!sessionStorage.getItem('atlas-session'))loginPage();else {

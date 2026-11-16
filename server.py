@@ -579,6 +579,9 @@ def checkpoint_sources():
     return dict(items=list(rows.values()),note=note)
 
 def route(method, target, body):
+    if method == 'GET' and urlsplit(target).path == '/api/cpu-live':
+        from cpu_usage import live_cpu_sample
+        return 200, live_cpu_sample()
     if method == 'GET' and urlsplit(target).path == '/api/gpu-live':
         from gpu_usage import live_gpu_sample
         return 200, live_gpu_sample()
