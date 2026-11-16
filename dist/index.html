@@ -101,6 +101,20 @@ html[data-theme=dark]{color-scheme:dark;--paper:#17181c;--ink:#ecedf2;--soft:#b1
 .checkpoint-progress:not(:empty){width:min(100%,360px);margin-top:12px}
 .checkpoint-progress .upload-meter{background:var(--paper);border:1px solid var(--line);border-radius:12px;padding:10px 12px}
 .transfer-line .upload-meter{max-width:680px}
+.gpu-telemetry{--util-ink:#2064ac;--mem-ink:#7851a9;container-type:inline-size;margin:14px 0 18px;font-variant-numeric:tabular-nums}
+html[data-theme=dark] .gpu-telemetry{--util-ink:#8fc7ff;--mem-ink:#cbacf8}
+.gpu-telemetry-head,.gpu-telemetry-key,.gpu-card-top{display:flex;align-items:center;justify-content:space-between;gap:6px}
+.gpu-telemetry-head h3{font:600 14px/1.4 var(--sans);margin:0}
+.gpu-telemetry-head small,.gpu-telemetry-key,.gpu-no-sample{font-size:11px;color:var(--soft)}
+.gpu-telemetry-key{justify-content:flex-start;gap:14px;margin:6px 0 9px}.gpu-telemetry-key span{display:inline-flex;gap:5px;align-items:center}
+.gpu-telemetry-key i{width:8px;height:5px;border-radius:3px;background:var(--util-ink)}.gpu-telemetry-key span:last-child i{background:var(--mem-ink)}
+.gpu-card-grid{list-style:none;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px;padding:0;margin:0}
+@container(min-width:570px){.gpu-card-grid{grid-template-columns:repeat(4,minmax(0,1fr))}}
+.gpu-card-grid li{min-width:0;border:1px solid var(--line);border-radius:10px;padding:9px 10px;background:color-mix(in srgb,var(--paper) 55%,var(--white))}
+.gpu-card-top b{font:600 12px var(--mono)}.gpu-card-top strong{font-size:14px;color:var(--util-ink)}
+.gpu-card-memory{margin-top:8px;color:var(--soft);font:11px/1.4 var(--sans);white-space:nowrap}
+.gpu-card-meter{height:4px;margin-top:4px;border-radius:3px;background:var(--line);overflow:hidden}.gpu-card-meter i{display:block;height:100%;border-radius:inherit;background:var(--util-ink)}
+.gpu-card-meter.memory i{background:var(--mem-ink)}.gpu-card-meter.missing{height:3px;background:none;border-bottom:1px dashed var(--line)}
 .surface.ds-library{--task-blue:#2868a9;--task-green:#18725e;overflow:hidden;padding:0}
 html[data-theme=dark] .ds-library{--task-blue:#8ebfff;--task-green:#78d5b7}
 .ds-list{list-style:none;margin:0;padding:0}
@@ -823,6 +837,26 @@ function resourceGrid(n){
  const cpuDetail='物理配置 '+numeric(c.total,0)+' 核 · 负载 '+numeric(c.load,2)+' · 实测 '+(c.busy==null?'暂无':numeric(c.busy,1)+'%');
  return '<div class="node-res">'+nodeMeter('GPU','张',g.total,g.used,g.free,gpuDetail)+nodeMeter('CPU','核',capacity,c.allocated,cpuFree,cpuDetail)+'</div>';
 }
+function gpuCardPanel(node){
+ const cards=node.gpuCards||[],total=node.gpu?.total;
+ const title='<div class="gpu-telemetry-head"><h3>逐卡监控</h3>';
+ if(!cards.length)return '<section class="gpu-telemetry">'+title+'</div><p class="gpu-no-sample">暂无近期显卡采样</p></section>';
+ const sampled=Math.min(...cards.map(card=>card.sampled));
+ const coverage=Number.isFinite(total)&&cards.length<total?'已采到 '+cards.length+' / '+total+' 张 · ':'';
+ const time=new Date(sampled*1000).toLocaleTimeString('zh-CN',{hour12:false});
+ const meter=(pct,cls)=>'<div aria-hidden="true" class="gpu-card-meter '+cls+(pct==null?' missing':'')+'">'+(pct==null?'':'<i style="width:'+Math.min(100,Math.max(0,pct))+'%"></i>')+'</div>';
+ const gib=n=>Number.isFinite(n)?(n/2**30).toFixed(n>0&&n<2**30?2:1):'—';
+ const tiles=cards.map(card=>{
+  const util=card.utilization,used=card.memoryUsed,capacity=card.memoryTotal;
+  const pct=Number.isFinite(used)&&capacity>0?100*used/capacity:null;
+  const busy=Number.isFinite(util)?numeric(util,1)+'%':'—';
+  const memory=gib(used)+' / '+gib(capacity)+' GiB';
+  return '<li><div class="gpu-card-top"><b>GPU '+esc(card.index)+'</b><strong title="GPU 利用率">'+busy+'</strong></div>'+meter(util,'')+
+   '<div class="gpu-card-memory" title="已用显存 / 总显存">'+memory+'</div>'+meter(pct,'memory')+'</li>';
+ }).join('');
+ return '<section class="gpu-telemetry">'+title+'<small>'+coverage+'采样于 '+esc(time)+'</small></div>'+
+  '<div class="gpu-telemetry-key"><span><i></i>GPU 利用率</span><span><i></i>显存 · 已用 / 总量</span></div><ul class="gpu-card-grid">'+tiles+'</ul></section>';
+}
 function commandButton(j){return button('inspectcmd',j.id,'查看命令','command-button','aria-haspopup="dialog" aria-label="查看作业 '+attr(j.id)+' 的命令"')}
 let commandRequest=0;
 async function showCommand(id){
@@ -906,7 +940,7 @@ async function clusterView(){
  queuePage=Math.min(queuePage,Math.max(0,Math.ceil(filtered.length/25)-1));
  const counts=[['可见节点',c.nodes.length],['占用节点的用户',new Set(c.nodes.flatMap(n=>n.jobs.map(j=>j.user))).size],['排队人数',users.size],['待调度作业',pending.length]];
  const tiles='<div class="summary">'+counts.map(([k,v])=>'<div class="stat"><small>'+k+'</small><strong>'+v+'</strong></div>').join('')+'</div>';
- const nodes=c.nodes.map(n=>'<article class="surface node"><div class="line"><h2>'+esc(n.name)+'</h2>'+nodeBadge(n.state)+'</div><small>'+esc(n.hardware)+'</small>'+resourceGrid(n)+(n.reason&&n.reason!=='none'?'<p class="feedback">'+esc(n.reason)+'</p>':'')+(n.jobs.length?'<div class="node-jobs">'+n.jobs.map(j=>nodeJob(j,c.owner,c.stamp)).join('')+'</div>':'<p class="empty">未见已分配作业</p>')+'</article>').join('');
+ const nodes=c.nodes.map(n=>'<article class="surface node"><div class="line"><h2>'+esc(n.name)+'</h2>'+nodeBadge(n.state)+'</div><small>'+esc(n.hardware)+'</small>'+resourceGrid(n)+gpuCardPanel(n)+(n.reason&&n.reason!=='none'?'<p class="feedback">'+esc(n.reason)+'</p>':'')+(n.jobs.length?'<div class="node-jobs">'+n.jobs.map(j=>nodeJob(j,c.owner,c.stamp)).join('')+'</div>':'<p class="empty">未见已分配作业</p>')+'</article>').join('');
  const queue='<section class="surface below queue-board"><h2>排队用户与作业</h2><div class="tools">'+button('quser','','全部 · '+pending.length,'chip','aria-pressed="'+(!queueUser)+'"')+sorted.map(([u,n])=>'<span class="queue-person-chip">'+personLabel(u,false)+button('quser',u,String(n),'chip','aria-label="筛选 '+attr(u)+' 的 '+n+' 个排队作业" title="筛选此用户的排队作业" aria-pressed="'+(queueUser===u)+'"')+'</span>').join('')+'</div>'+tableMarkup(['用户 / 作业号','任务与启动命令','状态与原因','分区 / 资源','申请时限','提交时间 <small class="tz">'+esc(c.zone)+'</small>','预计开始 <small class="tz">'+esc(c.zone)+'</small>'],filtered.slice(queuePage*25,queuePage*25+25).map(j=>pendingRow(j,c.owner,c.zone)))+pageControls('qpage',queuePage,filtered.length,25)+'</section>';
  return '<div class="line cluster-time"><small>'+esc(clusterError?clusterError+' · 保留上次采样':'每 15 秒更新')+' · '+displayTime(c.stamp)+' · 队列时间 '+esc(c.zone)+'</small>'+button('resample',1,'立即采样','link')+'</div>'+tiles+predictionPanel(c)+priorityPanel(c)+'<div class="node-grid">'+nodes+'</div>'+queue
 }

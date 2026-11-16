@@ -6,6 +6,7 @@ import tempfile
 import training_eta
 from scheduler import scheduling, command_details
 from cpu_usage import add_cpu_usage
+from gpu_usage import add_gpu_usage
 from insights import gpu_counts, queue_forecasts, saved_time
 import math
 import re
@@ -70,6 +71,7 @@ def cluster():
                         nodes[host]['jobs'].append(job)
         training_eta.attach(rows)
         add_cpu_usage(nodes)
+        add_gpu_usage(nodes)
         _cluster_sample = dict(owner=owner,scheduling=scheduling(),forecasts=queue_forecasts(rows,owner),nodes=sorted(nodes.values(),key=lambda n:n['name']), jobs=rows,
                                stamp=int(time.time()), zone=time.strftime('%Z'))
         return _cluster_sample
