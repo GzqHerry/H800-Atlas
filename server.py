@@ -6,6 +6,7 @@ import nas
 import charts
 import swan_history
 import wandb_runs
+import job_artifacts
 import training_eta
 from datetime import datetime
 from insights import DATASET_ROOTS
@@ -278,7 +279,7 @@ def openpi_history(path):
         return state['values']
 
 
-def read_run_metrics(offsets, focus=None, history=None, swan=None, openpi=None):
+def read_run_metrics(offsets, focus=None, history=None, swan=None, openpi=None, artifacts=None):
     history=history or {}
     series={}
     evidence=[]
@@ -334,6 +335,17 @@ def read_run_metrics(offsets, focus=None, history=None, swan=None, openpi=None):
                 else:points.append((x if x is not None else len(points)+1,value))
     sources={}
     labels=dict(RUN_METRICS)
+    for key, values in (artifacts or {}).items():
+        tracker, _, tag = key.partition('/')
+        label = tag
+        for suffix, title in (('Environment/reward', '环境奖励'), ('env/reward', '环境奖励'),
+                              ('Evaluation/reward', '评估奖励'), ('eval/reward', '评估奖励')):
+            if tag == suffix or tag.endswith('/' + suffix):
+                label = title + ' · ' + tracker
+                break
+        labels[key] = label
+        sources[key] = tracker
+        series[(key, 'step')] = values
     for key,values in (openpi or {}).items():
         labels[key]=labels.get(key,OPENPI_LABELS.get(key,key))
         series[(key,'step')]=dict(values)
@@ -442,7 +454,10 @@ def detail(job,focus=None):
     if export:
         try:openpi=openpi_history(export)
         except OSError:pass
-    result=read_run_metrics(offsets,focus,history,swan,openpi)
+    artifacts, artifact_paths, artifact_errors = job_artifacts.collect(job, bases, safe, attempt['number'])
+    result=read_run_metrics(offsets,focus,history,swan,openpi,artifacts)
+    if artifacts and not choices and not saved and not folder:
+        discovery='已读取按作业号匹配的训练指标，也可另外关联 W&B。'
     if saved or (not auxiliary and not folder and not swan_id):
         result['wandbLink']=dict(saved=saved,candidates=choices,note=discovery)
     if openpi and not result['progress']:
@@ -468,8 +483,11 @@ def detail(job,focus=None):
     if evidence:summary+=' · '+'、'.join(evidence)
     loss=next((m['points'] for m in result['metrics'] if m['key']=='loss' and m['axis']=='epoch'),[])
     source=[str(p) for p in offsets]+([history_path] if history_path and history else [])
+    source.extend(artifact_paths)
     note='各日志仅取末尾 2 MB。' if result['truncated'] else '读取当前作业的标准输出与错误日志。'
     if discovery:note+=' '+discovery
+    if artifact_paths:note+=' TensorBoard 和 metrics.log 曲线各自沿用原始 step。'
+    if artifact_errors:note+=' 暂未能读取指标文件：'+'、'.join(artifact_errors)+'。'
     if folder and not history:note+=' 已定位 run，暂未读到可绘制的本地标量。'
     if openpi:
         source.append(str(export))

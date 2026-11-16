@@ -26,6 +26,12 @@ H800 Atlas 把个人训练记录、文件、权重和 Slurm 队列放在同一�
 
 曲线来自当前作业可读的 Slurm 输出、W&B 本地历史、OpenPI 导出和 SwanLab 标量记录。Atlas 会读取 Slurm 日志中 W&B 公布的 run 路径或 ID，在提交目录、日志目录和作业专属导出中查找，并在需要时后台索引个人 home、workspace、data 和 scratch 目录。索引按本地 run 元数据的 Slurm 作业号或已知 run ID 匹配。没有匹配或出现多个候选时，点击「关联 W&B run」选择候选或填写 run 目录、.wandb 文件的绝对路径。关联按登录账号和作业号保存在个人 home 中，可在训练详情更改。团队统一使用部署时安装的 W&B 读取器，训练环境无需额外安装 Atlas 依赖。首次部署读取器需要 Python venv、pip 以及可用的软件包源。运行节点私有磁盘上的 run 需要导出到登录节点可读的位置；如果训练关闭了相关元数据，可在该作业自己的 Slurm 日志中保留 W&B 初始化时输出的 run 路径。训练完成预估会随迭代速度变化。
 
+### TensorBoard 和 metrics.log
+
+在「训练记录」选择作业后，Atlas 会从 Slurm 提交目录和可读的作业日志目录查找指标。可以将输出放在 `runs/slurm-<作业号>/` 下，也可以在作业独占的提交目录写入含 `job_id` 的 `SUBMISSION.json`，再把指标写到其 `results/<实验名>/` 下。多人或多作业复用同一目录时，建议使用每个作业独立的子目录。保留分配后重启的训练可以用 `attempts/<次数>/` 隔离各次输出。
+
+支持 TensorBoard event 标量、含 Global Step 和指标分区的表格型 `metrics.log`，以及每行包含 `step` 或 `global_step` 和数值指标的 JSON 日志。曲线保留各来源原始步号，环境奖励与评估奖励分别显示。「日志依据」列出实际读取的文件。TensorBoard 读取器随 Atlas 部署，训练用户无需单独安装。
+
 ## 维护者首次部署
 
 以下命令适用于当前 H800 环境，使用部署账号 `gzqherry` 在 **H800-node11** 上执行。源码示例目录是 `/workspace/gzqherry/src/H800-Atlas`，运行时发布目录是 `/workspace/gzqherry/h800-atlas-team`。更换部署账号或发布目录时，需要同步修改发布脚本和两个 service 文件中的绝对路径。
