@@ -67,10 +67,10 @@ html[data-theme=dark]{color-scheme:dark;--paper:#17181c;--ink:#ecedf2;--soft:#b1
 .node-meter.cpu-meter{--fill:#19c49e}
 [data-theme=dark] .node-meter{--fill:#68baff;--rail:#393f48}
 [data-theme=dark] .node-meter.cpu-meter{--fill:#42e4bc}
-.node-meter{display:grid;grid-template-rows:subgrid;grid-row:span 3;row-gap:4px}.node-meter-head{display:flex;align-content:start;align-items:baseline;gap:2px 6px;flex-wrap:wrap;font-size:12px;color:var(--soft)}
+.node-meter{display:grid;grid-template-rows:subgrid;grid-row:span 2;row-gap:4px}.node-meter-head{display:flex;align-content:start;align-items:baseline;gap:2px 6px;flex-wrap:wrap;font-size:12px;color:var(--soft)}
 .node-meter-head b{flex-basis:100%;color:var(--ink);font-size:14px}
 .node-meter-free{white-space:nowrap}.ck-location{margin:5px 0}.ck-location .badge{margin-right:6px}.ck-danger{color:#c33d42}[data-theme=dark] .ck-danger{color:#ff989b}
-.node-meter-track{overflow:hidden;height:7px;border-radius:6px;background:var(--rail);margin:2px 0}
+.node-meter-track{overflow:hidden;height:7px;border-radius:6px;background:var(--rail);margin:2px 0 0}
 .node-meter-track i{display:block;height:100%;border-radius:inherit;background:var(--fill)}
 .node-meter-track.unknown{background:repeating-linear-gradient(120deg,transparent 0 3px,var(--rail) 3px 6px)}
 .node-meter small{display:block;color:var(--soft);line-height:1.45}.node .command-button,.queue-board .command-button{color:var(--orange);font-size:12px;padding:2px 0;margin-top:3px}.policy{margin:15px 0}.factor-list{display:flex;gap:7px;flex-wrap:wrap;margin:12px 0 4px}.factor-list span{border:1px solid var(--line);border-radius:7px;padding:4px 8px}.rank-mine{padding:8px 10px;margin:7px 0;border-left:3px solid #498be8;background:var(--paper);overflow-wrap:anywhere}#launchDialog{width:min(760px,92vw);max-height:82vh;border:1px solid var(--line);border-radius:16px;padding:22px;background:var(--white);color:var(--ink);box-shadow:0 18px 60px #0003}#launchDialog::backdrop{background:#161c2680}#launchBody{margin-top:14px}.launch-block{padding:12px 0;border-bottom:1px solid var(--line)}.launch-block pre{white-space:pre-wrap;overflow-wrap:anywhere;background:var(--paper);padding:10px;border-radius:8px;font:13px/1.55 var(--mono)}
@@ -1006,7 +1006,7 @@ function nodeMeter(label,unit,total,used,free,detail,control=''){
  const width=known?Math.max(0,Math.min(100,used/total*100)):0;
  return '<div class="node-meter '+(label==='CPU'?'cpu-meter':'gpu-meter')+'">'+
   '<div class="node-meter-head"><b>'+label+'</b><span>已分配 '+numeric(used,0)+' / '+numeric(total,0)+' '+unit+'</span><span class="node-meter-free">空闲 '+numeric(free,0)+' '+unit+'</span></div>'+
-  '<div aria-hidden="true" class="node-meter-track'+(known?'':' unknown')+'"><i style="width:'+width+'%"></i></div><div>'+control+'<small class="meter-detail">'+detail+'</small></div></div>';
+  '<div><div aria-hidden="true" class="node-meter-track'+(known?'':' unknown')+'"><i style="width:'+width+'%"></i></div>'+control+'<small class="meter-detail">'+detail+'</small></div></div>';
 }
 function monitorToggle(kind,name,open){
  const gpu=kind==='gpu',noun=gpu?'逐卡监控':'逻辑 CPU 明细';
