@@ -87,13 +87,13 @@ function storageMap(){
  const sum=rows=>rows.reduce((n,r)=>n+r.value,0),total=sum(data);
  const leaves=data.slice(0,7);if(data.length>7)leaves.push({name:'其他 '+(data.length-7)+' 个任务',value:sum(data.slice(7)),other:true});
  function tile(rows,x,y,w,h){
-  if(rows.length===1){const r=rows[0],idx=data.findIndex(d=>d.name===r.name);return '<button class="tree-tile" '+(r.other?'data-treeother="1"':'data-tree="'+attr(r.name)+'"')+' title="'+attr(r.name+' · '+fmt(r.value))+'" style="left:'+x+'%;top:'+y+'%;width:'+w+'%;height:'+h+'%;--shade:'+(r.other?15:63-idx*6)+'%"><b>'+esc(treeLabel(r.name))+'</b><small>'+fmt(r.value)+'</small></button>'}
+  if(rows.length===1){const r=rows[0],idx=data.findIndex(d=>d.name===r.name);return '<button class="tree-tile" '+(r.other?'data-treeother="1"':'data-tree="'+attr(r.name)+'"')+' title="'+attr(treeLabel(r.name)+' · '+fmt(r.value))+'" style="left:'+x+'%;top:'+y+'%;width:'+w+'%;height:'+h+'%;--shade:'+(r.other?15:63-idx*6)+'%"><b>'+esc(treeLabel(r.name))+'</b><small>'+fmt(r.value)+'</small></button>'}
   const size=sum(rows);let split=1;while(split<rows.length-1&&Math.abs(sum(rows.slice(0,split+1))-size/2)<Math.abs(sum(rows.slice(0,split))-size/2))split++;
   const a=rows.slice(0,split),b=rows.slice(split),f=sum(a)/size;
   return w*2>h?tile(a,x,y,w*f,h)+tile(b,x+w*f,y,w*(1-f),h):tile(a,x,y,w,h*f)+tile(b,x,y+h*f,w,h*(1-f));
  }
  const selected=groups.get(studio.pickedGroup);
- return '<div class="storage-total">'+fmt(total)+' <small>已盘点 · '+groups.size+' 个任务'+(unknown?' · '+unknown+' 项大小未知':'')+'</small></div>'+(leaves.length?'<div class="tree-map">'+tile(leaves,0,0,100,100)+'</div>':chartEmpty(ckSources?.note||'没有已盘点的副本'))+(selected?'<div class="chart-detail"><code>'+esc(studio.pickedGroup)+'</code>'+button('treeopen',studio.pickedGroup,'查看 checkpoints →','link')+'</div>':'');
+ return '<div class="storage-total">'+fmt(total)+' <small>已盘点 · '+groups.size+' 个任务'+(unknown?' · '+unknown+' 项大小未知':'')+'</small></div>'+(leaves.length?'<div class="tree-map">'+tile(leaves,0,0,100,100)+'</div>':chartEmpty(ckSources?.note||'没有已盘点的副本'))+(selected?'<div class="chart-detail">'+esc(treeLabel(studio.pickedGroup))+' '+copyButton(studio.pickedGroup)+button('treeopen',studio.pickedGroup,'查看 checkpoints →','link')+'</div>':'');
 }
 function resultPanel(){
  const list=studio.evaluations,sets=[...new Set(list.map(v=>v.dataset))],dataset=sets.includes(studio.evalSet)?studio.evalSet:sets[0];

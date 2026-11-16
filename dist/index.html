@@ -102,6 +102,9 @@ html[data-theme=dark]{color-scheme:dark;--paper:#17181c;--ink:#ecedf2;--soft:#b1
 .checkpoint-progress .upload-meter{background:var(--paper);border:1px solid var(--line);border-radius:12px;padding:10px 12px}
 .transfer-line .upload-meter{max-width:680px}
 .upload-sampled{display:block;color:var(--soft);font-size:11px;margin-top:5px;font-weight:400}
+.atlas-path-tip{position:fixed;z-index:10000;box-sizing:border-box;width:max-content;max-width:min(36rem,calc(100vw - 24px));padding:9px 12px;border:1px solid #ffffff26;border-radius:9px;background:#20242c;color:#f7f8fa;box-shadow:0 5px 18px #0003;font:12px/1.55 var(--mono);overflow-wrap:anywhere;white-space:pre-wrap;pointer-events:none}
+.atlas-path-tip[hidden]{display:none}
+html[data-theme=dark] .atlas-path-tip{background:#363d47;border-color:#56606f}
 html[data-theme=dark] .upload-meter.moving{--meter:#5599ff;--tip:#79c9ff}
 /* ATLAS_GUIDE_CSS */
 </style></head><body><header><div class="top"><div class="brand"><i class="mark"></i>H800 Atlas</div><nav id="nav" aria-label="主导航"></nav><div class="right account-area"><button type="button" class="crew-edit" id="initials" aria-label="账户菜单" aria-controls="accountMenu" aria-expanded="false"></button><button id="account" class="profile-link" aria-controls="accountMenu" aria-expanded="false"></button><div id="accountMenu" hidden><button id="menuProfile">我的名片</button><button id="menuEdit">编辑个人信息</button><a href="#guide">使用指南</a><button id="logout">退出登录</button></div></div></div></header><main><div class="head"><div class="page-name"><h1 id="title">工作台</h1><p id="cover-meta" hidden></p></div><div class="right"><i class="dot off" id="dot"></i><span id="mode">正在确认数据来源…</span><select id="theme" class="theme" aria-label="外观"><option value="system">跟随系统</option><option value="light">浅色模式</option><option value="dark">深色模式</option></select><button class="outline" id="refresh">刷新</button></div></div><div id="content"></div><footer class="foot"><span id="status" role="status">正在载入…</span></footer></main><div id="pageLoader" hidden role="status" aria-label="正在加载页面"><svg class="loading-seal" viewBox="0 0 74 92" aria-hidden="true" focusable="false"><path fill-rule="evenodd" d="M46.88,25.44 Q47.75,24.88 48.56,24.88 Q49.38,24.88 50.88,25.44 Q52.38,26.00 53.06,26.75 Q53.75,27.50 54.81,28.00 Q55.88,28.50 58.31,32.12 Q60.75,35.75 61.62,39.12 Q62.50,42.50 62.44,45.81 Q62.38,49.12 61.44,52.50 Q60.50,55.88 58.06,59.44 Q55.62,63.00 54.50,63.56 Q53.38,64.12 51.75,65.56 Q50.12,67.00 48.38,66.88 Q46.62,66.75 45.94,64.94 Q45.25,63.12 45.25,45.94 Q45.25,28.75 45.62,27.38 Q46.00,26.00 46.88,25.44 Z M31.44,13.31 Q30.50,13.25 26.88,14.38 Q23.25,15.50 19.38,17.88 Q15.50,20.25 15.12,21.06 Q14.75,21.88 13.50,22.75 Q12.25,23.62 11.94,24.50 Q11.62,25.38 10.94,25.94 Q10.25,26.50 8.69,29.06 Q7.12,31.62 5.94,35.19 Q4.75,38.75 4.38,42.75 Q4.00,46.75 4.50,49.88 Q5.00,53.00 5.88,54.81 Q6.75,56.62 6.94,57.81 Q7.12,59.00 9.69,62.94 Q12.25,66.88 14.69,69.25 Q17.12,71.62 18.06,71.94 Q19.00,72.25 19.69,72.94 Q20.38,73.62 23.31,75.06 Q26.25,76.50 29.25,77.06 Q32.25,77.62 32.56,77.12 Q32.88,76.62 32.75,68.25 Q32.62,59.88 32.25,59.94 Q31.88,60.00 30.56,62.31 Q29.25,64.62 28.25,65.75 Q27.25,66.88 23.94,65.38 Q20.62,63.88 20.06,63.06 Q19.50,62.25 18.44,61.69 Q17.38,61.12 17.00,60.12 Q16.62,59.12 15.94,58.50 Q15.25,57.88 15.00,56.88 Q14.75,55.88 13.88,54.50 Q13.00,53.12 12.44,50.44 Q11.88,47.75 12.19,43.12 Q12.50,38.50 13.56,36.75 Q14.62,35.00 14.88,34.00 Q15.12,33.00 17.31,30.50 Q19.50,28.00 20.88,27.00 Q22.25,26.00 24.75,25.25 Q27.25,24.50 28.50,25.50 Q29.75,26.50 30.50,28.31 Q31.25,30.12 31.62,30.50 Q32.00,30.88 32.38,30.75 Q32.75,30.62 32.81,22.62 Q32.88,14.62 32.62,14.00 Q32.38,13.38 31.44,13.31 Z M39.50,8.88 Q37.12,5.25 36.75,5.44 Q36.38,5.62 36.19,20.44 Q36.00,35.25 35.44,36.31 Q34.88,37.38 33.44,38.62 Q32.00,39.88 26.12,42.38 Q20.25,44.88 20.38,45.50 Q20.50,46.12 21.38,46.88 Q22.25,47.62 23.56,48.19 Q24.88,48.75 26.12,48.88 Q27.38,49.00 29.88,50.19 Q32.38,51.38 33.62,52.69 Q34.88,54.00 35.50,55.19 Q36.12,56.38 36.19,69.69 Q36.25,83.00 36.56,84.44 Q36.88,85.88 37.31,85.62 Q37.75,85.38 39.06,82.94 Q40.38,80.50 41.88,79.12 Q43.38,77.75 46.19,77.12 Q49.00,76.50 52.06,74.94 Q55.12,73.38 55.75,72.69 Q56.38,72.00 56.94,71.88 Q57.50,71.75 59.56,69.50 Q61.62,67.25 62.56,66.69 Q63.50,66.12 66.06,61.19 Q68.62,56.25 69.38,52.31 Q70.12,48.38 70.12,45.44 Q70.12,42.50 69.44,38.69 Q68.75,34.88 67.44,32.62 Q66.12,30.38 65.88,29.38 Q65.62,28.38 64.62,27.00 Q63.62,25.62 61.12,23.00 Q58.62,20.38 57.19,19.31 Q55.75,18.25 54.81,17.94 Q53.88,17.62 52.25,16.44 Q50.62,15.25 47.69,14.56 Q44.75,13.88 43.31,13.19 Q41.88,12.50 39.50,8.88 Z"/></svg></div><dialog id="avatarDialog" aria-labelledby="avatarTitle">
@@ -134,7 +137,7 @@ html[data-theme=dark] .upload-meter.moving{--meter:#5599ff;--tip:#79c9ff}
 <section class="profile-section"><div class="profile-heading"><h3>H800 数据资源</h3><small id="profileStamp"></small></div><div id="profileInventory" aria-live="polite"></div></section>
 </div></dialog><dialog id="metricDialog" aria-labelledby="metricTitle"><div class="line"><div><small id="metricContext"></small><h2 id="metricTitle"></h2></div><button id="closeMetric" class="outline" aria-label="关闭指标大图">关闭</button></div><div class="curve-toolbar"><p id="metricInfo"></p><div class="curve-smoothing"><label class="smooth-toggle"><input type="checkbox" role="switch" id="smoothOn" aria-controls="smoothOptions">平滑</label><label id="smoothOptions" hidden>强度 <input type="range" id="smoothAmount" min="0" max="99" value="70" aria-label="指数移动平均平滑强度"><output id="smoothValue" for="smoothAmount">70%</output></label></div></div><div class="metric-stage"><canvas id="detailPlot" tabindex="0" aria-label="指标曲线，可用左右方向键逐点查看"></canvas><div id="metricGuide" hidden></div><div id="metricDot" hidden></div><output id="metricTip" hidden></output></div></dialog><dialog id="launchDialog" aria-labelledby="launchTitle"><div class="line"><h2 id="launchTitle"></h2><form method="dialog"><button type="button" class="outline" onclick="this.closest('dialog').close()">关闭</button></form></div><div id="launchBody"></div></dialog><script>const $=id=>document.getElementById(id),esc=s=>String(s??'—').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])),Gi=2**30,Ti=2**40,fmt=n=>n==null?'—':n>=Ti?(n/Ti).toFixed(2)+' TiB':n>=Gi?(n/Gi).toFixed(2)+' GiB':n>=1048576?(n/1048576).toFixed(1)+' MiB':n>=1024?Math.round(n/1024)+' KiB':n+' B';
 let H='',roots=[];
-let page=0,live=false,jobsAvailable=false,jobList=[],overview={mounts:[]},asset=null,dir=H,offset=0,query='',generation=0,assetTab='datasets',fileRows=[];
+let page=0,live=false,jobsAvailable=false,jobList=[],overview={mounts:[]},asset=null,dir=H,offset=0,query='',generation=0,assetTab='ck',fileRows=[];
 const cached={},snapLinks={};
 const teamHttp='__ATLAS_TEAM_HTTP__'==='yes';
 function loginPage(){
@@ -373,7 +376,7 @@ function sourceDetail(j){
  const eta=j.state==='RUNNING'&&v.trainingEta?'<div class="detail-eta"><small>预计训练剩余</small>'+trainingEstimate(v.trainingEta,v.sampled)+'</div>':'';
  return header+attempts+tracker+progress+eta+link+'<div class="run-sync"><b>训练指标</b><small>'+(active?'每 10 秒同步 · ':'')+'读取于 '+esc(new Date(v.sampled*1000).toLocaleTimeString('zh-CN',{hour12:false}))+'</small></div>'+
  (v.metrics.length?'<div class="run-metrics">'+v.metrics.map(metricChart).join('')+'</div>':'<p class="disk-note">'+(v.emptyReason?esc(v.emptyReason):(active?'等待作业写入可绘制的训练指标。':'此作业的日志中没有可绘制的训练指标。'))+'</p>')+
- '<section class="section"><h3>运行摘要</h3><p>'+esc(v.summary)+'</p></section><section class="section"><h3>日志依据</h3>'+v.source.map(s=>'<code class="path">'+esc(s)+'</code>').join('')+'<small>'+esc(v.note)+'</small></section>';
+ '<section class="section"><h3>运行摘要</h3><p>'+esc(v.summary)+'</p></section><section class="section"><h3>日志依据</h3>'+v.source.map(s=>'<div>'+esc(s.split('/').pop())+' '+copyButton(s)+'</div>').join('')+'<small>'+esc(v.note)+'</small></section>';
 }
 const detailRequests=new Map();
 function openRunLink(id){
@@ -384,7 +387,7 @@ function openRunLink(id){
  $('wbJob').textContent='作业 #'+id;
  $('wbPath').value=info.saved||'';
  $('wbError').textContent='';
- $('wbOptions').innerHTML=(info.candidates||[]).map(path=>'<label><input type="radio" name="wbChoice" value="'+attr(path)+'"><span>'+esc(path)+'</span></label>').join('');
+ $('wbOptions').innerHTML=(info.candidates||[]).map(path=>'<label><input type="radio" name="wbChoice" value="'+attr(path)+'"><span>'+esc(path.split('/').filter(Boolean).pop())+'</span></label>'+copyButton(path)).join('');
  $('wbCandidates').hidden=!info.candidates?.length;
  dlg.showModal();
 }
@@ -458,10 +461,10 @@ async function pollRuns(){
 function runs(){const list=jobList.filter(j=>!selectedState||slurmState(j)===selectedState),j=list.find(j=>j.id===selectedJob)||list.find(j=>j.state==='RUNNING')||list[0];selectedJob=j?.id||'';
  const filters=[...new Set(['',...jobList.map(slurmState),selectedState])].map(s=>button('state',s,esc(states[s]||s||'全部'),'chip','aria-pressed="'+(s===selectedState)+'"')).join('');
  return '<div class="split"><section class="surface"><h2>作业列表</h2><div class="tools"><small>Slurm 状态</small>'+filters+'</div><div class="scrolllist">'+list.map(x=>button('job',x.id,'<span><b>'+esc(x.name)+'</b><small>#'+esc(x.id)+' · '+esc(x.elapsed)+'</small></span>'+runListBadge(x),'job '+(x.id===selectedJob?'chosen':''))).join('')+'</div></section><article id="runDetail" class="surface sticky">'+(j?sourceDetail(j):'<p class="empty">没有符合条件的作业。</p>')+'</article></div>'}
-function fileInfo(f){return '<span aria-hidden="true" class="file-emblem '+(f.directory?'':'doc')+'"></span><small>文件属性</small><h2 class="inspect-title">'+esc(f.name)+'</h2><dl class="facts"><dt>类型</dt><dd>'+esc(f.kind)+'</dd><dt>大小</dt><dd>'+fmt(f.bytes)+'</dd><dt>修改时间</dt><dd>'+esc(f.mtime?displayTime(f.mtime):'—')+'</dd><dt>绝对路径</dt><dd><code>'+esc(f.path)+'</code></dd>'+(f.target?'<dt>链接目标</dt><dd><code>'+esc(f.target)+'</code></dd>':'')+'</dl>'+(f.directory&&f.path!==dir?button('root',f.path,'打开目录','outline'):'')}
+function fileInfo(f){return '<span aria-hidden="true" class="file-emblem '+(f.directory?'':'doc')+'"></span><small>文件属性</small><h2 class="inspect-title">'+esc(f.name)+'</h2><dl class="facts"><dt>类型</dt><dd>'+esc(f.kind)+'</dd><dt>大小</dt><dd>'+fmt(f.bytes)+'</dd><dt>修改时间</dt><dd>'+esc(f.mtime?displayTime(f.mtime):'—')+'</dd><dt>绝对路径</dt><dd>'+copyButton(f.path)+'</dd>'+(f.target?'<dt>链接目标</dt><dd>'+copyButton(f.target)+'</dd>':'')+'</dl>'+(f.directory&&f.path!==dir?button('root',f.path,'打开目录','outline'):'')}
 async function filesView(g){let base=dir,names=(cached[base]||[]).filter(s=>s.toLowerCase().includes(query.toLowerCase()));let v=live?await api('files',{path:base,offset,q:query}):{path:base,roots,total:names.length,items:names.map(n=>({name:n,path:base+'/'+n,directory:!n.includes('.'),kind:base===H&&snapLinks[n]?'链接':n.includes('.')?'文件':'目录',target:base===H?snapLinks[n]:'',bytes:null}))};
  if(g!==generation)return '';fileData=v;fileRows=v.items;const f=fileRows.find(x=>x.path===selectedFile)||{name:base.split('/').pop(),path:base,kind:'当前目录',directory:true};
- let root=v.roots.find(r=>base===r||base.startsWith(r+'/'))||base;let parts=base.slice(root.length).split('/').filter(Boolean),path=root;let crumbs=button('root',root,esc(root),'link');for(const n of parts){path+='/'+n;crumbs+=' / '+button('root',path,esc(n),'link')}
+ let root=v.roots.find(r=>base===r||base.startsWith(r+'/'))||base;let parts=base.slice(root.length).split('/').filter(Boolean),path=root;let crumbs=button('root',root,esc(root.includes('bodypipeline')?'Bodypipeline':root.split('/')[1]||'/'),'link');for(const n of parts){path+='/'+n;crumbs+=' / '+button('root',path,esc(n),'link')}
  return '<div class="tags">'+v.roots.map(p=>button('root',p,esc(p.includes('bodypipeline')?'Bodypipeline':p.split('/')[1]),'tab','aria-pressed="'+(p===root)+'"')).join('')+'</div><div class="split filegrid below"><section class="surface"><div class="crumb">'+crumbs+'</div><form id="finder" class="tools"><input name="q" value="'+attr(query)+'" aria-label="搜索当前目录" placeholder="搜索当前目录"><button class="outline">搜索</button></form><div class="line"><h3>目录内容</h3><small>'+v.total+' 项'+(live?'':' · 生成记录')+'</small></div><div class="scrolllist">'+v.items.map((x,i)=>button('entry',i,'<b><i class="ico '+(x.directory?'':'file')+'"></i>'+esc(x.name)+'</b><small>'+esc(x.kind)+'</small><span class="mono">'+fmt(x.bytes)+'</span>','entry '+(selectedFile===x.path?'chosen':''))).join('')+(!v.items.length?'<p class="empty">'+(live?'当前没有匹配项。':'此目录没有收录匹配的快照条目。')+'</p>':'')+'</div><div class="pager">'+(offset?button('offset',offset-120,'上一页'):'')+(offset+120<v.total?button('offset',offset+120,'下一页'):'')+'</div></section><article id="fileDetail" class="surface sticky">'+fileInfo(f)+'</article></div>'}
 let storeFilter='all',nasEntry=null,nasIssue='',transferRows=[],nasWhen=0,uploadPolling=false;
 function graphBars(title,values,totalLabel,colorClass=''){
@@ -511,7 +514,7 @@ function checkpointProgress(path){
 function transferPanel(){
  const uploads=transferRows.filter(t=>t.meta?.kind==='checkpoint');
  if(!uploads.length)return '';
- return '<section class="surface transfer-box"><h2>Checkpoint 操作记录</h2>'+uploads.slice(0,15).map(t=>'<div class="transfer-line"><div class="line"><b>'+(t.action==='remove'?'删除本地副本 · ':'')+esc(groupLabel({name:t.meta.group.split('/').pop(),path:t.meta.group})+' / '+t.meta.name)+'</b>'+(t.action==='remove'?'<span class="badge">'+esc(t.state)+'</span>':'')+'</div>'+(t.action==='remove'?'':uploadMeter(t))+(t.destination?'<code class="path">'+esc(t.destination)+'</code>':'')+(t.error?'<small class="feedback">'+esc(t.error)+'</small>':'')+'</div>').join('')+'</section>'
+ return '<section class="surface transfer-box"><h2>Checkpoint 操作记录</h2>'+uploads.slice(0,15).map(t=>'<div class="transfer-line"><div class="line"><b>'+(t.action==='remove'?'删除本地副本 · ':'')+esc(groupLabel({name:t.meta.group.split('/').pop(),path:t.meta.group})+' / '+t.meta.name)+'</b>'+(t.action==='remove'?'<span class="badge">'+esc(t.state)+'</span>':'')+'</div>'+(t.action==='remove'?'':uploadMeter(t))+(t.destination?copyButton(t.destination):'')+(t.error?'<small class="feedback">'+esc(t.error)+'</small>':'')+'</div>').join('')+'</section>'
 }
 function refreshTransferViews(){
  if($('transfers'))$('transfers').innerHTML=transferPanel();
@@ -561,7 +564,7 @@ async function sendCheckpoint(b,path,destination='NAS'){
 }
 
 function assetColumn(items,i){const matching=items.filter(a=>(a.name+' '+a.path).toLowerCase().includes(assetQuery.toLowerCase()));const start=Math.min(assetPage[i]*10,Math.max(0,Math.floor((matching.length-1)/10)*10));
- return '<section class="surface"><div class="line"><h2>'+(i?'Checkpoints':'数据集')+'</h2><small>'+(i&&!live?'历史汇总':matching.length+' 项')+'</small></div><small>'+(i?'权重与训练状态文件 · 历史盘点':'按更新时间 · 最新在前')+'</small>'+matching.slice(start,start+10).map(a=>'<div class="asset"><b>'+esc(a.name)+'</b><small class="sample-step">'+esc(a.location||'H800')+' · '+esc(a.robot)+' · '+esc(a.kind)+(a.jobId?' · 作业 '+esc(a.jobId.slice(0,12)):'')+' · '+esc(updatedLabel(a))+'</small><code class="path">'+esc(a.path)+'</code><span class="mono">'+(i?fmt(a.bytes)+(a.present===false?' · 本地目录缺失':''):esc(a.episodes)+' 条 / '+esc(a.frames)+' 帧')+'</span> '+(copyButton(a.path)+' '+(live&&a.location!=='NAS'?button('measure',a.path,sizes.get(a.path)||'统计占用','link'):(a.bytes!=null?fmt(a.bytes):'')))+'</div>').join('')+(!matching.length?'<p class="empty">没有匹配项。</p>':'')+'<div class="pager">'+(start?button('ap',i+':'+(start/10-1),'上一页'):'')+(matching.length>10?'<small>'+Math.floor(start/10+1)+' / '+Math.ceil(matching.length/10)+'</small>':'')+(start+10<matching.length?button('ap',i+':'+(start/10+1),'下一页'):'')+'</div></section>'}
+ return '<section class="surface"><div class="line"><h2>'+(i?'Checkpoints':'Datasets')+'</h2><small>'+(i&&!live?'历史汇总':matching.length+' 项')+'</small></div><small>'+(i?'权重与训练状态文件 · 历史盘点':'按更新时间 · 最新在前')+'</small>'+matching.slice(start,start+10).map(a=>'<div class="asset"><b>'+esc(a.name)+'</b><small class="sample-step">'+esc(a.location||'H800')+' · '+esc(a.robot)+' · '+esc(a.kind)+(a.jobId?' · 作业 '+esc(a.jobId.slice(0,12)):'')+' · '+esc(updatedLabel(a))+'</small><span class="mono">'+(i?fmt(a.bytes)+(a.present===false?' · 本地目录缺失':''):esc(a.episodes)+' 条 / '+esc(a.frames)+' 帧')+'</span> '+(copyButton(a.path)+' '+(live&&a.location!=='NAS'?button('measure',a.path,sizes.get(a.path)||'统计占用','link'):(a.bytes!=null?fmt(a.bytes):'')))+'</div>').join('')+(!matching.length?'<p class="empty">没有匹配项。</p>':'')+'<div class="pager">'+(start?button('ap',i+':'+(start/10-1),'上一页'):'')+(matching.length>10?'<small>'+Math.floor(start/10+1)+' / '+Math.ceil(matching.length/10)+'</small>':'')+(start+10<matching.length?button('ap',i+':'+(start/10+1),'下一页'):'')+'</div></section>'}
 let robotFilter='';
 
 let ckStore='all',ckSources=null;
@@ -580,19 +583,55 @@ function nodeBadge(raw){
  return '<span class="badge '+(meta?meta[1]:'')+'">'+(meta?esc(meta[0])+' · ':'')+esc(raw)+'</span>';
 }
 function numeric(v,digits=5){return v==null?'—':Number(v).toLocaleString('en-US',{useGrouping:false,maximumFractionDigits:digits})}
-function copyButton(path){return button('copy',path,'复制路径','outline copy-path')}
+function copyButton(path){return path?button('copy',path,'复制路径','outline copy-path','type="button"'):''}
+const pathTip=document.createElement('div');
+pathTip.id='atlasPathTip';pathTip.className='atlas-path-tip';pathTip.setAttribute('role','tooltip');pathTip.hidden=true;
+let pathAnchor=null;
+function hidePathTip(){
+ if(pathAnchor)pathAnchor.removeAttribute('aria-describedby');
+ pathAnchor=null;pathTip.hidden=true;pathObserver.disconnect();
+}
+function placePathTip(){
+ if(!pathAnchor)return;
+ if(!pathAnchor.isConnected||!pathAnchor.getClientRects().length){hidePathTip();return}
+ const r=pathAnchor.getBoundingClientRect(),w=pathTip.offsetWidth,h=pathTip.offsetHeight;
+ pathTip.style.left=Math.max(12,Math.min(innerWidth-w-12,r.left+(r.width-w)/2))+'px';
+ pathTip.style.top=Math.max(6,r.top>=h+10?r.top-h-7:Math.min(innerHeight-h-6,r.bottom+7))+'px';
+}
+function showPathTip(b){
+ if(pathAnchor===b)return;
+ hidePathTip();pathAnchor=b;
+ (b.closest('dialog[open]')||document.body).append(pathTip);
+ pathTip.textContent=b.dataset.copy;pathTip.hidden=false;b.setAttribute('aria-describedby',pathTip.id);
+ placePathTip();pathObserver.observe(document.body,{childList:true,subtree:true});
+}
+const pathObserver=new MutationObserver(()=>{
+ if(!pathAnchor||pathAnchor.isConnected)return;
+ const previous=pathAnchor.dataset.copy;hidePathTip();
+ const next=document.querySelector('button.copy-path:hover');
+ if(next?.dataset.copy===previous)showPathTip(next);
+});
+for(const event of ['pointerover','focusin'])document.addEventListener(event,e=>{
+ const b=e.target.closest?.('button.copy-path');if(b)showPathTip(b);
+});
+for(const event of ['pointerout','focusout'])document.addEventListener(event,e=>{
+ if(e.target===pathAnchor&&!pathAnchor.contains(e.relatedTarget))hidePathTip();
+});
+document.addEventListener('keydown',e=>{if(e.key==='Escape'&&pathAnchor){hidePathTip();e.preventDefault()}});
+document.addEventListener('close',hidePathTip,true);
+window.addEventListener('resize',placePathTip);document.addEventListener('scroll',placePathTip,true);
 function groupLabel(g){const parts=g.path.split('/');return ['preflight','checkpoints','ckpts','output','outputs'].includes(g.name)?parts.slice(-2).join(' / '):g.name}
 function pageControls(key,index,total,limit){let max=Math.ceil(total/limit);return max>1?'<div class="pager">'+(index?button(key,index-1,'上一页'):'')+'<small>'+String(index+1)+' / '+max+'</small>'+(index+1<max?button(key,index+1,'下一页'):'')+'</div>':''}
 function tableMarkup(headers,rows){return '<div class="scroll"><table><thead><tr>'+headers.map(x=>'<th>'+x+'</th>').join('')+'</tr></thead><tbody>'+rows.join('')+'</tbody></table></div>'}
 function atStep(n,step){return n==null?'':n===step?'保存步':'最近记录 · step '+n}
 function checkpointLocations(c){
- let html=c.present?'<div class="ck-location"><span class="badge">H800</span>'+copyButton(c.path)+'<code class="path">'+esc(c.path)+'</code></div>':'';
+ let html=c.present?'<div class="ck-location"><span class="badge">H800</span>'+copyButton(c.path)+'</div>':'';
  for(const copy of c.copies){
-  html+='<div class="ck-location"><span class="badge '+(copy.verified?'completed':'pending')+'">'+(copy.verified?'已上传 NAS · 已校验':'NAS · 待校验')+'</span>'+copyButton(copy.destination)+'<code class="path">'+esc(copy.destination)+'</code></div>';
+  html+='<div class="ck-location"><span class="badge '+(copy.verified?'completed':'pending')+'">'+(copy.verified?'已上传 NAS · 已校验':'NAS · 待校验')+'</span>'+copyButton(copy.destination)+'</div>';
  }
  if(c.present&&overview.roots.some(root=>c.path.startsWith(root+'/'))){
   if(overview.checkpointUploadEnabled)html+=button('upload',c.path,'上传到 NAS','outline')+' ';
-  html+=button('grus',c.path,'上传到 Grus','outline','title="上传推理权重、配置和 tokenizer 到 /mnt/data0/arx_ckpts"');
+  html+=button('grus',c.path,'上传到 Grus','outline','title="上传推理权重、配置和 tokenizer 到 Grus"');
   if(overview.checkpointUploadEnabled&&c.copies.some(x=>x.verified))html+=' '+button('removeck',c.path,'删除 H800 本地副本','outline ck-danger');
   html+='<div class="checkpoint-progress" data-progress-for="'+attr(c.path)+'">'+checkpointProgress(c.path)+'</div>';
  }
@@ -609,17 +648,17 @@ function sourceGroups(items){
  }
  return [...grouped.values()].sort((a,b)=>b.updated-a.updated||a.path.localeCompare(b.path));
 }
-function groupDetailView(g,items){return '<article class="surface below"><div class="line">'+button('backgroups','1','← 全部训练任务','link')+'<small>'+items.length+' 个 checkpoint</small></div><h2 class="long-title">'+esc(groupLabel(g))+'</h2>'+copyButton(g.path)+'<code class="path">'+esc(g.path)+'</code>'+tableMarkup(['Checkpoint / 路径','更新时间 ↓','Step','Epoch / 总轮数','训练 loss','学习率','盘点大小'],items.map(c=>'<tr><td><b>'+esc(c.name)+'</b>'+checkpointLocations(c)+'</td><td>'+esc(updatedLabel(c))+'</td><td>'+numeric(c.step,0)+'</td><td>'+numeric(c.epoch)+' / '+numeric(c.epochs,0)+'</td><td>'+numeric(c.loss,8)+'<small class="sample-step">'+atStep(c.lossStep,c.step)+'</small></td><td>'+esc(c.lr==null?'—':Number(c.lr).toExponential(3))+'<small class="sample-step">'+atStep(c.lrStep,c.step)+'</small></td><td>'+fmt(c.bytes)+'</td></tr>'))+'<p class="disk-note">Epoch 取自训练状态。loss 和学习率显示保存步或之前最近一次记录；— 表示缺少对应数据。</p></article>'}
+function groupDetailView(g,items){return '<article class="surface below"><div class="line">'+button('backgroups','1','← 全部训练任务','link')+'<small>'+items.length+' 个 checkpoint</small></div><h2 class="long-title">'+esc(groupLabel(g))+'</h2>'+copyButton(g.path)+tableMarkup(['Checkpoint / 路径','更新时间 ↓','Step','Epoch / 总轮数','训练 loss','学习率','盘点大小'],items.map(c=>'<tr><td><b>'+esc(c.name)+'</b>'+checkpointLocations(c)+'</td><td>'+esc(updatedLabel(c))+'</td><td>'+numeric(c.step,0)+'</td><td>'+numeric(c.epoch)+' / '+numeric(c.epochs,0)+'</td><td>'+numeric(c.loss,8)+'<small class="sample-step">'+atStep(c.lossStep,c.step)+'</small></td><td>'+esc(c.lr==null?'—':Number(c.lr).toExponential(3))+'<small class="sample-step">'+atStep(c.lrStep,c.step)+'</small></td><td>'+fmt(c.bytes)+'</td></tr>'))+'<p class="disk-note">Epoch 取自训练状态。loss 和学习率显示保存步或之前最近一次记录；— 表示缺少对应数据。</p></article>'}
 async function resourceView(){
  const tab=assetTab,chosen=groupPath;
- let tabs='<div class="tags asset-tabs">'+button('assetnav','datasets','数据集','tab','aria-pressed="'+(tab==='datasets')+'"')+button('assetnav','ck','Checkpoints','tab','aria-pressed="'+(tab==='ck')+'"')+'</div>';
+ let tabs='<div class="tags asset-tabs">'+button('assetnav','ck','Checkpoints','tab','aria-pressed="'+(tab==='ck')+'"')+button('assetnav','datasets','Datasets','tab','aria-pressed="'+(tab==='datasets')+'"')+'</div>';
  let storage='<section class="surface below"><div class="line"><h2>存储余量</h2><small>个人配额与共享卷余量</small></div><div class="storage-wide">'+mountList()+'</div></section>';
  let form='<form id="assetFinder" class="tools"><input name="q" value="'+attr(assetQuery)+'" aria-label="搜索当前子页" placeholder="'+(tab==='datasets'?'搜索数据集名称或路径':'搜索训练任务或父目录路径')+'"><button class="outline">搜索</button></form>';
  if(tab==='datasets'){if(live&&!asset)asset=await api('assets');const a=asset;
  if(live)await fetchNAS();
  const nas=nasEntry,all=[...a.datasets,...(nas?.datasets||[])];
  const byStore=all.filter(d=>storeFilter==='all'||(d.location||'H800')===storeFilter);
- const locations='<div class="tools"><label for="ds-store">存储位置</label><select id="ds-store" class="theme">'+[['all','全部位置'],['H800','H800'],['NAS','NAS']].map(([id,n])=>'<option value="'+id+'" '+(id===storeFilter?'selected':'')+'>'+n+'</option>').join('')+'</select>'+(nas?.enabled?'<small>NAS 剩余 '+fmt(nas.free)+' · '+esc(nas.root)+'</small>':'')+'</div>';
+ const locations='<div class="tools"><label for="ds-store">存储位置</label><select id="ds-store" class="theme">'+[['all','全部位置'],['H800','H800'],['NAS','NAS']].map(([id,n])=>'<option value="'+id+'" '+(id===storeFilter?'selected':'')+'>'+n+'</option>').join('')+'</select>'+(nas?.enabled?'<small>NAS 剩余 '+fmt(nas.free)+'</small> '+copyButton(nas.root):'')+'</div>';
  const options=[...new Set([...(storeFilter==='NAS'?[]:a.robots),...byStore.map(d=>d.robot)].filter(Boolean))];
  const chooser='<div class="tools robot-filter" role="group" aria-label="机器人 / 来源"><span>机器人 / 来源</span><div class="robot-options">'+['',...options].map(r=>button('robot',r,esc(r||'全部来源'),'chip','aria-pressed="'+(r===robotFilter)+'"')).join('')+'</div></div>';
  const nasEmpty=storeFilter==='NAS'&&nas?.enabled&&!nasIssue&&!byStore.length;
@@ -643,7 +682,7 @@ async function resourceView(){
  }
  const matching=groups.filter(g=>g.path.toLowerCase().includes(assetQuery.toLowerCase()));
  groupIndex=Math.min(groupIndex,Math.max(0,Math.ceil(matching.length/12)-1));
- return tabs+ckGraphics(groups)+form+'<section class="surface"><div class="line"><h2>训练任务</h2><small>'+matching.length+' 个父目录'+(live?'':' · 生成记录')+'</small></div>'+tableMarkup(['训练输出目录','副本来源','最新 checkpoint ↓','Checkpoint 数','已盘点大小'],matching.slice(groupIndex*12,groupIndex*12+12).map(g=>'<tr><td>'+button('group',g.path,esc(groupLabel(g)),'name')+'<code class="path">'+esc(g.path)+'</code>'+copyButton(g.path)+'</td><td>'+[g.h800?'H800 · '+g.h800:'',g.nas?'NAS · '+g.nas:''].filter(Boolean).join('<br>')+'</td><td>'+esc(updatedLabel(g))+'</td><td>'+g.count+'</td><td>'+fmt(g.bytes)+(g.unmeasured?'<small class="sample-step">'+g.unmeasured+' 项大小待统计</small>':'')+'</td></tr>'))+pageControls('gpage',groupIndex,matching.length,12)+'</section>'+storage
+ return tabs+ckGraphics(groups)+form+'<section class="surface"><div class="line"><h2>训练任务</h2><small>'+matching.length+' 个父目录'+(live?'':' · 生成记录')+'</small></div>'+tableMarkup(['训练输出目录','副本来源','最新 checkpoint ↓','Checkpoint 数','已盘点大小'],matching.slice(groupIndex*12,groupIndex*12+12).map(g=>'<tr><td>'+button('group',g.path,esc(groupLabel(g)),'name')+' '+copyButton(g.path)+'</td><td>'+[g.h800?'H800 · '+g.h800:'',g.nas?'NAS · '+g.nas:''].filter(Boolean).join('<br>')+'</td><td>'+esc(updatedLabel(g))+'</td><td>'+g.count+'</td><td>'+fmt(g.bytes)+(g.unmeasured?'<small class="sample-step">'+g.unmeasured+' 项大小待统计</small>':'')+'</td></tr>'))+pageControls('gpage',groupIndex,matching.length,12)+'</section>'+storage
 }
 async function fetchCluster(){if(clusterRequest)return clusterRequest;
  clusterRequest=api('cluster').then(data=>{clusterData=data;clusterError=''}).catch(()=>{clusterError='Slurm 暂时无法读取'}).finally(()=>{clusterRequest=null});return clusterRequest}
@@ -690,9 +729,9 @@ async function showCommand(id){
  const job=clusterData?.jobs.find(j=>j.id===id);
  const v=await api('job-command',{id});
  if(token!==commandRequest||!dialog.open)return;
- const block=(title,cmd,source,vals={})=>'<section class="launch-block"><div class="line"><b>'+esc(title)+'</b>'+button('copy',cmd,'复制','link')+'</div><pre>'+esc(cmd)+'</pre>'+(source?'<code class="path">'+esc(source)+'</code>':'')+Object.entries(vals).map(([k,v])=>'<small class="sample-step">'+esc(k)+' = <code>'+esc(v)+'</code></small>').join('')+'</section>';
+ const block=(title,cmd,source,vals={})=>'<section class="launch-block"><div class="line"><b>'+esc(title)+'</b>'+button('copy',cmd,'复制','link')+'</div><pre>'+esc(cmd)+'</pre>'+(source?(source.startsWith('/')?copyButton(source):'<small>'+esc(source)+'</small>'):'')+Object.entries(vals).map(([k,v])=>'<small class="sample-step">'+esc(k)+' = '+(String(v).startsWith('/')?copyButton(v):'<code>'+esc(v)+'</code>')+'</small>').join('')+'</section>';
  body.innerHTML='<h3>'+esc(v.name)+'</h3>'+v.observed.map(o=>block('实际进程参数',o.command,o.source)).join('')+v.commands.map(o=>block('脚本中的启动语句',o.command,o.source,o.values)).join('')+
- '<p class="disk-note">'+esc(v.state==='PENDING'||job?.state==='PENDING'?'排队中，尚未产生运行进程。':v.observed.length?'进程参数来自当前采样。':'当前无法读取该作业的运行进程参数。')+' '+(v.commands.length?'变量以脚本原文显示，列出的配置路径来自静态赋值。':'未解析到可读的启动语句。')+'</p>'+(v.submission?block('Slurm 提交入口',v.submission,''):'');
+ '<p class="disk-note">'+esc(v.state==='PENDING'||job?.state==='PENDING'?'排队中，尚未产生运行进程。':v.observed.length?'进程参数来自当前采样。':'当前无法读取该作业的运行进程参数。')+' '+(v.commands.length?'变量以脚本原文显示，列出的配置路径来自静态赋值。':'未解析到可读的启动语句。')+'</p>'+(v.submission?(v.submission.startsWith('/')&&!/\s/.test(v.submission)?'<section class="launch-block"><b>Slurm 提交入口</b> '+copyButton(v.submission)+'</section>':block('Slurm 提交入口',v.submission,'')):'');
  }catch{if(token===commandRequest)body.textContent='作业已离开队列，或 Slurm 暂时无法读取。'}
 }
 let rankPartition='',rankOpen=false;
@@ -769,10 +808,19 @@ async function clusterView(){
  return '<div class="line cluster-time"><small>'+esc(clusterError?clusterError+' · 保留上次采样':'每 15 秒更新')+' · '+displayTime(c.stamp)+' · 队列时间 '+esc(c.zone)+'</small>'+button('resample',1,'立即采样','link')+'</div>'+tiles+predictionPanel(c)+priorityPanel(c)+'<div class="node-grid">'+nodes+'</div>'+queue
 }
 function setResource(tab,path=''){assetTab=tab;groupPath=path;assetQuery='';groupIndex=0;assetPage=[0,0];navigate(3)}
-function locationState(){if(location.hash==='#all')history.replaceState(null,'','#overview');const [section,sub,p]=location.hash.slice(1).split('/');page=Math.max(0,pages.indexOf(section));assetTab=sub==='checkpoints'?'ck':'datasets';try{groupPath=assetTab==='ck'&&p?decodeURIComponent(p):''}catch{groupPath=''}}
+function locationState(){if(location.hash==='#all')history.replaceState(null,'','#overview');const [section,sub,p]=location.hash.slice(1).split('/');page=Math.max(0,pages.indexOf(section));assetTab=sub==='datasets'?'datasets':'ck';try{groupPath=assetTab==='ck'&&p?decodeURIComponent(p):''}catch{groupPath=''}}
 function setTheme(choice){let dark=choice==='system'?matchMedia('(prefers-color-scheme: dark)').matches:choice==='dark';document.documentElement.dataset.theme=dark?'dark':'light';$('theme').value=choice;draw()}
 function savedTheme(){try{return localStorage.getItem('h800-theme')||'system'}catch{return 'system'}}
-async function copyPath(b,path){try{await navigator.clipboard.writeText(path);b.textContent='已复制'}catch{const f=document.createElement('textarea');f.value=path;b.after(f);f.select();if(document.execCommand('copy')){b.textContent='已复制';f.remove()}else{b.textContent='请复制选中文字'}}}
+async function copyPath(b,path){
+ const label=b.classList.contains('copy-path')?'复制路径':'复制';
+ try{await navigator.clipboard.writeText(path)}
+ catch{
+  const f=document.createElement('textarea');f.value=path;b.after(f);f.select();
+  if(!document.execCommand('copy')){b.textContent='请复制选中文字';f.addEventListener('blur',()=>{f.remove();b.textContent=label},{once:true});return}
+  f.remove();b.focus({preventScroll:true});
+ }
+ b.textContent='已复制';clearTimeout(b.copyReset);b.copyReset=setTimeout(()=>b.textContent=label,1400);
+}
 
 let pendingPage=false,loaderTimer;
 function beginPageLoad(){
@@ -833,6 +881,7 @@ document.addEventListener('click',async e=>{const b=e.target.closest('button');i
  else if(d.quser!==undefined){queueUser=d.quser;queuePage=0;render()}
  else if(d.qpage!==undefined){queuePage=+d.qpage;render()}
  else if(d.resample){await fetchCluster();if(page===4)render()}
+ else if(d.page==='3')setResource('ck');
  else if(d.page!==undefined)navigate(+d.page);
  else if(d.job){
    if(page!==2){selectedState='';selectedJob=d.job;navigate(2)}
