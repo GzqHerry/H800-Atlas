@@ -579,6 +579,9 @@ def checkpoint_sources():
     return dict(items=list(rows.values()),note=note)
 
 def route(method, target, body):
+    if method == 'GET' and urlsplit(target).path == '/api/gpu-live':
+        from gpu_usage import live_gpu_sample
+        return 200, live_gpu_sample()
     u=urlsplit(target)
     q={k:v[-1] for k,v in parse_qs(u.query).items()}
     if method=='POST' and u.path=='/api/wandb-link':

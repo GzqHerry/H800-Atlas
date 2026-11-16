@@ -115,6 +115,13 @@ html[data-theme=dark] .gpu-telemetry{--util-ink:#8fc7ff;--mem-ink:#cbacf8}
 .gpu-card-memory{margin-top:8px;color:var(--soft);font:11px/1.4 var(--sans);white-space:nowrap}
 .gpu-card-meter{height:4px;margin-top:4px;border-radius:3px;background:var(--line);overflow:hidden}.gpu-card-meter i{display:block;height:100%;border-radius:inherit;background:var(--util-ink)}
 .gpu-card-meter.memory i{background:var(--mem-ink)}.gpu-card-meter.missing{height:3px;background:none;border-bottom:1px dashed var(--line)}
+.node{--util-ink:#2873c8;--mem-ink:#9262c7}.node .gpu-toggle{display:block;width:100%;background:transparent;border:0;color:var(--soft);padding:3px 0 5px;text-align:left;border-radius:5px}
+[data-theme=dark] .node{--util-ink:#82baff;--mem-ink:#cb9df3}.gpu-toggle:hover,.gpu-toggle:focus-visible{background:var(--paper)}
+.gpu-toggle-label{display:flex;justify-content:space-between;font-size:10px;align-items:center}.gpu-toggle-label b{font-weight:550;color:var(--ink)}
+.gpu-strip{display:grid;grid-template-columns:repeat(auto-fit,minmax(14px,1fr));gap:3px;align-items:end;margin:1px 0 4px}.gpu-mini{display:grid;gap:2px;min-width:0;color:var(--soft);font:9px/1.2 var(--mono);text-align:center}
+.gpu-strip[hidden]{display:none}
+.gpu-mini i{display:block;height:3px;border-radius:2px;background:linear-gradient(to right,var(--util-ink) var(--pct),var(--rail) var(--pct))}.gpu-mini i.memory{background:linear-gradient(to right,var(--mem-ink) var(--pct),var(--rail) var(--pct))}.gpu-mini i.missing{background:none;border-bottom:1px dashed var(--soft)}
+.job-gpus{margin:6px 0 2px}.job-gpus small{color:var(--soft);font-size:10px}.job-gpu-list{display:flex;flex-wrap:wrap;gap:4px;margin-top:3px}.job-gpu-list span{border:1px solid var(--line);border-radius:5px;padding:2px 5px;display:inline-flex;gap:5px;align-items:baseline;font:10px/1.4 var(--mono);white-space:nowrap}.job-gpu-list b{color:var(--ink)}.job-gpu-list em,.job-gpu-list i{font-style:normal;color:var(--util-ink)}.job-gpu-list i{color:var(--mem-ink)}
 .surface.ds-library{--task-blue:#2868a9;--task-green:#18725e;overflow:hidden;padding:0}
 html[data-theme=dark] .ds-library{--task-blue:#8ebfff;--task-green:#78d5b7}
 .ds-list{list-style:none;margin:0;padding:0}
@@ -801,8 +808,89 @@ async function resourceView(){
  groupIndex=Math.min(groupIndex,Math.max(0,Math.ceil(matching.length/12)-1));
  return tabs+ckGraphics(groups)+form+taskList(groups,matching)+storage
 }
+const expandedGpus=new Set();
+let gpuSnapshot=null,gpuRequest=false,clusterClock=0,clusterClockAt=0;
+function boardNow(){return clusterClock+(performance.now()-clusterClockAt)/1000}
 async function fetchCluster(){if(clusterRequest)return clusterRequest;
- clusterRequest=api('cluster').then(data=>{clusterData=data;clusterError=''}).catch(()=>{clusterError='Slurm 暂时无法读取'}).finally(()=>{clusterRequest=null});return clusterRequest}
+ clusterRequest=api('cluster').then(data=>{
+  if(clusterData?.stamp!==data.stamp){clusterClock=data.stamp;clusterClockAt=performance.now()}
+  clusterData=data;clusterError='';
+ }).catch(()=>{clusterError='Slurm 暂时无法读取'}).finally(()=>{clusterRequest=null});return clusterRequest}
+
+function slurmSeconds(value){
+ const m=/^(?:(\d+)-)?(?:(\d+):)?(\d+):(\d+)$/.exec(value);
+ return m?Number(m[1]||0)*86400+Number(m[2]||0)*3600+Number(m[3])*60+Number(m[4]):null;
+}
+function tickBoard(){
+ if(page!==4||!live||document.hidden||!clusterData)return;
+ const now=boardNow();
+ for(const e of document.querySelectorAll('[data-elapsed]')){
+  const t=Number(e.dataset.elapsed)+Math.max(0,Math.floor(now-(clusterData.queueStamp||clusterData.stamp)));
+  const days=Math.floor(t/86400),pad=n=>String(n).padStart(2,'0');
+  e.textContent=(days?days+'-':'')+pad(Math.floor(t/3600)%24)+':'+pad(Math.floor(t/60)%60)+':'+pad(t%60);
+ }
+ for(const e of document.querySelectorAll('[data-countdown]')){
+  e.textContent=(e.dataset.prefix||'')+sinceEstimate(Number(e.dataset.countdown),now);
+ }
+}
+function countdown(epoch,stamp,prefix=''){
+ return '<span data-countdown="'+attr(epoch)+'" data-prefix="'+attr(prefix)+'">'+esc(prefix+sinceEstimate(epoch,stamp))+'</span>';
+}
+function cardGiB(bytes){
+ return Number.isFinite(bytes)?(bytes/2**30).toFixed(bytes>0&&bytes<2**30?2:1):'—';
+}
+function miniCards(cards,total){
+ const indices=Array.from(new Set([...Array.from({length:Math.min(64,total||0)},(_,i)=>i),...cards.map(c=>c.index)])).sort((a,b)=>a-b);
+ const rail=(pct,cls)=>'<i class="'+cls+(Number.isFinite(pct)?'':' missing')+'" style="--pct:'+Math.min(100,Math.max(0,pct||0))+'%"></i>';
+ return indices.map(i=>{
+  const c=cards.find(c=>c.index===i)||{},mem=c.memoryTotal>0?100*c.memoryUsed/c.memoryTotal:null;
+  const title='GPU '+i+' · 利用率 '+(c.utilization==null?'—':c.utilization+'%')+' · 显存 '+cardGiB(c.memoryUsed)+' / '+cardGiB(c.memoryTotal)+' GiB';
+  return '<span class="gpu-mini" title="'+attr(title)+'">'+i+rail(c.utilization,'util')+rail(mem,'memory')+'</span>';
+ }).join('');
+}
+function jobCardUsage(node,id,cards){
+ const assigned=node.jobCards?.[id];
+ if(!assigned?.length){
+  const r=node.jobs.find(j=>j.id===id)?.resources;
+  return !r||r.gpu||r.shard?'<small>卡号待调度器确认</small>':'';
+ }
+ const chips=assigned.map(a=>{
+  const c=cards.find(c=>c.index===a.index)||{};
+  return '<span><b>#'+esc(a.index)+(a.shared?' 共享':'')+'</b><em>'+(c.utilization==null?'—':c.utilization+'%')+'</em><i>'+cardGiB(c.memoryUsed)+' GiB</i></span>';
+ }).join('');
+ return '<small>分配卡号 · 整卡利用率 / 已用显存</small><div class="job-gpu-list">'+chips+'</div>';
+}
+function replaceReadout(el,html){
+ if(el&&el.lastReadout!==html){el.innerHTML=html;el.lastReadout=html}
+}
+function paintGpu(){
+ if(page!==4||!clusterData||document.hidden)return;
+ const now=boardNow();
+ for(const el of document.querySelectorAll('[data-gpu-node]')){
+  const n=clusterData.nodes.find(n=>n.name===el.dataset.gpuNode);
+  if(!n)continue;
+  const fresh=gpuSnapshot?.nodes?.[n.name];
+  const direct=fresh?.length&&now-gpuSnapshot.stamp<6;
+  const cards=(direct?fresh:n.gpuCards||[]).filter(c=>now-c.sampled<75);
+  const open=expandedGpus.has(n.name),toggle=el.querySelector('[data-gputoggle]'),panel=el.querySelector('.gpu-detail');
+  toggle.setAttribute('aria-expanded',String(open));
+  toggle.querySelector('.gpu-toggle-label span').textContent=open?'收起 ▴':'展开 ▾';
+  toggle.title='蓝色为 GPU 利用率，紫色为已用显存'+(direct?'':' · 暂无实时采样');
+  const strip=toggle.querySelector('.gpu-strip');strip.hidden=open;
+  if(!open)replaceReadout(strip,miniCards(cards,n.gpu?.total));
+  panel.hidden=!open;
+  if(open)replaceReadout(panel,gpuCardPanel({...n,gpuCards:cards}));
+  for(const row of el.querySelectorAll('[data-gpu-job]'))replaceReadout(row,jobCardUsage(n,row.dataset.gpuJob,cards));
+  const status=toggle.querySelector('.gpu-toggle-label b');
+  status.textContent=direct?'逐卡监控':cards.length?'逐卡监控 · 最近采样':'逐卡监控 · 暂无采样';
+ }
+}
+async function pollGpu(){
+ if(page!==4||!live||document.hidden||gpuRequest)return;
+ gpuRequest=true;
+ try{const data=await api('gpu-live');if(data.nodes)gpuSnapshot=data}
+ catch{}finally{gpuRequest=false;paintGpu()}
+}
 function sinceEstimate(epoch,stamp){
  if(!epoch)return '未给出';
  const minutes=Math.max(0,Math.round((epoch-stamp)/60));
@@ -813,29 +901,31 @@ function sinceEstimate(epoch,stamp){
 function trainingEstimate(eta,now){
  const labels={unavailable:'进度未共享',waiting:'缺少训练进度',warming:'正在测速',stale:'进度未更新',stopped:'训练已停止',finished:'训练步数已完成'};
  const ready=eta?.state==='ready'&&eta.finish>now;
- const label=ready?'约 '+sinceEstimate(eta.finish,now):labels[eta?.state]||'暂无估算';
+ const label=ready?countdown(eta.finish,now,'约 '):labels[eta?.state]||'暂无估算';
  const observed=eta?.updated?'最近进度 '+displayTime(eta.updated):'';
  const details=ready?'预计 '+displayTime(eta.finish)+' 完成 · '+numeric(eta.secondsPerStep,2)+' 秒/步':'';
- return '<div class="training-eta'+(ready?' has-eta':'')+'"><b>'+esc(label)+'</b>'+(details?'<small>'+esc(details)+'</small>':'')+(observed?'<small>'+esc(observed)+'</small>':'')+'</div>';
+ return '<div class="training-eta'+(ready?' has-eta':'')+'"><b>'+(ready?label:esc(label))+'</b>'+(details?'<small>'+esc(details)+'</small>':'')+(observed?'<small>'+esc(observed)+'</small>':'')+'</div>';
 }
 function predictionPanel(c){
  const forecasts=c.forecasts||[];
  if(!forecasts.length)return '<section class="surface eta"><h2>我的排队预测</h2><small>当前没有待调度作业。</small></section>';
- return '<section class="surface eta"><div class="line"><h2>我的排队预测</h2><small>最近 30 天 · 本地近邻模型</small></div>'+forecasts.map(f=>'<div class="estimate"><b>#'+esc(f.id)+' · '+esc(f.name)+'</b><div class="eta-pair"><div><small>历史模型 · 剩余等待</small><strong>'+esc(f.center?sinceEstimate(f.center,c.stamp):'暂无法预测')+'</strong><small>'+(f.center?'相似作业 '+f.samples+' 项 · 中间一半范围 '+sinceEstimate(f.low,c.stamp)+' 至 '+sinceEstimate(f.high,c.stamp):esc(f.note))+'</small></div><div><small>Slurm 调度器 · 剩余等待</small><strong>'+esc(sinceEstimate(f.scheduler,c.stamp))+'</strong><small>'+esc(f.scheduler?displayTime(f.scheduler)+'（本地时间）':'调度器尚未给出时间')+'</small></div></div></div>').join('')+'<small>模型从已启动、同分区和同卡数的历史作业估算，未计入实时优先级变化。安排训练时优先参考 Slurm。</small></section>'
+ return '<section class="surface eta"><div class="line"><h2>我的排队预测</h2><small>最近 30 天 · 本地近邻模型</small></div>'+forecasts.map(f=>'<div class="estimate"><b>#'+esc(f.id)+' · '+esc(f.name)+'</b><div class="eta-pair"><div><small>历史模型 · 剩余等待</small><strong>'+(f.center?countdown(f.center,c.stamp):'暂无法预测')+'</strong><small>'+(f.center?'相似作业 '+f.samples+' 项 · 中间一半范围 '+countdown(f.low,c.stamp)+' 至 '+countdown(f.high,c.stamp):esc(f.note))+'</small></div><div><small>Slurm 调度器 · 剩余等待</small><strong>'+(f.scheduler?countdown(f.scheduler,c.stamp):'未给出')+'</strong><small>'+esc(f.scheduler?displayTime(f.scheduler)+'（本地时间）':'调度器尚未给出时间')+'</small></div></div></div>').join('')+'<small>模型从已启动、同分区和同卡数的历史作业估算，未计入实时优先级变化。安排训练时优先参考 Slurm。</small></section>'
 }
-function nodeMeter(label,unit,total,used,free,detail){
+function nodeMeter(label,unit,total,used,free,detail,control=''){
  const known=Number.isFinite(used)&&Number.isFinite(total)&&total>0;
  const width=known?Math.max(0,Math.min(100,used/total*100)):0;
  return '<div class="node-meter '+(label==='CPU'?'cpu-meter':'gpu-meter')+'">'+
   '<div class="node-meter-head"><b>'+label+'</b><span>已分配 '+numeric(used,0)+' / '+numeric(total,0)+' '+unit+'</span><span class="node-meter-free">空闲 '+numeric(free,0)+' '+unit+'</span></div>'+
-  '<div aria-hidden="true" class="node-meter-track'+(known?'':' unknown')+'"><i style="width:'+width+'%"></i></div><small>'+detail+'</small></div>';
+  '<div aria-hidden="true" class="node-meter-track'+(known?'':' unknown')+'"><i style="width:'+width+'%"></i></div><div>'+control+'<small>'+detail+'</small></div></div>';
 }
 function resourceGrid(n){
  const g=n.gpu||{},c=n.cpu||{},capacity=c.effective??c.total;
  const cpuFree=capacity!=null&&c.allocated!=null?Math.max(0,capacity-c.allocated):null;
  const gpuDetail='整卡 '+numeric(g.whole,0)+' 张 · 分片占用 '+numeric(g.shared,0)+' 张'+(g.blocked?' · 节点不可新分配':'');
  const cpuDetail='物理配置 '+numeric(c.total,0)+' 核 · 负载 '+numeric(c.load,2)+' · 实测 '+(c.busy==null?'暂无':numeric(c.busy,1)+'%');
- return '<div class="node-res">'+nodeMeter('GPU','张',g.total,g.used,g.free,gpuDetail)+nodeMeter('CPU','核',capacity,c.allocated,cpuFree,cpuDetail)+'</div>';
+ const open=expandedGpus.has(n.name);
+ const control=button('gputoggle',n.name,'<span class="gpu-strip"></span><span class="gpu-toggle-label"><b>逐卡监控</b><span>'+ (open?'收起 ▴':'展开 ▾')+'</span></span>','gpu-toggle','aria-expanded="'+open+'" aria-controls="gpu-detail-'+attr(n.name)+'"');
+ return '<div class="node-res">'+nodeMeter('GPU','张',g.total,g.used,g.free,gpuDetail,control)+nodeMeter('CPU','核',capacity,c.allocated,cpuFree,cpuDetail)+'</div>';
 }
 function gpuCardPanel(node){
  const cards=node.gpuCards||[],total=node.gpu?.total;
@@ -845,12 +935,11 @@ function gpuCardPanel(node){
  const coverage=Number.isFinite(total)&&cards.length<total?'已采到 '+cards.length+' / '+total+' 张 · ':'';
  const time=new Date(sampled*1000).toLocaleTimeString('zh-CN',{hour12:false});
  const meter=(pct,cls)=>'<div aria-hidden="true" class="gpu-card-meter '+cls+(pct==null?' missing':'')+'">'+(pct==null?'':'<i style="width:'+Math.min(100,Math.max(0,pct))+'%"></i>')+'</div>';
- const gib=n=>Number.isFinite(n)?(n/2**30).toFixed(n>0&&n<2**30?2:1):'—';
  const tiles=cards.map(card=>{
   const util=card.utilization,used=card.memoryUsed,capacity=card.memoryTotal;
   const pct=Number.isFinite(used)&&capacity>0?100*used/capacity:null;
   const busy=Number.isFinite(util)?numeric(util,1)+'%':'—';
-  const memory=gib(used)+' / '+gib(capacity)+' GiB';
+  const memory=cardGiB(used)+' / '+cardGiB(capacity)+' GiB';
   return '<li><div class="gpu-card-top"><b>GPU '+esc(card.index)+'</b><strong title="GPU 利用率">'+busy+'</strong></div>'+meter(util,'')+
    '<div class="gpu-card-memory" title="已用显存 / 总显存">'+memory+'</div>'+meter(pct,'memory')+'</li>';
  }).join('');
@@ -921,7 +1010,7 @@ function nodeJob(j,owner,stamp){
  const mine=j.user===owner;
  const eta=mine&&j.state==='RUNNING'?'<div><small>预计训练剩余</small>'+trainingEstimate(j.trainingEta,stamp)+'</div>':'';
  const nameAndResources='<div class="job-name-resources"><span class="node-job-name">'+esc(j.name)+'</span>'+jobResources(j)+'</div>';
- return '<div class="node-job'+(mine?' my-job':'')+'"><div class="node-job-title"><div><b>'+personLabel(j.user)+'</b>'+(mine?' <span class="mine-tag">我</span>':'')+' <small>#'+esc(j.id)+'</small>'+badge(j.state)+'</div>'+commandButton(j)+'</div>'+nameAndResources+'<div class="node-job-times"><div><small>已用 / 申请时限</small><span>'+esc(j.elapsed)+' / '+esc(j.limit)+'</span></div>'+eta+'</div></div>';
+ return '<div class="node-job'+(mine?' my-job':'')+'"><div class="node-job-title"><div><b>'+personLabel(j.user)+'</b>'+(mine?' <span class="mine-tag">我</span>':'')+' <small>#'+esc(j.id)+'</small>'+badge(j.state)+'</div>'+commandButton(j)+'</div>'+nameAndResources+(j.state==='RUNNING'?'<div class="job-gpus" data-gpu-job="'+attr(j.id)+'"></div>':'')+'<div class="node-job-times"><div><small>已用 / 申请时限</small><span>'+(j.state==='RUNNING'&&slurmSeconds(j.elapsed)!=null?'<span data-elapsed="'+slurmSeconds(j.elapsed)+'">'+esc(j.elapsed)+'</span>':esc(j.elapsed))+' / '+esc(j.limit)+'</span></div>'+eta+'</div></div>';
 }
 function pendingRow(j,owner,zone){
  const p=queuePurpose(j);
@@ -940,9 +1029,9 @@ async function clusterView(){
  queuePage=Math.min(queuePage,Math.max(0,Math.ceil(filtered.length/25)-1));
  const counts=[['可见节点',c.nodes.length],['占用节点的用户',new Set(c.nodes.flatMap(n=>n.jobs.map(j=>j.user))).size],['排队人数',users.size],['待调度作业',pending.length]];
  const tiles='<div class="summary">'+counts.map(([k,v])=>'<div class="stat"><small>'+k+'</small><strong>'+v+'</strong></div>').join('')+'</div>';
- const nodes=c.nodes.map(n=>'<article class="surface node"><div class="line"><h2>'+esc(n.name)+'</h2>'+nodeBadge(n.state)+'</div><small>'+esc(n.hardware)+'</small>'+resourceGrid(n)+gpuCardPanel(n)+(n.reason&&n.reason!=='none'?'<p class="feedback">'+esc(n.reason)+'</p>':'')+(n.jobs.length?'<div class="node-jobs">'+n.jobs.map(j=>nodeJob(j,c.owner,c.stamp)).join('')+'</div>':'<p class="empty">未见已分配作业</p>')+'</article>').join('');
+ const nodes=c.nodes.map(n=>'<article class="surface node" data-gpu-node="'+attr(n.name)+'"><div class="line"><h2>'+esc(n.name)+'</h2>'+nodeBadge(n.state)+'</div><small>'+esc(n.hardware)+'</small>'+resourceGrid(n)+'<div class="gpu-detail" id="gpu-detail-'+attr(n.name)+'" hidden></div>'+(n.reason&&n.reason!=='none'?'<p class="feedback">'+esc(n.reason)+'</p>':'')+(n.jobs.length?'<div class="node-jobs">'+n.jobs.map(j=>nodeJob(j,c.owner,c.stamp)).join('')+'</div>':'<p class="empty">未见已分配作业</p>')+'</article>').join('');
  const queue='<section class="surface below queue-board"><h2>排队用户与作业</h2><div class="tools">'+button('quser','','全部 · '+pending.length,'chip','aria-pressed="'+(!queueUser)+'"')+sorted.map(([u,n])=>'<span class="queue-person-chip">'+personLabel(u,false)+button('quser',u,String(n),'chip','aria-label="筛选 '+attr(u)+' 的 '+n+' 个排队作业" title="筛选此用户的排队作业" aria-pressed="'+(queueUser===u)+'"')+'</span>').join('')+'</div>'+tableMarkup(['用户 / 作业号','任务与启动命令','状态与原因','分区 / 资源','申请时限','提交时间 <small class="tz">'+esc(c.zone)+'</small>','预计开始 <small class="tz">'+esc(c.zone)+'</small>'],filtered.slice(queuePage*25,queuePage*25+25).map(j=>pendingRow(j,c.owner,c.zone)))+pageControls('qpage',queuePage,filtered.length,25)+'</section>';
- return '<div class="line cluster-time"><small>'+esc(clusterError?clusterError+' · 保留上次采样':'每 15 秒更新')+' · '+displayTime(c.stamp)+' · 队列时间 '+esc(c.zone)+'</small>'+button('resample',1,'立即采样','link')+'</div>'+tiles+predictionPanel(c)+priorityPanel(c)+'<div class="node-grid">'+nodes+'</div>'+queue
+ return '<div class="line cluster-time"><small>'+esc(clusterError?clusterError+' · 保留上次采样':'GPU 逐秒采样 · 调度每 15 秒更新')+' · '+displayTime(c.stamp)+' · 队列时间 '+esc(c.zone)+'</small>'+button('resample',1,'立即采样','link')+'</div>'+tiles+predictionPanel(c)+priorityPanel(c)+'<div class="node-grid">'+nodes+'</div>'+queue
 }
 function setResource(tab,path=''){assetTab=tab;groupPath=path;assetQuery='';groupIndex=0;assetPage=[0,0];navigate(3)}
 function locationState(){if(location.hash==='#all')history.replaceState(null,'','#overview');const [section,sub,p]=location.hash.slice(1).split('/');page=Math.max(0,pages.indexOf(section));assetTab=sub==='datasets'?'datasets':'ck';try{groupPath=assetTab==='ck'&&p?decodeURIComponent(p):''}catch{groupPath=''}}
@@ -990,7 +1079,7 @@ async function render(navigation=false){
   }
   const html=page===0?dashboard():page===1?await filesView(g):page===2?runs():page===4?await clusterView():await resourceView();
   if(g!==generation)return;
-  $('content').innerHTML=html;if(page===3&&assetTab==='ck')refreshTransferViews();draw();
+  $('content').innerHTML=html;if(page===4){paintGpu();tickBoard();pollGpu()}if(page===3&&assetTab==='ck')refreshTransferViews();draw();
   if(page===2&&selectedJob)await loadDetail(jobList.find(j=>j.id===selectedJob),g);
  }catch(e){
   if(g===generation)$('content').innerHTML='<p class="surface feedback">'+esc(e.message)+' '+button('page',page,'重试','link')+' '+(page===1?button('root',H,'返回 home','link'):'')+'</p>';
@@ -1012,6 +1101,7 @@ document.addEventListener('click',async e=>{const b=e.target.closest('button');i
  else if(d.gpage!==undefined){groupIndex=+d.gpage;render()}
  else if(d.upload)await sendCheckpoint(b,d.upload);
  else if(d.grus)await sendCheckpoint(b,d.grus,'Grus');
+ else if(d.gputoggle){if(expandedGpus.has(d.gputoggle))expandedGpus.delete(d.gputoggle);else expandedGpus.add(d.gputoggle);paintGpu()}
  else if(d.inspectcmd)await showCommand(d.inspectcmd);
  else if(d.ranktoggle){rankOpen=!rankOpen;render()}
  else if(d.copy)await copyPath(b,d.copy);
@@ -1072,6 +1162,7 @@ async function checkVersion(){
  versionCheck=true;
  try{const v=await api('version');if(v.release!==document.querySelector('meta[name="atlas-release"]').content)location.reload()}catch{}finally{versionCheck=false}
 }
+setInterval(()=>{tickBoard();pollGpu()},1000);document.addEventListener('visibilitychange',()=>{if(!document.hidden&&page===4){pollGpu();tickBoard();fetchCluster().then(()=>{if(page===4)render()})}});
 setInterval(checkVersion,10000);document.addEventListener('visibilitychange',()=>{if(!document.hidden)checkVersion()});
 window.addEventListener('pageshow',e=>{if(e.persisted)location.reload()});
 if(teamHttp&&!sessionStorage.getItem('atlas-session'))loginPage();else {

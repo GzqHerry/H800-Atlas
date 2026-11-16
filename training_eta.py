@@ -16,12 +16,25 @@ TAIL = 256 * 1024
 known_progress = {}
 
 
+def allocation_indices(gres):
+    cards = {}
+    for kind, indices in re.findall(r'(?:^|,)(gpu|shard):[^()]+\(IDX:([\d,-]+)\)', gres):
+        for token in indices.split(','):
+            if re.fullmatch(r'\d+(?:-\d+)?', token):
+                bounds = list(map(int, token.split('-')))
+                for index in range(bounds[0], min(bounds[-1], 1023) + 1):
+                    cards[index] = kind
+    return [dict(index=i, shared=cards[i]=='shard') for i in sorted(cards)]
+
+
 def job_records(job=None):
-    raw = subprocess.check_output(['scontrol','show','job','-o',*([job] if job else [])],timeout=5,text=True)
+    raw = subprocess.check_output(['scontrol','-d','show','job','-o',*([job] if job else [])],timeout=5,text=True)
     records = {}
     for line in raw.splitlines():
         f = dict(re.findall(r'\b(JobId|ArrayJobId|ArrayTaskId|UserId|JobName|JobState|StartTime|StdOut|StdErr|Command|ReqTRES|AllocTRES)=(\S+)',line))
         if 'JobId' not in f:continue
+        f['gpuLayout'] = {host: allocation_indices(gres) for host, gres in re.findall(
+            r'\bNodes=(\S+)\s+CPU_IDs=\S*\s+Mem=\S*\s+GRES=(\S*)', line)}
         key = f['JobId']
         if f.get('ArrayTaskId','').isdigit():
             key = f['ArrayJobId']+'_'+f['ArrayTaskId']
@@ -171,6 +184,8 @@ def attach(jobs):
         try:
             user,uid=account(f)
             if user!=job['user']:continue
+            if job['state']=='RUNNING':
+                job['gpuLayout']=f['gpuLayout']
             resource_key='ReqTRES' if job['state']=='PENDING' else 'AllocTRES'
             resources=dict(re.findall(r'([^,=]+)=([^,=]+)',f.get(resource_key,'')))
             if resources:

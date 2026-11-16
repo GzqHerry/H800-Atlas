@@ -1,7 +1,10 @@
 """Read physical GPU samples from the cluster's local Prometheus service."""
 import json
 import math
+import re
+import threading
 import time
+from concurrent.futures import ThreadPoolExecutor
 from urllib.parse import urlencode
 from urllib.request import ProxyHandler, build_opener
 
@@ -57,3 +60,71 @@ def add_gpu_usage(nodes):
 
     for (node, _), card in sorted(cards.items()):
         nodes[node]['gpuCards'].append(card)
+
+
+_lock = threading.Lock()
+_targets = {}
+_discover_after = 0
+_sample = {}
+_next_sample = 0
+_metric = re.compile(r'^(' + '|'.join(FIELDS) + r')\{([^}]*)\}\s+(\S+)')
+
+
+def live_targets(now):
+    global _targets, _discover_after
+    if now >= _discover_after:
+        try:
+            endpoint = 'http://127.0.0.1:9091/api/v1/targets?state=active'
+            with build_opener(ProxyHandler({})).open(endpoint, timeout=1) as stream:
+                targets = json.load(stream)['data']['activeTargets']
+            _targets = {t['labels']['node']: t['scrapeUrl'] for t in targets
+                        if t['labels'].get('job') == 'phase8-nvml-exporter'
+                        and t['labels'].get('node')}
+            _discover_after = now + 60
+        except (OSError, ValueError, KeyError):
+            _discover_after = now + 5
+    return _targets
+
+
+def read_cards(target):
+    node, url = target
+    try:
+        with build_opener(ProxyHandler({})).open(url, timeout=1.4) as stream:
+            lines = stream.read(2**21).decode().splitlines()
+    except (OSError, ValueError):
+        return node, []
+    cards = {}
+    stamp = time.time()
+    for line in lines:
+        match = _metric.match(line)
+        if not match:
+            continue
+        name, raw_labels, raw = match.groups()
+        labels = dict(re.findall(r'(\w+)="([^"]*)"', raw_labels))
+        if labels.get('GPU_I_ID') or not labels.get('ordinal', '').isdigit():
+            continue
+        try:
+            value = float(raw)
+        except ValueError:
+            continue
+        field = FIELDS[name]
+        if not math.isfinite(value) or value < 0 or (field == 'utilization' and value > 100):
+            continue
+        index = int(labels['ordinal'])
+        card = cards.setdefault(index, dict(index=index, sampled=stamp))
+        card[field] = value if field == 'utilization' else int(value)
+    return node, [cards[i] for i in sorted(cards)]
+
+
+def live_gpu_sample():
+    # One scrape per node for all dashboards served by this gateway.
+    global _sample, _next_sample
+    with _lock:
+        now = time.monotonic()
+        if now >= _next_sample:
+            targets = live_targets(now)
+            with ThreadPoolExecutor(max_workers=8) as pool:
+                cards = dict(pool.map(read_cards, targets.items()))
+            _sample = dict(nodes=cards, stamp=time.time())
+            _next_sample = max(now + 0.9, time.monotonic() + 0.1)
+        return _sample

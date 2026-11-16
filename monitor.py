@@ -59,6 +59,7 @@ def cluster():
         sep='\x1f'
         fmt=sep.join(['%i','%u','%T','%M','%l','%N','%R','%P','%b','%S','%V','%j','%Q','%q','%Z','%o'])
         owner=Path.home().name
+        queue_stamp = time.time()
         for line in slurm('squeue','-a','-r','-h','-o',fmt):
             job=dict(zip(fields,line.split(sep,len(fields)-1)))
             if job.get('command') in ('N/A','(null)','None','Unknown'):
@@ -70,10 +71,15 @@ def cluster():
                     if host in nodes:
                         nodes[host]['jobs'].append(job)
         training_eta.attach(rows)
+        for job in rows:
+            for hosts, cards in job.pop('gpuLayout', {}).items():
+                for host in expand_nodes(hosts):
+                    if host in nodes:
+                        nodes[host].setdefault('jobCards', {})[job['id']] = cards
         add_cpu_usage(nodes)
         add_gpu_usage(nodes)
         _cluster_sample = dict(owner=owner,scheduling=scheduling(),forecasts=queue_forecasts(rows,owner),nodes=sorted(nodes.values(),key=lambda n:n['name']), jobs=rows,
-                               stamp=int(time.time()), zone=time.strftime('%Z'))
+                               stamp=int(time.time()), queueStamp=queue_stamp, zone=time.strftime('%Z'))
         return _cluster_sample
 
 

@@ -18,6 +18,7 @@ import threading
 import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import parse_qs, urlsplit
+from gpu_usage import live_gpu_sample
 
 ROOT = Path(__file__).resolve().parent.parent.parent
 CURRENT = ROOT / 'current'
@@ -284,6 +285,8 @@ class Handler(BaseHTTPRequestHandler):
             data=data.replace(b'__ATLAS_TEAM_HTTP__',b'yes' if self.team_http else b'no')
             return self.reply(200,data.replace(b'__ATLAS_RELEASE__',current.version.encode()),'text/html;charset=utf-8')
         if not worker:return self.reply(401,{'error':'请先登录 H800'})
+        if self.command=='GET' and path=='/api/gpu-live':
+            return self.reply(200,live_gpu_sample())
         if self.command=='GET' and re.fullmatch(r'/api/guide-images/[a-z0-9-]{1,40}\.webp',path):
             image=published.directory/'dist'/'guide-images'/path.rsplit('/',1)[1]
             if image.is_file():return self.reply(200,image.read_bytes(),'image/webp')
