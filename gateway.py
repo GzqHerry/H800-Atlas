@@ -26,6 +26,8 @@ import tianji
 
 ROOT = Path(__file__).resolve().parent.parent.parent
 CURRENT = ROOT / 'current'
+DEFAULT_NODE = 'h800-node11'
+LOGIN_NODES = tuple('h800-node'+str(i) for i in range(11, 17))
 RUN = Path(os.environ['XDG_RUNTIME_DIR'])
 OLD_SOCKET = Path('/scratch') / Path.home().name / 'h800-observatory.sock'
 MAX_AGE = 24 * 3600
@@ -144,8 +146,8 @@ def refresh_releases():
 
 
 class Worker:
-    def __init__(self, user, password):
-        self.attach(user, Path(tempfile.mkdtemp(dir=RUN, prefix='h800-atlas-session-')), time.monotonic())
+    def __init__(self, user, password, node):
+        self.attach(user, Path(tempfile.mkdtemp(dir=RUN, prefix='h800-atlas-session-')), time.monotonic(), node)
         try:
             # sshpass consumes the password from an inherited pipe, never argv or env.
             # The authenticated master outlives a web gateway release. systemd also
@@ -164,12 +166,15 @@ class Worker:
             self.close()
             raise
 
-    def attach(self, user, directory, born):
+    def attach(self, user, directory, born, node):
+        self.node = node
+        local = node == DEFAULT_NODE
+        keys = ROOT/'known_hosts' if local else CURRENT/'login_nodes.known_hosts'
         self.user, self.directory, self.born = user, directory, born
         self.base = ['/usr/bin/ssh', '-F', '/dev/null', '-oControlPath='+str(directory/'ssh'),
-                     '-oStrictHostKeyChecking=yes', '-oUserKnownHostsFile='+str(ROOT/'known_hosts'),
+                     '-oStrictHostKeyChecking=yes', '-oUserKnownHostsFile='+str(keys),
                      '-oGlobalKnownHostsFile=/dev/null', '-oPubkeyAuthentication=no',
-                     '-oConnectTimeout=6', '-l', user, '127.0.0.1']
+                     '-oConnectTimeout=6', '-l', user, '127.0.0.1' if local else node]
         self.lock = threading.Lock()
         self.child = self.version = None
 
@@ -232,6 +237,8 @@ def restore_sessions():
         try:
             data=json.loads((directory/'session.json').read_bytes())
             key,user,born=data['hash'],data['user'],data['born']
+            node=data.get('node', DEFAULT_NODE)
+            if node not in LOGIN_NODES:raise ValueError('invalid login node')
             if not re.fullmatch('[0-9a-f]{64}',key) or not re.fullmatch(r'[a-zA-Z0-9_][a-zA-Z0-9_.-]{0,63}',user):
                 raise ValueError('invalid session')
             if not (directory/'ssh').is_socket() or not 0 <= time.monotonic()-born < MAX_AGE:
@@ -240,7 +247,7 @@ def restore_sessions():
             shutil.rmtree(directory,ignore_errors=True)
             continue
         worker=Worker.__new__(Worker)
-        worker.attach(user,directory,born)
+        worker.attach(user,directory,born,node)
         sessions[key]=worker
 
 
@@ -330,6 +337,11 @@ class Handler(BaseHTTPRequestHandler):
             current=published
             show_app=(path!='/login') if self.bearer else bool(worker)
             data=current.app if show_app else current.login
+            if not show_app:
+                choices = ''.join('<label><input type="radio" name="node" value="'+n+'"'
+                                  +(' checked' if n==DEFAULT_NODE else '')+'><span>'
+                                  +n.removeprefix('h800-')+'</span></label>' for n in LOGIN_NODES)
+                data = data.replace(b'__ATLAS_LOGIN_NODES__', choices.encode())
             data=data.replace(b'__ATLAS_TEAM_HTTP__',b'yes' if self.bearer else b'no')
             return self.reply(200,data.replace(b'__ATLAS_RELEASE__',current.version.encode()),'text/html;charset=utf-8')
         if not worker:return self.reply(401,{'error':'请先登录 H800'})
@@ -376,6 +388,8 @@ class Handler(BaseHTTPRequestHandler):
             body={'outcomes':{p.stem:json.loads(p.read_bytes()) for p in (PROFILES/'outcomes').glob('*.json')}}
         grant=None
         if self.command=='POST' and path=='/api/upload' and body.get('destination')=='Tianji':
+            if worker.node!=DEFAULT_NODE:
+                return self.reply(409,{'error':'Tianji 上传服务位于 node11，请选择 node11 登录后提交'})
             grant=tianji.authorize(worker.user,body.get('path'))
             body['tianjiGrant']=grant.name
         try:
@@ -408,6 +422,8 @@ class Handler(BaseHTTPRequestHandler):
 
     def login(self, body, token):
         user=body.get('username')
+        node=body.get('node', DEFAULT_NODE)
+        if node not in LOGIN_NODES:return self.reply(400,{'error':'请选择列表中的登录节点'})
         password=body.pop('password',None)
         if not isinstance(user,str) or not re.fullmatch(r'[a-zA-Z0-9_][a-zA-Z0-9_.-]{0,63}',user) or not isinstance(password,str) or not password or len(password)>512 or any(c in password for c in '\x00\r\n'):
             return self.reply(400,{'error':'请输入有效的 H800 用户名和密码'})
@@ -418,12 +434,14 @@ class Handler(BaseHTTPRequestHandler):
             if not auth_slots.acquire(False):return self.reply(429,{'error':'登录繁忙，请稍后重试'})
             attempts[user].append(now)
         try:
-            worker=Worker(user,password)
+            worker=Worker(user,password,node)
         except PermissionError:return self.reply(401,{'error':'H800 用户名或密码错误'})
+        except (ConnectionError, TimeoutError, subprocess.TimeoutExpired):
+            return self.reply(503,{'error':node+' SSH 连接失败或工作进程未就绪，请选择其他节点重试'})
         finally:auth_slots.release()
         key=secrets.token_urlsafe(32)
         digest=hashlib.sha256(key.encode()).hexdigest()
-        try:save_json(worker.directory/'session.json',dict(hash=digest,user=worker.user,born=worker.born))
+        try:save_json(worker.directory/'session.json',dict(hash=digest,user=worker.user,born=worker.born,node=node))
         except OSError:
             worker.close()
             raise

@@ -144,7 +144,7 @@ def job_list():
                 continue
     for job in rows.values():
         if job['state'] in ('完成','失败') or not job.get('pid'):continue
-        if not Path('/proc',str(job['pid'])).exists():
+        if job.get('host','h800-node11')==os.uname().nodename.lower() and not Path('/proc',str(job['pid'])).exists():
             job.update(state='失败',error='操作进程已退出，请重试以复核目标文件。')
     return sorted(rows.values(),key=lambda j:-j['started'])
 
@@ -154,13 +154,16 @@ def enqueue(checkpoint, action='upload', job_id=None):
         fcntl.flock(lock,fcntl.LOCK_EX)
         for j in job_list():
             if j['source']==checkpoint['path'] and j['state'] not in ('完成','失败'):
+                if j.get('host','h800-node11')!=os.uname().nodename.lower():
+                    if j.get('action','upload')==action:return j
+                    raise ValueError('该 checkpoint 在其他节点已有操作')
                 try:os.kill(j.get('pid',0) or -99999999,0)
                 except ProcessLookupError:
                     j.update(state='失败',error='上传进程已退出，可重新上传');write_job(j)
                 else:
                     if j.get('action','upload')!=action:raise ValueError('该 checkpoint 已有任务在执行')
                     return j
-        job=dict(id=job_id or uuid.uuid4().hex,source=checkpoint['path'],meta=checkpoint,action=action,started=int(time.time()),state='等待复核' if action=='remove' else '待传输',percent=0)
+        job=dict(id=job_id or uuid.uuid4().hex,host=os.uname().nodename.lower(),source=checkpoint['path'],meta=checkpoint,action=action,started=int(time.time()),state='等待复核' if action=='remove' else '待传输',percent=0)
         # Worker takes this same lock before reading the submitted record.
         child=subprocess.Popen([sys.executable,__file__,job['id']],start_new_session=True,
                                stdin=subprocess.DEVNULL,stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL)

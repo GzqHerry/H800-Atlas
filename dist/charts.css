@@ -205,6 +205,10 @@ i.crew-portrait{background-color:#050505;background-image:var(--crew-sheet);back
 #profileStats{min-height:92px}#profileInventory{min-height:40px;align-content:start}
 #ckScanDialog{box-sizing:border-box;width:min(480px,calc(100vw - 24px));border:1px solid var(--line);border-radius:18px;padding:24px;background:var(--white);color:var(--ink)}
 #ckScanDialog::backdrop{background:#080e1a66;backdrop-filter:blur(7px)}
+#ckRemoveDialog{width:min(460px,calc(100vw - 24px));padding:24px}
+#ckRemoveDialog p{color:var(--soft);line-height:1.55}
+#ckRemoveName{overflow-wrap:anywhere;font-weight:600}
+#ckRemoveDialog .tools{justify-content:flex-end;margin-bottom:0}
 #ckScanForm{display:grid;gap:10px}#ckScanPath{width:100%;min-width:0;box-sizing:border-box}#ckScanFeedback{margin:0;color:var(--soft)}#ckScanForm .tools{justify-content:flex-end}
 .profile-metrics>div{padding:10px clamp(6px,2vw,13px);background:var(--paper);border-radius:10px}.profile-body small{color:var(--soft);font-size:12px}
 .profile-metrics strong,#profileInventory strong{display:block;font-size:clamp(15px,3.7vw,20px);font-weight:600;font-variant-numeric:tabular-nums}

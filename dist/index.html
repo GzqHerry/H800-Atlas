@@ -213,7 +213,13 @@ html[data-theme=dark] .upload-meter.moving{--meter:#5599ff;--tip:#79c9ff}
 <input id="wbPath" required maxlength="4096" placeholder="输入 H800 上的绝对路径" autocomplete="off">
 <small>关联会保存在你的账号下，下次打开此作业时自动使用。</small>
 <p role="status" id="wbError"></p><div class="wb-actions"><button type="button" class="outline" id="wbClose">取消</button><button type="submit" class="outline" id="wbSave">保存关联</button></div>
-</form></dialog><dialog id="ckScanDialog" aria-labelledby="ckScanTitle"><form id="ckScanForm">
+</form></dialog>
+<dialog id="ckRemoveDialog" class="profile-media" aria-labelledby="ckRemoveTitle">
+ <h2 id="ckRemoveTitle">删除 H800 本地副本？</h2>
+ <p id="ckRemoveName"></p>
+ <p>Atlas 会重新比对 NAS 和 H800 上的文件。校验通过后，将永久删除这个本地 checkpoint。</p>
+ <div class="tools"><button id="ckRemoveCancel" class="outline" autofocus>取消</button><button id="ckRemoveConfirm" class="outline ck-danger">确认校验并删除</button></div>
+</dialog><dialog id="ckScanDialog" aria-labelledby="ckScanTitle"><form id="ckScanForm">
 <h2 id="ckScanTitle">按路径检索 Checkpoint</h2><label for="ckScanPath">H800 训练输出目录</label>
 <input id="ckScanPath" required placeholder="/workspace/用户名/训练输出目录" autocomplete="off">
 <small>检索该目录及其子目录，按训练任务加入你的 Checkpoints。</small><p id="ckScanFeedback" role="status"></p>
@@ -611,7 +617,9 @@ function checkpointProgress(path){
   const target=uploadTarget(t);
   if(!latest.has(target))latest.set(target,t);
  }
- return [...latest.values()].map(uploadMeter).join('');
+ const removal=transferRows.find(t=>t.source===path&&t.action==='remove');
+ const notice=removalNotices.get(path)||(removal?'本地清理 · '+removal.state+(removal.error?'：'+removal.error:''):'');
+ return (notice?'<p class="feedback">'+esc(notice)+'</p>':'')+[...latest.values()].map(uploadMeter).join('');
 }
 function transferPanel(){
  const uploads=transferRows.filter(t=>t.meta?.kind==='checkpoint');
@@ -622,6 +630,13 @@ function refreshTransferViews(){
  if($('transfers'))$('transfers').innerHTML=transferPanel();
  for(const el of document.querySelectorAll('[data-progress-for]')){
   el.innerHTML=checkpointProgress(el.dataset.progressFor);
+ }
+ for(const b of document.querySelectorAll('[data-removeck]')){
+  const path=b.dataset.removeck;
+  const removal=transferRows.find(t=>t.source===path&&t.action==='remove');
+  const busy=removal&&!transferDone(removal);
+  b.disabled=pendingRemovals.has(path)||!!busy;
+  b.textContent=pendingRemovals.has(path)?'正在提交…':busy?'本地清理 · '+removal.state:'删除 H800 本地副本';
  }
  for(const b of document.querySelectorAll('[data-upload]')){
   if(b.dataset.submitting)continue;
@@ -647,16 +662,29 @@ async function pollTransfers(){
  if(finished){ckSources=null;groupDetails.clear();groupList=null;await render()}
  }catch{}finally{uploadPolling=false}
 }
-async function removeLocal(b,path){
- if(!confirm('重新校验 NAS 副本后，永久删除这个 H800 目录？\n\n'+path))return;
- b.disabled=true;
+const removalNotices=new Map(),pendingRemovals=new Set();
+function confirmRemoval(path){
+ $('ckRemoveDialog').dataset.path=path;
+ $('ckRemoveName').textContent=path.split('/').slice(-2).join(' / ');
+ $('ckRemoveDialog').showModal();
+}
+$('ckRemoveCancel').onclick=()=>$('ckRemoveDialog').close();
+$('ckRemoveConfirm').onclick=async()=>{
+ const dialog=$('ckRemoveDialog'),path=dialog.dataset.path;
+ if(!dialog.open||!path||pendingRemovals.has(path))return;
+ dialog.close();
+ pendingRemovals.add(path);
+ removalNotices.set(path,'正在提交 NAS 复核请求…');
+ refreshTransferViews();
  try{
   const r=await atlasFetch('/api/remove-local',{method:'POST',headers:{'Content-Type':'application/json','X-Atlas-Action':'remove-local'},body:JSON.stringify({path})});
   if(r.status===401){loginPage();return}
   const job=await r.json();if(!r.ok)throw Error(job.error||'提交失败');
-  transferRevision++;transferRows=[job,...transferRows.filter(t=>t.id!==job.id)];refreshTransferViews();b.textContent='等待复核';
- }catch(e){b.disabled=false;$('status').textContent=e.message}
-}
+  transferRevision++;transferRows=[job,...transferRows.filter(t=>t.id!==job.id)];
+  removalNotices.delete(path);
+ }catch(e){removalNotices.set(path,'清理请求未确认：'+e.message)}
+ finally{pendingRemovals.delete(path);refreshTransferViews()}
+};
 async function sendCheckpoint(b,path,destination='NAS'){
  b.disabled=true;b.dataset.submitting='1';b.textContent='正在提交…';
  try{const r=await atlasFetch('/api/upload',{method:'POST',headers:{'Content-Type':'application/json','X-Atlas-Action':'upload'},body:JSON.stringify({path,destination})});if(r.status===401){loginPage();return}const job=await r.json();if(!r.ok)throw Error(job.error||'提交失败');
@@ -1230,7 +1258,7 @@ document.addEventListener('click',async e=>{const b=e.target.closest('button');i
  else if(d.nascheckpoints){ckStore='NAS';setResource('ck')}
  else if(d.openscan){$('ckScanDialog').showModal();$('ckScanPath').focus()}
  else if(d.ckstore){ckStore=d.ckstore;groupIndex=0;render()}
- else if(d.removeck)await removeLocal(b,d.removeck);
+ else if(d.removeck)confirmRemoval(d.removeck);
  else if(d.group)setResource('ck',d.group);
  else if(d.backgroups)setResource('ck');
  else if(d.gpage!==undefined){groupIndex=+d.gpage;render()}
