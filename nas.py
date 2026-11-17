@@ -192,6 +192,37 @@ def source_signature(root,cleanup=False):
             digest.update(os.fsencode(rel)+b'\0'+str((st.st_mode,st.st_mtime_ns,st.st_size)).encode()+b'\0')
     return digest.hexdigest()[:24],size
 
+def compare_cleanup_copy(cmd, size, update):
+    """Count regular-file bytes only after rsync reports an unchanged entry."""
+    checked = 0
+    matched = True
+    last_report = 0
+    update('重新校验', bytes=size, checkedBytes=0)
+    with tempfile.TemporaryFile() as errors, subprocess.Popen(
+            cmd, stdout=subprocess.PIPE, stderr=errors, text=True) as proc:
+        for line in proc.stdout:
+            # With -ii even unchanged files are itemized. Reject every other record,
+            # including extra destination files, changed links and unknown output.
+            entry = re.fullmatch(r'\.([fdL]) {9}\|([0-9]+)\n', line)
+            if not entry:
+                matched = False
+                continue
+            if entry[1] != 'f':
+                continue
+            checked += int(entry[2])
+            now = time.monotonic()
+            if now - last_report >= 1:
+                update('重新校验', bytes=size, checkedBytes=checked)
+                last_report = now
+        if proc.wait():
+            errors.seek(0)
+            raise RuntimeError('NAS 复核失败：'+errors.read(250).decode(errors='replace'))
+    if matched and checked == size:
+        update('重新校验', bytes=size, checkedBytes=checked)
+        return True
+    return False
+
+
 def remove_verified_copy(path, job, update):
     candidates=[c for c in remote('checkpoints') if c['source']==job['source'] and c['verified']]
     if not candidates:raise ValueError('未找到该 checkpoint 的已校验 NAS 副本')
@@ -203,9 +234,8 @@ def remove_verified_copy(path, job, update):
     for copy in sorted(candidates,key=lambda c:-c['updated']):
         destination=copy['destination']
         cmd=['rsync','-rl','--protect-args','--checksum','--dry-run','--delete',
-             '--itemize-changes','-e',shlex.join(SSH),str(path)+'/',HOST+':'+destination+'/']
-        result=subprocess.run(cmd,capture_output=True,text=True,check=True)
-        if not result.stdout.strip():break
+             '-ii','--outbuf=L','--out-format=%i|%l','-e',shlex.join(SSH),str(path)+'/',HOST+':'+destination+'/']
+        if compare_cleanup_copy(cmd,size,update):break
     else:raise ValueError('NAS 与本地内容不同，已保留本地副本')
     if source_signature(path,cleanup=True)[0]!=signature or not os.path.samestat(before,path.stat()):
         raise ValueError('校验期间本地目录发生变化，已取消删除')
