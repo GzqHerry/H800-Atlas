@@ -18,7 +18,7 @@ if ! "$tb_reader/bin/python" -I -c 'from tensorboard.compat.proto import event_p
     "$tb_reader/bin/python" -m pip install 'tensorboard==2.20.0'
 fi
 files="job_artifacts.py training_eta.py swan_history.py wandb_history.py wandb_runs.py charts.py gateway.py server.py monitor.py insights.py cpu_usage.py gpu_usage.py nas.py grus.py scheduler.py dist/index.html dist/login.html dist/charts.js dist/charts.css dist/avatars.js dist/crew.webp dist/lunar-cover.webp dist/login-landscape.webp dist/guide.js dist/guide.css dist/guide.html dist/guide-images/*.webp"
-files="$files tianji.py grus_catalog.py login_nodes.known_hosts"
+files="$files dist/checkpoint-ui.js tianji.py grus_catalog.py login_nodes.known_hosts"
 version=$(sha256sum $files | sha256sum | cut -c1-16)
 release="$root/releases/$version"
 stage=$(mktemp -d "$root/releases/.stage-XXXXXXXX")
@@ -31,7 +31,7 @@ root=pathlib.Path(sys.argv[1])
 for path in root.glob('*.py'):compile(path.read_bytes(),str(path),'exec')
 page=root/'dist/index.html'
 html=page.read_text()
-for marker,asset in [('<!-- ATLAS_GUIDE_HTML -->','guide.html'),('/* ATLAS_GUIDE_CSS */','guide.css'),('/* ATLAS_GUIDE_JS */','guide.js'),('/* ATLAS_CHARTS_JS */','charts.js'),('/* ATLAS_AVATARS_JS */','avatars.js'),('/* ATLAS_CHARTS_CSS */','charts.css')]:
+for marker,asset in [('<!-- ATLAS_GUIDE_HTML -->','guide.html'),('/* ATLAS_GUIDE_CSS */','guide.css'),('/* ATLAS_GUIDE_JS */','guide.js'),('/* ATLAS_CHECKPOINT_JS */','checkpoint-ui.js'),('/* ATLAS_CHARTS_JS */','charts.js'),('/* ATLAS_AVATARS_JS */','avatars.js'),('/* ATLAS_CHARTS_CSS */','charts.css')]:
     assert html.count(marker)==1
     html=html.replace(marker,(page.parent/asset).read_text())
 assert html.count('__ATLAS_CREW__')==1
