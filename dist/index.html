@@ -100,20 +100,30 @@ html[data-theme=dark]{color-scheme:dark;--paper:#17181c;--ink:#ecedf2;--soft:#b1
 @media(prefers-reduced-motion:reduce){.indeterminate .upload-track i{animation:none}}
 .ck-detail .ck-values td{vertical-align:top;border-bottom:0;padding-bottom:6px;font-variant-numeric:tabular-nums}
 .ck-detail .ck-tools-row td{padding-top:2px;padding-bottom:15px}
-.ck-detail .ck-toolbar,.ck-detail .ck-actions,.ck-detail .ck-locations,.ck-detail .ck-location{display:flex;align-items:center;flex-wrap:wrap;gap:6px}
-.ck-detail .ck-toolbar{gap:8px 16px}
-.ck-detail .ck-location{margin:0;gap:3px}
-.ck-detail .ck-location .badge,.ck-detail .copy-path{margin:0}
-.ck-detail .ck-actions button{border-radius:8px;padding:5px 10px;font-size:13px;white-space:nowrap}
-.ck-detail .ck-actions .is-uploaded{opacity:1;color:var(--soft);background:transparent;border-color:transparent;cursor:default}
-.ck-detail .is-uploaded::before{content:"✓";color:#31996f;margin-right:4px}
+.ck-toolbar{display:grid;gap:5px}
+.ck-toolbar .ck-band{display:flex;align-items:center;flex-wrap:wrap;gap:5px 12px;min-height:30px}
+.ck-band>small{font-size:11px;color:var(--soft);letter-spacing:.06em}
+.ck-target{display:inline-flex;align-items:center;gap:2px}
+.ck-target [data-upload],.ck-local-name{font-size:12px;font-weight:550;white-space:nowrap;border-radius:7px;padding:3px 8px;line-height:20px}
+.ck-local-name{background:var(--paper);color:var(--soft)}
+.ck-target .is-uploaded{color:#256947;background:#e4f3e9;border-color:transparent;opacity:1;cursor:default}
+[data-theme=dark] .ck-target .is-uploaded{color:#9cd7b7;background:#253a31}
+.ck-target .is-uploaded::before{content:"✓";margin-right:4px}
+.ck-detail .ck-danger{font-size:12px;padding:3px 8px}
+.ck-detail .ck-copy{position:relative;display:inline-grid;place-items:center;width:28px;height:28px;padding:0;margin:0;border:0;border-radius:7px;background:transparent;color:var(--soft)}
+.ck-copy:hover,.ck-copy:focus-visible{color:var(--ink);background:var(--paper)}
+.ck-copy::before,.ck-copy::after{content:"";position:absolute;width:8px;height:10px;border:1.4px solid currentColor;border-radius:2px}
+.ck-copy::before{transform:translate(-2px,-2px);clip-path:polygon(0 0,100% 0,100% 22%,23% 22%,23% 100%,0 100%)}
+.ck-copy::after{transform:translate(1px,1px)}
+.ck-copy[data-copied]::after{width:11px;height:6px;border-width:0 0 2px 2px;border-radius:0;transform:translateY(-1px) rotate(-45deg);color:#31996f}
+.ck-copy[data-copied]::before,.ck-copy[hidden]{display:none}
 .checkpoint-progress:not(:empty){display:flex;align-items:flex-start;flex-wrap:wrap;gap:10px 24px;margin-top:10px}
 .checkpoint-progress .upload-meter{margin:0;flex:0 1 280px;min-width:0;max-width:100%}
 .checkpoint-progress .upload-track{height:4px;margin-top:4px}
 .checkpoint-progress .upload-meter small{font-size:11px}
 .checkpoint-progress .upload-caption{font-size:12px;flex-wrap:wrap;gap:2px 8px}
 .ck-detail .checkpoint-progress .feedback{margin:0}
-@media(max-width:1000px){.surface.ck-detail:has(.copy-path) table{min-width:620px}.ck-detail td,.ck-detail th{padding-left:5px;padding-right:5px}.ck-detail .ck-values td{font-size:13px}.ck-detail .ck-toolbar{gap:6px 12px}}
+@media(max-width:1000px){.surface.ck-detail:has(.copy-path) table{min-width:620px}.ck-detail td,.ck-detail th{padding-left:5px;padding-right:5px}.ck-detail .ck-values td{font-size:13px}.ck-toolbar .ck-band{column-gap:8px}}
 .gpu-telemetry{--util-ink:#2064ac;--mem-ink:#7851a9;container-type:inline-size;margin:14px 0 18px;font-variant-numeric:tabular-nums}
 html[data-theme=dark] .gpu-telemetry{--util-ink:#8fc7ff;--mem-ink:#cbacf8}
 .gpu-telemetry-head,.gpu-telemetry-key,.gpu-card-top{display:flex;align-items:center;justify-content:space-between;gap:6px}
@@ -621,7 +631,7 @@ function uploadMeter(t){
  const showBar=moving||t.state==='校验中'||t.state==='重新校验';
  const bar=!showBar?'':'<div class="upload-track" role="progressbar" aria-label="'+label+'" aria-valuemin="0" aria-valuemax="100" '+
   (percent===null?'aria-valuetext="'+attr(phase)+'"':'aria-valuenow="'+percent+'"')+'><i style="--filled:'+(percent===null?'25':percent)+'%"></i></div>';
- return '<div class="upload-meter '+tone+(percent===null?' indeterminate':'')+'"><div class="upload-caption"><span><i aria-hidden="true"></i>'+esc(uploadTarget(t)+' · '+phase)+'</span><span>'+
+ return '<div class="upload-meter '+tone+(percent===null?' indeterminate':'')+'"><div class="upload-caption"><span><i aria-hidden="true"></i>'+esc(stale?uploadTarget(t)+' · 等待进度更新':uploadTarget(t))+'</span><span>'+
   (total?'<small>'+esc(total)+'</small>':'')+(percent===null?'':'<b>'+percent+'%</b>')+'</span></div>'+bar+sampled+(failed&&t.error?'<small class="feedback">'+esc(t.error)+'</small>':'')+'</div>';
 }
 function cleanupMeter(job){
@@ -674,7 +684,14 @@ function refreshTransferViews(){
   const uploaded=!busy&&(b.hasAttribute('data-stored')||job?.state==='完成');
   b.disabled=!!busy||uploaded||b.hasAttribute('data-readonly');
   b.classList.toggle('is-uploaded',uploaded);
-  b.textContent=busy?dest+' · '+job.state:uploaded?'已上传至 '+dest:job?.state==='失败'?'重试上传到 '+dest:'上传到 '+dest;
+  b.textContent=busy?dest+' · '+job.state:uploaded?'已上传至 '+dest:job?.state==='失败'?'重试上传到 '+dest:b.hasAttribute('data-unverified')?dest+' · 待校验':'上传到 '+dest;
+  const icon=b.nextElementSibling;
+  const copyPath=b.dataset.storedPath||job?.destination||'';
+  if(icon.dataset.copy!==copyPath){
+   if(pathAnchor===icon)hidePathTip();
+   icon.dataset.copy=copyPath;
+  }
+  icon.hidden=!copyPath;
  }
 }
 let transferRevision=0;
@@ -835,24 +852,29 @@ function taskList(groups,matching){
 function pageControls(key,index,total,limit){let max=Math.ceil(total/limit);return max>1?'<div class="pager">'+(index?button(key,index-1,'上一页'):'')+'<small>'+String(index+1)+' / '+max+'</small>'+(index+1<max?button(key,index+1,'下一页'):'')+'</div>':''}
 function tableMarkup(headers,rows){return '<div class="scroll"><table><thead><tr>'+headers.map(x=>'<th>'+x+'</th>').join('')+'</tr></thead><tbody>'+rows.join('')+'</tbody></table></div>'}
 function atStep(n,step){return n==null?'':n===step?'保存步':'最近记录 · step '+n}
+function checkpointCopyIcon(target,path=''){
+ return button('copy',path,'','ck-copy copy-path','type="button" aria-label="复制 '+target+' 路径"'+(path?'':' hidden'));
+}
 function checkpointLocations(c){
- let html=c.present?'<div class="ck-location"><span class="badge">H800</span>'+copyButton(c.path)+'</div>':'';
- if(c.grus)html+='<div class="ck-location"><span class="task-source grus"><i></i>Grus · 推理权重</span>'+copyButton(c.grus.destination)+'</div>';
- for(const copy of c.copies){
-  html+='<div class="ck-location"><span class="badge '+(copy.verified?'completed':'pending')+'">'+(copy.verified?'已上传 NAS · 已校验':'NAS · 待校验')+'</span>'+copyButton(copy.destination)+'</div>';
- }
  const local=c.present&&overview.roots.some(root=>c.path.startsWith(root+'/'));
- let actions='';
+ const nasCopy=[...c.copies].sort((a,b)=>Number(b.verified)-Number(a.verified)||b.updated-a.updated)[0];
+ let localTools=c.present?'<span class="ck-target"><span class="ck-local-name">H800</span>'+checkpointCopyIcon('H800',c.path)+'</span>':'';
+ if(local&&overview.checkpointUploadEnabled&&nasCopy?.verified)localTools+=button('removeck',c.path,'删除 H800 本地副本','outline ck-danger');
+ let targets='';
  for(const dest of ['NAS','Grus','Tianji']){
   const job=transferRows.find(t=>t.source===c.path&&t.action!=='remove'&&uploadTarget(t)===dest);
-  const stored=dest==='NAS'?c.copies.some(x=>x.verified):dest==='Grus'&&!!c.grus;
+  const copy=dest==='NAS'?nasCopy:dest==='Grus'?c.grus:null;
+  const stored=dest==='NAS'?copy?.verified:!!copy;
   const allowed=local&&(dest!=='NAS'||overview.checkpointUploadEnabled);
-  if(!allowed&&!stored&&!job)continue;
-  actions+=button('upload',c.path,'上传到 '+dest,'outline','data-destination="'+dest+'"'+(stored?' data-stored':'')+(allowed?'':' data-readonly')+(dest==='NAS'?'':' title="推理权重、配置和 tokenizer"')+' disabled');
-  if(dest==='Tianji'&&job?.state==='完成'&&job.destination)html+='<div class="ck-location"><span class="badge">Tianji</span>'+copyButton(job.destination)+'</div>';
+  if(!allowed&&!copy&&!job)continue;
+  const path=copy?.destination||'';
+  const attributes='data-destination="'+dest+'" data-stored-path="'+attr(path)+'"'+(stored?' data-stored':'')+
+   (copy&&!stored?' data-unverified':'')+(allowed?'':' data-readonly')+' disabled';
+  const hint=dest==='NAS'?(stored?'完整副本已校验':'完整 checkpoint 副本'):'推理权重、配置和 tokenizer';
+  targets+='<span class="ck-target">'+button('upload',c.path,'上传到 '+dest,'outline',attributes+' title="'+hint+'"')+checkpointCopyIcon(dest,path||job?.destination)+'</span>';
  }
- if(local&&overview.checkpointUploadEnabled&&c.copies.some(x=>x.verified))actions+=button('removeck',c.path,'删除 H800 本地副本','outline ck-danger');
- return '<div class="ck-toolbar"><div class="ck-locations">'+html+'</div><div class="ck-actions">'+actions+'</div></div>'+
+ return '<div class="ck-toolbar">'+(localTools?'<div class="ck-band"><small>本地</small>'+localTools+'</div>':'')+
+  (targets?'<div class="ck-band ck-actions"><small>远端</small>'+targets+'</div>':'')+'</div>'+
   '<div class="checkpoint-progress" data-progress-for="'+attr(c.path)+'">'+checkpointProgress(c.path)+'</div>';
 }
 function sourceGroups(items){
@@ -1231,12 +1253,18 @@ function locationState(){if(location.hash==='#all')history.replaceState(null,'',
 function setTheme(choice){let dark=choice==='system'?matchMedia('(prefers-color-scheme: dark)').matches:choice==='dark';document.documentElement.dataset.theme=dark?'dark':'light';$('theme').value=choice;draw()}
 function savedTheme(){try{return localStorage.getItem('h800-theme')||'system'}catch{return 'system'}}
 async function copyPath(b,path){
- const label=b.classList.contains('copy-path')?'复制路径':'复制';
+ const icon=b.classList.contains('ck-copy');
+ const label=icon?'':b.classList.contains('copy-path')?'复制路径':'复制';
  try{await navigator.clipboard.writeText(path)}
  catch{
   const f=document.createElement('textarea');f.value=path;b.after(f);f.select();
-  if(!document.execCommand('copy')){b.textContent='请复制选中文字';f.addEventListener('blur',()=>{f.remove();b.textContent=label},{once:true});return}
+  if(!document.execCommand('copy')){if(!icon)b.textContent='请复制选中文字';f.addEventListener('blur',()=>{f.remove();b.textContent=label},{once:true});return}
   f.remove();b.focus({preventScroll:true});
+ }
+ if(icon){
+  const original='复制 '+(b.closest('.ck-target').querySelector('[data-destination]')?.dataset.destination||'H800')+' 路径';
+  b.dataset.copied='';b.setAttribute('aria-label','已复制路径');clearTimeout(b.copyReset);
+  b.copyReset=setTimeout(()=>{delete b.dataset.copied;b.setAttribute('aria-label',original)},1400);return;
  }
  b.textContent='已复制';clearTimeout(b.copyReset);b.copyReset=setTimeout(()=>b.textContent=label,1400);
 }
