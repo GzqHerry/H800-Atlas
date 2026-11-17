@@ -98,8 +98,22 @@ html[data-theme=dark]{color-scheme:dark;--paper:#17181c;--ink:#ecedf2;--soft:#b1
 .indeterminate .upload-track i{animation:upload-sweep 1.6s ease-in-out infinite alternate}
 @keyframes upload-sweep{to{transform:translateX(300%)}}
 @media(prefers-reduced-motion:reduce){.indeterminate .upload-track i{animation:none}}
-.checkpoint-progress:not(:empty){width:min(100%,360px);margin-top:12px}
-.checkpoint-progress .upload-meter{background:var(--paper);border:1px solid var(--line);border-radius:12px;padding:10px 12px}
+.ck-detail .ck-values td{vertical-align:top;border-bottom:0;padding-bottom:6px;font-variant-numeric:tabular-nums}
+.ck-detail .ck-tools-row td{padding-top:2px;padding-bottom:15px}
+.ck-detail .ck-toolbar,.ck-detail .ck-actions,.ck-detail .ck-locations,.ck-detail .ck-location{display:flex;align-items:center;flex-wrap:wrap;gap:6px}
+.ck-detail .ck-toolbar{gap:8px 16px}
+.ck-detail .ck-location{margin:0;gap:3px}
+.ck-detail .ck-location .badge,.ck-detail .copy-path{margin:0}
+.ck-detail .ck-actions button{border-radius:8px;padding:5px 10px;font-size:13px;white-space:nowrap}
+.ck-detail .ck-actions .is-uploaded{opacity:1;color:var(--soft);background:transparent;border-color:transparent;cursor:default}
+.ck-detail .is-uploaded::before{content:"✓";color:#31996f;margin-right:4px}
+.checkpoint-progress:not(:empty){display:flex;align-items:flex-start;flex-wrap:wrap;gap:10px 24px;margin-top:10px}
+.checkpoint-progress .upload-meter{margin:0;flex:0 1 280px;min-width:0;max-width:100%}
+.checkpoint-progress .upload-track{height:4px;margin-top:4px}
+.checkpoint-progress .upload-meter small{font-size:11px}
+.checkpoint-progress .upload-caption{font-size:12px;flex-wrap:wrap;gap:2px 8px}
+.ck-detail .checkpoint-progress .feedback{margin:0}
+@media(max-width:1000px){.surface.ck-detail:has(.copy-path) table{min-width:620px}.ck-detail td,.ck-detail th{padding-left:5px;padding-right:5px}.ck-detail .ck-values td{font-size:13px}.ck-detail .ck-toolbar{gap:6px 12px}}
 .gpu-telemetry{--util-ink:#2064ac;--mem-ink:#7851a9;container-type:inline-size;margin:14px 0 18px;font-variant-numeric:tabular-nums}
 html[data-theme=dark] .gpu-telemetry{--util-ink:#8fc7ff;--mem-ink:#cbacf8}
 .gpu-telemetry-head,.gpu-telemetry-key,.gpu-card-top{display:flex;align-items:center;justify-content:space-between;gap:6px}
@@ -604,7 +618,8 @@ function uploadMeter(t){
  const total=t.bytes>0?(moving&&Number.isFinite(t.processedBytes)?fmt(Math.min(t.bytes,t.processedBytes))+' / ':'共 ')+fmt(t.bytes):'';
  const sampled=moving&&t.updated?'<small class="upload-sampled">进度更新于 '+esc(new Date(t.updated*1000).toLocaleTimeString('zh-CN',{hour12:false}))+'</small>':'';
  const label=uploadTarget(t)+' 上传进度';
- const bar=failed?'':'<div class="upload-track" role="progressbar" aria-label="'+label+'" aria-valuemin="0" aria-valuemax="100" '+
+ const showBar=moving||t.state==='校验中'||t.state==='重新校验';
+ const bar=!showBar?'':'<div class="upload-track" role="progressbar" aria-label="'+label+'" aria-valuemin="0" aria-valuemax="100" '+
   (percent===null?'aria-valuetext="'+attr(phase)+'"':'aria-valuenow="'+percent+'"')+'><i style="--filled:'+(percent===null?'25':percent)+'%"></i></div>';
  return '<div class="upload-meter '+tone+(percent===null?' indeterminate':'')+'"><div class="upload-caption"><span><i aria-hidden="true"></i>'+esc(uploadTarget(t)+' · '+phase)+'</span><span>'+
   (total?'<small>'+esc(total)+'</small>':'')+(percent===null?'':'<b>'+percent+'%</b>')+'</span></div>'+bar+sampled+(failed&&t.error?'<small class="feedback">'+esc(t.error)+'</small>':'')+'</div>';
@@ -626,7 +641,7 @@ function cleanupMeter(job){
  }
  const tone=done?'complete':failed?'failed':checking?'verify':'waiting';
  const value=percent===null?'aria-valuetext="'+attr(phase)+'"':'aria-valuenow="'+percent+'"';
- const track=failed?'':'<div class="upload-track" role="progressbar" aria-label="'+(checking?'NAS 删除前复核':'本地清理')+'" aria-valuemin="0" aria-valuemax="100" '+value+'><i style="--filled:'+(percent??25)+'%"></i></div>';
+ const track=!checking?'':'<div class="upload-track" role="progressbar" aria-label="'+(checking?'NAS 删除前复核':'本地清理')+'" aria-valuemin="0" aria-valuemax="100" '+value+'><i style="--filled:'+(percent??25)+'%"></i></div>';
  return '<div class="upload-meter '+tone+(percent===null?' indeterminate':'')+'"><div class="upload-caption"><span><i aria-hidden="true"></i>本地清理 · '+esc(phase)+'</span><b>'+(percent===null?'':percent+'%')+'</b></div>'+track+'<small>'+esc(detail)+'</small></div>';
 }
 function checkpointProgress(path){
@@ -638,7 +653,7 @@ function checkpointProgress(path){
  }
  const removal=transferRows.find(t=>t.source===path&&t.action==='remove');
  const notice=removalNotices.get(path);
- return (notice?'<p class="feedback">'+esc(notice)+'</p>':'')+(removal?cleanupMeter(removal):'')+[...latest.values()].map(uploadMeter).join('');
+ return (notice?'<p class="feedback">'+esc(notice)+'</p>':'')+(removal?(removal.state==='完成'?'<small>本地已清理'+(removal.bytes?' · '+fmt(removal.bytes):'')+'</small>':cleanupMeter(removal)):'')+[...latest.values()].filter(t=>['传输中','校验中','重新校验','失败'].includes(t.state)).map(uploadMeter).join('');
 }
 function refreshTransferViews(){
  for(const el of document.querySelectorAll('[data-progress-for]')){
@@ -655,8 +670,11 @@ function refreshTransferViews(){
   if(b.dataset.submitting)continue;
   const dest=b.dataset.destination||'NAS',path=b.dataset.upload;
   const job=transferRows.find(t=>t.source===path&&t.action!=='remove'&&uploadTarget(t)===dest);
-  b.disabled=!!job&&!transferDone(job);
-  b.textContent=b.disabled?dest+' · '+job.state:'上传到 '+dest;
+  const busy=job&&!transferDone(job);
+  const uploaded=!busy&&(b.hasAttribute('data-stored')||job?.state==='完成');
+  b.disabled=!!busy||uploaded||b.hasAttribute('data-readonly');
+  b.classList.toggle('is-uploaded',uploaded);
+  b.textContent=busy?dest+' · '+job.state:uploaded?'已上传至 '+dest:job?.state==='失败'?'重试上传到 '+dest:'上传到 '+dest;
  }
 }
 let transferRevision=0;
@@ -823,13 +841,19 @@ function checkpointLocations(c){
  for(const copy of c.copies){
   html+='<div class="ck-location"><span class="badge '+(copy.verified?'completed':'pending')+'">'+(copy.verified?'已上传 NAS · 已校验':'NAS · 待校验')+'</span>'+copyButton(copy.destination)+'</div>';
  }
- if(c.present&&overview.roots.some(root=>c.path.startsWith(root+'/'))){
-  if(overview.checkpointUploadEnabled)html+=button('upload',c.path,'上传到 NAS','outline')+' ';
-  html+=['Grus','Tianji'].map(dest=>button('upload',c.path,'上传到 '+dest,'outline','data-destination="'+dest+'" title="上传推理权重、配置和 tokenizer 到 '+dest+'"')).join(' ');
-  if(overview.checkpointUploadEnabled&&c.copies.some(x=>x.verified))html+=' '+button('removeck',c.path,'删除 H800 本地副本','outline ck-danger');
+ const local=c.present&&overview.roots.some(root=>c.path.startsWith(root+'/'));
+ let actions='';
+ for(const dest of ['NAS','Grus','Tianji']){
+  const job=transferRows.find(t=>t.source===c.path&&t.action!=='remove'&&uploadTarget(t)===dest);
+  const stored=dest==='NAS'?c.copies.some(x=>x.verified):dest==='Grus'&&!!c.grus;
+  const allowed=local&&(dest!=='NAS'||overview.checkpointUploadEnabled);
+  if(!allowed&&!stored&&!job)continue;
+  actions+=button('upload',c.path,'上传到 '+dest,'outline','data-destination="'+dest+'"'+(stored?' data-stored':'')+(allowed?'':' data-readonly')+(dest==='NAS'?'':' title="推理权重、配置和 tokenizer"')+' disabled');
+  if(dest==='Tianji'&&job?.state==='完成'&&job.destination)html+='<div class="ck-location"><span class="badge">Tianji</span>'+copyButton(job.destination)+'</div>';
  }
- html+='<div class="checkpoint-progress" data-progress-for="'+attr(c.path)+'">'+checkpointProgress(c.path)+'</div>';
- return html;
+ if(local&&overview.checkpointUploadEnabled&&c.copies.some(x=>x.verified))actions+=button('removeck',c.path,'删除 H800 本地副本','outline ck-danger');
+ return '<div class="ck-toolbar"><div class="ck-locations">'+html+'</div><div class="ck-actions">'+actions+'</div></div>'+
+  '<div class="checkpoint-progress" data-progress-for="'+attr(c.path)+'">'+checkpointProgress(c.path)+'</div>';
 }
 function sourceGroups(items){
  const grouped=new Map();
@@ -847,7 +871,7 @@ function sourceGroups(items){
  }
  return [...grouped.values()].sort((a,b)=>b.updated-a.updated||a.path.localeCompare(b.path));
 }
-function groupDetailView(g,items){return '<article class="surface below"><div class="line">'+button('backgroups','1','← 全部训练任务','link')+'<small>'+items.length+' 个 checkpoint</small></div><h2 class="long-title">'+esc(groupLabel(g))+'</h2>'+copyButton(g.copyPath)+tableMarkup(['Checkpoint / 路径','更新时间 ↓','Step','Epoch / 总轮数','训练 loss','学习率','盘点大小'],items.map(c=>'<tr><td><b>'+esc(c.name)+'</b>'+checkpointLocations(c)+'</td><td>'+esc(updatedLabel(c))+'</td><td>'+numeric(c.step,0)+'</td><td>'+numeric(c.epoch)+' / '+numeric(c.epochs,0)+'</td><td>'+numeric(c.loss,8)+'<small class="sample-step">'+atStep(c.lossStep,c.step)+'</small></td><td>'+esc(c.lr==null?'—':Number(c.lr).toExponential(3))+'<small class="sample-step">'+atStep(c.lrStep,c.step)+'</small></td><td>'+fmt(c.bytes)+'</td></tr>'))+'<p class="disk-note">Epoch 取自训练状态。loss 和学习率显示保存步或之前最近一次记录；— 表示缺少对应数据。</p></article>'}
+function groupDetailView(g,items){return '<article class="surface below ck-detail"><div class="line">'+button('backgroups','1','← 全部训练任务','link')+'<small>'+items.length+' 个 checkpoint</small></div><h2 class="long-title">'+esc(groupLabel(g))+'</h2>'+copyButton(g.copyPath)+tableMarkup(['Checkpoint / 路径','更新时间 ↓','Step','Epoch / 总轮数','训练 loss','学习率','盘点大小'],items.map(c=>'<tr class="ck-values"><td><b>'+esc(c.name)+'</b></td><td>'+esc(updatedLabel(c))+'</td><td>'+numeric(c.step,0)+'</td><td>'+numeric(c.epoch)+' / '+numeric(c.epochs,0)+'</td><td>'+numeric(c.loss,8)+'<small class="sample-step">'+atStep(c.lossStep,c.step)+'</small></td><td>'+esc(c.lr==null?'—':Number(c.lr).toExponential(3))+'<small class="sample-step">'+atStep(c.lrStep,c.step)+'</small></td><td>'+fmt(c.bytes)+'</td></tr><tr class="ck-tools-row"><td colspan="7">'+checkpointLocations(c)+'</td></tr>'))+'<p class="disk-note">Epoch 取自训练状态。loss 和学习率显示保存步或之前最近一次记录；— 表示缺少对应数据。</p></article>'}
 async function resourceView(){
  const tab=assetTab,chosen=groupPath;
  let tabs='<div class="tags asset-tabs">'+button('assetnav','ck','Checkpoints','tab','aria-pressed="'+(tab==='ck')+'"')+button('assetnav','datasets','Datasets','tab','aria-pressed="'+(tab==='datasets')+'"')+'</div>';
