@@ -214,14 +214,6 @@ html[data-theme=dark] .upload-meter.moving{--meter:#5599ff;--tip:#79c9ff}
 <small>关联会保存在你的账号下，下次打开此作业时自动使用。</small>
 <p role="status" id="wbError"></p><div class="wb-actions"><button type="button" class="outline" id="wbClose">取消</button><button type="submit" class="outline" id="wbSave">保存关联</button></div>
 </form></dialog>
-<dialog id="ckFocus" class="profile-media ck-overlay" aria-labelledby="ckFocusName">
- <div class="ck-dialog-head"><h2 id="ckFocusName"></h2><button type="button" class="media-close" data-closeck="ckFocus" aria-label="关闭详情" autofocus>×</button></div>
- <div id="ckFocusBody"></div>
-</dialog>
-<dialog id="ckHistory" class="profile-media ck-overlay" aria-labelledby="ckHistoryTitle">
- <div class="ck-dialog-head"><h2 id="ckHistoryTitle">操作记录</h2><button type="button" class="media-close" data-closeck="ckHistory" aria-label="关闭操作记录" autofocus>×</button></div>
- <div id="ckHistoryBody"></div>
-</dialog>
 <dialog id="ckRemoveDialog" class="profile-media" aria-labelledby="ckRemoveTitle">
  <h2 id="ckRemoveTitle">删除 H800 本地副本？</h2>
  <p id="ckRemoveName"></p>
@@ -604,9 +596,61 @@ async function fetchNAS(){
 }
 const uploadTarget=t=>({'upload-grus':'Grus','upload-tianji':'Tianji'})[t.action]||'NAS';
 const transferDone=t=>t.state==='完成'||t.state==='失败';
-/* ATLAS_CHECKPOINT_JS */
+function uploadMeter(t){
+ const done=t.state==='完成',failed=t.state==='失败',moving=t.state==='传输中';
+ const percent=done?100:moving&&Number.isFinite(t.percent)?Math.max(0,Math.min(100,t.percent)):null;
+ const stale=moving&&t.updated>0&&Date.now()/1000-t.updated>45;
+ const phase=done?'已完成':stale?'等待进度更新':t.state;
+ const tone=done?'complete':failed?'failed':moving?'moving':t.state==='校验中'?'verify':'waiting';
+ const total=t.bytes>0?(moving&&Number.isFinite(t.processedBytes)?fmt(Math.min(t.bytes,t.processedBytes))+' / ':'共 ')+fmt(t.bytes):'';
+ const sampled=moving&&t.updated?'<small class="upload-sampled">进度更新于 '+esc(new Date(t.updated*1000).toLocaleTimeString('zh-CN',{hour12:false}))+'</small>':'';
+ const label=uploadTarget(t)+' 上传进度';
+ const bar=failed?'':'<div class="upload-track" role="progressbar" aria-label="'+label+'" aria-valuemin="0" aria-valuemax="100" '+
+  (percent===null?'aria-valuetext="'+attr(phase)+'"':'aria-valuenow="'+percent+'"')+'><i style="--filled:'+(percent===null?'25':percent)+'%"></i></div>';
+ return '<div class="upload-meter '+tone+(percent===null?' indeterminate':'')+'"><div class="upload-caption"><span><i aria-hidden="true"></i>'+esc(uploadTarget(t)+' · '+phase)+'</span><span>'+
+  (total?'<small>'+esc(total)+'</small>':'')+(percent===null?'':'<b>'+percent+'%</b>')+'</span></div>'+bar+sampled+'</div>';
+}
+function cleanupMeter(job){
+ const done=job.state==='完成',failed=job.state==='失败',checking=job.state==='重新校验';
+ const measured=checking&&job.bytes>0&&Number.isFinite(job.checkedBytes);
+ const percent=done?100:measured?Math.floor(100*Math.min(job.checkedBytes,job.bytes)/job.bytes):null;
+ const phase=done?'已删除本地副本':job.state;
+ let detail='';
+ if(measured)detail='已核对 '+fmt(job.checkedBytes)+' / '+fmt(job.bytes)+' · 每比对完一个文件更新';
+ else if(checking)detail='正在比对 H800 与 NAS 的文件内容';
+ else if(job.state==='清理中')detail='复核通过，正在删除本地文件';
+ else if(done&&job.bytes)detail='已清理 '+fmt(job.bytes);
+ else if(failed)detail=job.error||'请查看操作记录';
+ if(!done&&!failed&&job.started){
+  const seconds=Math.max(0,Math.floor(Date.now()/1000-job.started));
+  detail+=(detail?' · ':'')+'已用 '+Math.floor(seconds/60)+' 分 '+seconds%60+' 秒';
+ }
+ const tone=done?'complete':failed?'failed':checking?'verify':'waiting';
+ const value=percent===null?'aria-valuetext="'+attr(phase)+'"':'aria-valuenow="'+percent+'"';
+ const track=failed?'':'<div class="upload-track" role="progressbar" aria-label="'+(checking?'NAS 删除前复核':'本地清理')+'" aria-valuemin="0" aria-valuemax="100" '+value+'><i style="--filled:'+(percent??25)+'%"></i></div>';
+ return '<div class="upload-meter '+tone+(percent===null?' indeterminate':'')+'"><div class="upload-caption"><span><i aria-hidden="true"></i>本地清理 · '+esc(phase)+'</span><b>'+(percent===null?'':percent+'%')+'</b></div>'+track+'<small>'+esc(detail)+'</small></div>';
+}
+function checkpointProgress(path){
+ const latest=new Map();
+ for(const t of transferRows){
+  if(t.source!==path||t.action==='remove'||t.meta?.kind!=='checkpoint')continue;
+  const target=uploadTarget(t);
+  if(!latest.has(target))latest.set(target,t);
+ }
+ const removal=transferRows.find(t=>t.source===path&&t.action==='remove');
+ const notice=removalNotices.get(path);
+ return (notice?'<p class="feedback">'+esc(notice)+'</p>':'')+(removal?cleanupMeter(removal):'')+[...latest.values()].map(uploadMeter).join('');
+}
+function transferPanel(){
+ const uploads=transferRows.filter(t=>t.meta?.kind==='checkpoint');
+ if(!uploads.length)return '';
+ return '<section class="surface transfer-box"><h2>Checkpoint 操作记录</h2>'+uploads.slice(0,15).map(t=>'<div class="transfer-line"><div class="line"><b>'+(t.action==='remove'?'删除本地副本 · ':'')+esc(groupLabel({name:t.meta.group.split('/').pop(),path:t.meta.group})+' / '+t.meta.name)+'</b></div>'+(t.action==='remove'?cleanupMeter(t):uploadMeter(t))+(t.destination?copyButton(t.destination):'')+(t.error&&t.action!=='remove'?'<small class="feedback">'+esc(t.error)+'</small>':'')+'</div>').join('')+'</section>'
+}
 function refreshTransferViews(){
- refreshCheckpointUI();
+ if($('transfers'))$('transfers').innerHTML=transferPanel();
+ for(const el of document.querySelectorAll('[data-progress-for]')){
+  el.innerHTML=checkpointProgress(el.dataset.progressFor);
+ }
  for(const b of document.querySelectorAll('[data-removeck]')){
   const path=b.dataset.removeck;
   const removal=transferRows.find(t=>t.source===path&&t.action==='remove');
@@ -665,7 +709,7 @@ async function sendCheckpoint(b,path,destination='NAS'){
  b.disabled=true;b.dataset.submitting='1';b.textContent='正在提交…';
  try{const r=await atlasFetch('/api/upload',{method:'POST',headers:{'Content-Type':'application/json','X-Atlas-Action':'upload'},body:JSON.stringify({path,destination})});if(r.status===401){loginPage();return}const job=await r.json();if(!r.ok)throw Error(job.error||'提交失败');
  transferRevision++;transferRows=[job,...transferRows.filter(t=>t.id!==job.id)];delete b.dataset.submitting;refreshTransferViews()
- }catch(e){if($('ckFocus').open)$('ckFeedback').textContent=e.message;b.textContent='重试上传到 '+destination;b.disabled=false;$('status').textContent=e.message}
+ }catch(e){b.textContent='重试上传到 '+destination;b.disabled=false;$('status').textContent=e.message}
  finally{delete b.dataset.submitting}
 }
 
@@ -791,6 +835,7 @@ function checkpointLocations(c){
   html+=['Grus','Tianji'].map(dest=>button('upload',c.path,'上传到 '+dest,'outline','data-destination="'+dest+'" title="上传推理权重、配置和 tokenizer 到 '+dest+'"')).join(' ');
   if(overview.checkpointUploadEnabled&&c.copies.some(x=>x.verified))html+=' '+button('removeck',c.path,'删除 H800 本地副本','outline ck-danger');
  }
+ html+='<div class="checkpoint-progress" data-progress-for="'+attr(c.path)+'">'+checkpointProgress(c.path)+'</div>';
  return html;
 }
 function sourceGroups(items){
@@ -809,6 +854,7 @@ function sourceGroups(items){
  }
  return [...grouped.values()].sort((a,b)=>b.updated-a.updated||a.path.localeCompare(b.path));
 }
+function groupDetailView(g,items){return '<article class="surface below"><div class="line">'+button('backgroups','1','← 全部训练任务','link')+'<small>'+items.length+' 个 checkpoint</small></div><h2 class="long-title">'+esc(groupLabel(g))+'</h2>'+copyButton(g.copyPath)+tableMarkup(['Checkpoint / 路径','更新时间 ↓','Step','Epoch / 总轮数','训练 loss','学习率','盘点大小'],items.map(c=>'<tr><td><b>'+esc(c.name)+'</b>'+checkpointLocations(c)+'</td><td>'+esc(updatedLabel(c))+'</td><td>'+numeric(c.step,0)+'</td><td>'+numeric(c.epoch)+' / '+numeric(c.epochs,0)+'</td><td>'+numeric(c.loss,8)+'<small class="sample-step">'+atStep(c.lossStep,c.step)+'</small></td><td>'+esc(c.lr==null?'—':Number(c.lr).toExponential(3))+'<small class="sample-step">'+atStep(c.lrStep,c.step)+'</small></td><td>'+fmt(c.bytes)+'</td></tr>'))+'<p class="disk-note">Epoch 取自训练状态。loss 和学习率显示保存步或之前最近一次记录；— 表示缺少对应数据。</p></article>'}
 async function resourceView(){
  const tab=assetTab,chosen=groupPath;
  let tabs='<div class="tags asset-tabs">'+button('assetnav','ck','Checkpoints','tab','aria-pressed="'+(tab==='ck')+'"')+button('assetnav','datasets','Datasets','tab','aria-pressed="'+(tab==='datasets')+'"')+'</div>';
@@ -829,7 +875,7 @@ async function resourceView(){
  return tabs+datasetGraphics(all)+locations+(nasIssue?'<p class="feedback">'+esc(nasIssue)+'</p>':'')+chooser+form+list+storage}
  if(!ckSources)ckSources=await api('checkpoint-sources');
  try{await readTransfers()}catch{}
- tabs+='<div class="tools" aria-label="Checkpoint 来源">'+button('openscan','1','按路径检索','outline')+[['all','全部来源'],['H800','H800'],['NAS','NAS'],['Grus','Grus']].map(([id,n])=>button('ckstore',id,n,'chip','aria-pressed="'+(ckStore===id)+'"')).join('')+button('ckhistory','1','操作记录 ↗','outline ck-history-link','aria-haspopup="dialog"')+'</div>'+(ckSources.note?'<p class="feedback">'+esc(ckSources.note)+'</p>':'');
+ tabs+='<div class="tools" aria-label="Checkpoint 来源">'+button('openscan','1','按路径检索','outline')+[['all','全部来源'],['H800','H800'],['NAS','NAS'],['Grus','Grus']].map(([id,n])=>button('ckstore',id,n,'chip','aria-pressed="'+(ckStore===id)+'"')).join('')+'</div>'+(ckSources.note?'<p class="feedback">'+esc(ckSources.note)+'</p>':'')+'<div id="transfers">'+transferPanel()+'</div>';
  const items=ckStore==='Grus'
   ?ckSources.items.filter(c=>c.grus).map(c=>({...c,bytes:c.grus.bytes,updated:c.grus.updated}))
   :ckSources.items.filter(c=>ckStore==='all'||(ckStore==='H800'?c.present:c.copies.length));
@@ -1190,9 +1236,6 @@ function finishPageLoad(){
  $('pageLoader').hidden=true;$('content').inert=false;$('content').removeAttribute('aria-busy');
 }
 async function render(navigation=false){
- if(navigation||page!==3||assetTab!=='ck'){
-  for(const id of ['ckRemoveDialog','ckFocus','ckHistory'])if($(id).open)$(id).close();
- }
  if(navigation&&$('profileDialog').open)$('profileDialog').close();
  if(navigation&&$('metricDialog').open)$('metricDialog').close();
  const g=++generation;chartPoints.clear();if(navigation)beginPageLoad();
@@ -1235,9 +1278,6 @@ document.addEventListener('click',async e=>{const b=e.target.closest('button');i
  else if(d.nascheckpoints){ckStore='NAS';setResource('ck')}
  else if(d.openscan){$('ckScanDialog').showModal();$('ckScanPath').focus()}
  else if(d.ckstore){ckStore=d.ckstore;groupIndex=0;render()}
- else if(d.ckhistory)openCheckpointHistory();
- else if(d.ckfocus)openCheckpointFocus(b);
- else if(d.closeck)$(d.closeck).close();
  else if(d.removeck)confirmRemoval(d.removeck);
  else if(d.group)setResource('ck',d.group);
  else if(d.backgroups)setResource('ck');
