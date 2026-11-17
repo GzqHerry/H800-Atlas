@@ -22,6 +22,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import parse_qs, urlsplit
 from gpu_usage import live_gpu_sample
 from cpu_usage import live_cpu_sample
+import storage_usage
 import tianji
 
 ROOT = Path(__file__).resolve().parent.parent.parent
@@ -345,6 +346,11 @@ class Handler(BaseHTTPRequestHandler):
             data=data.replace(b'__ATLAS_TEAM_HTTP__',b'yes' if self.bearer else b'no')
             return self.reply(200,data.replace(b'__ATLAS_RELEASE__',current.version.encode()),'text/html;charset=utf-8')
         if not worker:return self.reply(401,{'error':'请先登录 H800'})
+        if self.command=='GET' and path=='/api/storage-usage':
+            mount=parse_qs(urlsplit(self.path).query).get('mount',['home'])[0]
+            if mount not in storage_usage.MOUNTS:
+                return self.reply(400,{'error':'Unsupported storage mount'})
+            return self.reply(200,storage_usage.snapshot(mount))
         if self.command=='GET' and path=='/api/gpu-live':
             return self.reply(200,live_gpu_sample())
         if self.command=='GET' and path=='/api/cpu-live':

@@ -186,13 +186,14 @@ async function loadUsage(){
  finally{pending.delete(days);if(days===usageView.days)refreshUsageCard()}
 }
 function dashboard(){
+ loadStorageUsage();
  loadUsage();
  return dashboardOverview()+(studio.issues.length?'<p class="feedback">'+esc(studio.issues.join(' · '))+'</p>':'')+'<div class="studio-board">'+
  studioPanel('我的作业时间线','活跃作业优先 · 历史作业按结束时间倒序',button('page','2','训练记录 →','link'),gantt(),true)+
  studioPanel('节点空闲窗口','近 12 小时 · 每小时最后一次采样','',heatmap())+
  studioPanel('我的 GPU 时间','近 7 天 · 已分配 GPU 卡时','',gpuHours())+
  studioPanel('权重占用分布','各训练任务的存储占比','<div class="studio-switch">'+['H800','NAS'].map(s=>control('treestore',s,s,studio.store===s)).join('')+'</div>',storageMap())+
- resultPanel()+'</div><section id="trainingUsage" class="surface studio-card below" aria-label="集群训练用量">'+usageCard()+'</section>';
+ resultPanel()+'</div><section id="storageUsage" class="surface studio-card below" aria-label="存储用量排行">'+storageCard()+'</section><section id="trainingUsage" class="surface studio-card below" aria-label="集群训练用量">'+usageCard()+'</section>';
 }
 async function loadStudio(){
  if(studio.ready&&Date.now()-studioUpdated<50000&&ckSources)return;

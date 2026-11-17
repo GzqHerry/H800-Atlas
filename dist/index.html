@@ -85,6 +85,7 @@ html[data-theme=dark]{color-scheme:dark;--paper:#17181c;--ink:#ecedf2;--soft:#b1
 .queue-board tbody td:nth-child(n+6){grid-column:span 3;border-top:1px solid var(--line);padding-top:8px}
 .queue-board tbody td[data-caption]::before{content:attr(data-caption);display:block;color:var(--soft);font-size:11px;margin-bottom:3px}
 }/* ATLAS_CHARTS_CSS */
+/* ATLAS_STORAGE_CSS */
 .upload-meter{--meter:#377ff2;--tip:#60b8ff;margin:10px 0;color:var(--ink);font-variant-numeric:tabular-nums}
 .upload-caption,.upload-caption>span{display:flex;align-items:center;gap:8px}
 .upload-caption{justify-content:space-between;gap:14px;line-height:1.35;font-size:13px;font-weight:600}
@@ -461,6 +462,7 @@ function jobTable(list){if(!list.length)return '<p class="empty">当前没有作
 /* ATLAS_AVATARS_JS */
 /* ATLAS_GUIDE_JS */
 /* ATLAS_CHARTS_JS */
+/* ATLAS_STORAGE_JS */
 function runProgress(progress, loggedEpoch){
  if(!progress)return '';
  const {step,total,stepsPerEpoch,epochEstimated}=progress;
