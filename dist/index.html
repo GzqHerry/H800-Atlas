@@ -104,10 +104,16 @@ html[data-theme=dark]{color-scheme:dark;--paper:#17181c;--ink:#ecedf2;--soft:#b1
 .ck-toolbar .ck-band{display:flex;align-items:center;flex-wrap:wrap;gap:5px 12px;min-height:30px}
 .ck-band>small{font-size:11px;color:var(--soft);letter-spacing:.06em}
 .ck-target{display:inline-flex;align-items:center;gap:2px}
-.ck-target [data-upload],.ck-local-name{font-size:12px;font-weight:550;white-space:nowrap;border-radius:7px;padding:3px 8px;line-height:20px}
-.ck-local-name{background:var(--paper);color:var(--soft)}
-.ck-target .is-uploaded{color:#256947;background:#e4f3e9;border-color:transparent;opacity:1;cursor:default}
-[data-theme=dark] .ck-target .is-uploaded{color:#9cd7b7;background:#253a31}
+.ck-detail{--ck-h800:#245d9b;--ck-nas:#226c4b;--ck-grus:#7142a2;--ck-tianji:#95500c}
+[data-theme=dark] .ck-detail{--ck-h800:#9ac9ff;--ck-nas:#8fddb4;--ck-grus:#d0a6ff;--ck-tianji:#ffc281}
+.ck-local-name{--ck-accent:var(--ck-h800)}
+.ck-destination[data-destination="NAS"]{--ck-accent:var(--ck-nas)}
+.ck-destination[data-destination="Grus"]{--ck-accent:var(--ck-grus)}
+.ck-destination[data-destination="Tianji"]{--ck-accent:var(--ck-tianji)}
+.ck-target :is(.ck-destination,.ck-local-name){font-size:12px;font-weight:600;white-space:nowrap;border-radius:7px;padding:3px 8px;line-height:20px;color:var(--ck-accent);background:color-mix(in srgb,var(--ck-accent) 13%,var(--white));border:1px solid color-mix(in srgb,var(--ck-accent) 24%,var(--white))}
+.ck-target .ck-destination:enabled:hover{background:color-mix(in srgb,var(--ck-accent) 23%,var(--white))}
+.ck-target .ck-destination:disabled{opacity:1;cursor:default}
+.ck-target .ck-destination.is-uploaded{border-color:transparent}
 .ck-target .is-uploaded::before{content:"✓";margin-right:4px}
 .ck-detail .ck-danger{font-size:12px;padding:3px 8px}
 .ck-detail .ck-copy{position:relative;display:inline-grid;place-items:center;width:28px;height:28px;padding:0;margin:0;border:0;border-radius:7px;background:transparent;color:var(--soft)}
@@ -871,7 +877,7 @@ function checkpointLocations(c){
   const attributes='data-destination="'+dest+'" data-stored-path="'+attr(path)+'"'+(stored?' data-stored':'')+
    (copy&&!stored?' data-unverified':'')+(allowed?'':' data-readonly')+' disabled';
   const hint=dest==='NAS'?(stored?'完整副本已校验':'完整 checkpoint 副本'):'推理权重、配置和 tokenizer';
-  targets+='<span class="ck-target">'+button('upload',c.path,'上传到 '+dest,'outline',attributes+' title="'+hint+'"')+checkpointCopyIcon(dest,path||job?.destination)+'</span>';
+  targets+='<span class="ck-target">'+button('upload',c.path,'上传到 '+dest,'ck-destination',attributes+' title="'+hint+'"')+checkpointCopyIcon(dest,path||job?.destination)+'</span>';
  }
  return '<div class="ck-toolbar">'+(localTools?'<div class="ck-band"><small>本地</small>'+localTools+'</div>':'')+
   (targets?'<div class="ck-band ck-actions"><small>远端</small>'+targets+'</div>':'')+'</div>'+
