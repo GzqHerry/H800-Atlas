@@ -1,5 +1,6 @@
 """Directory usage summaries, shared by authenticated Atlas sessions."""
 import copy
+import json
 import os
 import pwd
 import re
@@ -9,11 +10,15 @@ import threading
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from collections import deque
+from datetime import datetime
 from pathlib import Path
+from urllib.parse import urlencode
+from urllib.request import urlopen
 
 MOUNTS = ('home', 'workspace', 'data', 'scratch')
 TTL = 900
-QUOTA = 30 * 1024**3
+STORAGE_API = os.environ.get('ATLAS_STORAGE_API_URL', 'http://127.0.0.1:8919').rstrip('/')
+API_INTERVAL = 60
 _lock = threading.Lock()
 _cache = {}
 
@@ -90,7 +95,69 @@ def measure_path(mount, path, timeout=25):
         return dict(status='error', bytes=None)
 
 
-def collect(mount):
+def api_read(endpoint, **params):
+    url = STORAGE_API + '/v1/' + endpoint + '?' + urlencode(params)
+    with urlopen(url, timeout=130) as response:
+        return json.load(response)
+
+
+def api_ranking(mount):
+    root = '/' + mount
+    reading = api_read('usage', path=root)
+    # JuiceFS can have readings for its children without a quota on the root.
+    if reading['path'] != root or reading['status'] not in ('ok', 'unmeasured', 'partial'):
+        raise ValueError('Root unavailable')
+    rows = []
+    seen = set()
+    offset = 0
+    total = None
+    while True:
+        page = api_read('children', path=root, limit=1000, offset=offset)
+        if page['path'] != root or page['offset'] != offset or total not in (None, page['total']):
+            raise ValueError('Directory list changed')
+        total = page['total']
+        for item in page['items']:
+            path = Path(item['path'])
+            if str(path.parent) != root or path in seen:
+                raise ValueError('Inconsistent directory list')
+            seen.add(path)
+            try:
+                account = pwd.getpwnam(path.name)
+            except KeyError:
+                continue
+            if account.pw_uid < 1000 or account.pw_uid == 65534 or account.pw_name != path.name:
+                continue
+            status = item['status']
+            if status == 'missing':
+                continue
+            size = item['bytes'] if status == 'ok' else None
+            if status == 'ok' and (type(size) is not int or size < 0):
+                raise ValueError('Invalid directory size')
+            quota = item['quota_bytes'] if item['quota_mode'] == 'limited' else None
+            stamp = int(datetime.fromisoformat(item['observed_at']).timestamp())
+            rows.append(dict(user=path.name, bytes=size, stamp=stamp, quota=quota,
+                             status='stale' if status == 'ok' and not item['cached'] else status))
+        offset += len(page['items'])
+        if not page['truncated']:
+            if offset != total:
+                raise ValueError('Incomplete directory list')
+            break
+        if not page['items'] or offset >= total:
+            raise ValueError('Invalid directory page')
+    warning = '目录列表可能不完整' if reading['status'] == 'partial' else ''
+    return dict(rows=rows, stamp=int(datetime.fromisoformat(reading['observed_at']).timestamp()), error=warning)
+
+
+def collect_api(mount):
+    try:
+        result = api_ranking(mount)
+    except Exception:
+        result = dict(error='存储接口读取失败，稍后自动重试')
+    with _lock:
+        _cache[mount].update(result, refreshing=False, next=time.monotonic() + API_INTERVAL)
+
+
+def collect_local(mount):
     try:
         names = users()
         if not names:
@@ -138,10 +205,11 @@ def snapshot(mount='home'):
                                             refreshing=False, next=0, error=''))
         if not data['refreshing'] and time.monotonic() >= data['next']:
             data['refreshing'] = True
-            threading.Thread(target=collect, args=(mount,), daemon=True).start()
+            collector = collect_local if mount == 'scratch' else collect_api
+            threading.Thread(target=collector, args=(mount,), daemon=True).start()
         result = copy.deepcopy(data)
     result.pop('next')
-    result.update(quota=QUOTA if mount == 'home' else None, approximate=mount == 'data', interval=TTL,
+    result.update(interval=TTL if mount == 'scratch' else API_INTERVAL,
                   node=os.uname().nodename if mount == 'scratch' else None)
     return result
 

@@ -1,9 +1,9 @@
 const storageView={mount:'home',index:0,motion:'',cache:new Map(),pending:new Set(),errors:new Set(),checked:new Map()};
-const storageStates={pending:'统计中',absent:'未建个人目录',permission:'无权限',timeout:'查询超时',unsupported:'暂不支持统计',error:'统计失败'};
+const storageStates={pending:'统计中',absent:'未建个人目录',permission:'无权限',timeout:'查询超时',unsupported:'暂不支持统计',error:'统计失败',partial:'统计不完整',unavailable:'暂不可用',unmeasured:'尚无读数',stale:'读数已过期'};
 function storageCard(){
  const {mount,cache,errors}=storageView,data=cache.get(mount);
  const tabs=['home','workspace','data','scratch'].map(m=>control('storagemount',m,'/'+m,m===mount)).join('');
- const hint=data?.stamp?'统计完成于 '+chartTime(data.stamp):'正在读取 /'+mount+' 用量…';
+ const hint=data?.stamp?'最近采样 '+chartTime(data.stamp):data?.error||errors.has(mount)?'暂未取得用量':'正在读取 /'+mount+' 用量…';
  const header='<div class="studio-heading"><div class="storage-heading">'+rankIcon('storage')+'<div><h2>存储用量排行</h2><small>'+hint+(data?.node?' · '+esc(data.node):'')+(data?.refreshing?' · 正在更新':'')+'</small></div></div><div class="studio-switch" role="group" aria-label="存储盘">'+tabs+'</div></div>';
  if(!data)return header+chartEmpty(errors.has(mount)?'暂时无法连接统计服务，稍后自动重试。':'正在读取用户目录用量…');
  const rows=[...data.rows].sort((a,b)=>(b.bytes!==null)-(a.bytes!==null)||(b.bytes??0)-(a.bytes??0)||a.user.localeCompare(b.user));
@@ -12,14 +12,15 @@ function storageCard(){
  const limit=10;storageView.index=Math.min(storageView.index,Math.max(0,Math.ceil(rows.length/limit)-1));
  const items=rows.slice(storageView.index*limit,(storageView.index+1)*limit).map((row,i)=>{
   const measured=row.bytes!==null,old=row.status!=='ok'&&measured;
-  const caption=(row.status==='ok'?(data.approximate?'估算':''):storageStates[row.status]||'待统计')+(old?' · 上次数据':'');
-  const percent=measured?Math.min(100,100*row.bytes/(data.quota||peak)):0;
-  const meta=[caption,row.stamp?'采集于 '+chartTime(row.stamp):''].filter(Boolean).join(' · ');
+  const caption=(row.status==='ok'?'':storageStates[row.status]||'待统计')+(old?' · 上次数据':'');
+  const percent=measured?Math.min(100,100*row.bytes/(row.quota||peak)):0;
+  const meta=[caption,row.quota>0?'配额 '+fmt(row.quota):'',row.stamp?'采集于 '+chartTime(row.stamp):''].filter(Boolean).join(' · ');
   return '<li class="storage-row'+(row.user===overview.user?' storage-mine':'')+'" data-rank-user="'+attr(row.user)+'"><span class="storage-rank">'+(measured?storageView.index*limit+i+1:'—')+'</span><div class="storage-person">'+personLabel(row.user)+(row.user===overview.user?'<small>我</small>':'')+'</div><button class="storage-bar'+(!measured?' unmeasured':'')+'" data-storageuser="'+attr(row.user)+'" aria-label="'+attr('查看 '+row.user+' 的存储分类')+'"><i style="width:'+percent+'%"></i></button><div class="storage-value">'+button('storageuser',row.user,(measured?fmt(row.bytes):'—')+' <span aria-hidden="true">›</span>','storage-open','aria-label="'+attr('查看 '+row.user+' 的存储分类')+'"')+'<small title="'+attr(meta)+'">'+esc(meta||'等待统计')+'</small></div></li>';
  }).join('');
- const note=mount==='home'?'个人配额按 30 GiB 展示，进度条表示配额使用比例。':'进度条按当前盘已知用量最大的用户缩放。';
- const coverage=(mount==='scratch'?'仅统计 '+esc(data.node||'当前服务节点')+' 的本地盘；无权限目录会单独标记。':'按同名个人目录汇总，共享目录及其他位置的文件需另行统计。')+(data.approximate?' /data 使用 JuiceFS 快速估算，可能存在误差。':'');
- return header+'<div class="storage-layout" data-mount="'+mount+'"><div class="storage-summary"><small>已统计目录用量</small><strong>'+(known.length?fmt(total):'—')+'</strong><span>'+known.length+' 位已有数据 · '+unavailable.length+' 位待确认</span>'+(data.quota?'<div class="storage-quota"><small>每人 /home 配额</small><b>30 GiB</b></div>':'')+'<p>'+note+'</p></div><div class="storage-ranking"><ol class="storage-list" aria-label="/'+mount+' 用户存储排行">'+items+'</ol>'+(!rows.length?chartEmpty(data.refreshing?'正在发现用户目录…':'暂无可识别的用户目录'):'')+pageControls('storagepage',storageView.index,rows.length,limit)+'</div></div>'+(data.error||errors.has(mount)?'<p class="feedback">'+esc(data.error||'更新暂时失败，将自动重试')+'</p>':'')+'<p class="usage-note">'+coverage+' 每 15 分钟更新，耗时统计完成后自动显示。</p>';
+ const note=rows.some(row=>row.quota>0)?'有容量配额的目录按个人配额显示进度，其余目录按本盘排行第一名的用量显示。':'进度条按本盘排行第一名的用量显示。';
+ const coverage=mount==='scratch'?'仅统计 '+esc(data.node||'当前服务节点')+' 的本地个人目录，每 15 分钟更新。':'来源为 storage-api，每分钟检查更新。仅汇总与集群账号同名的个人目录。';
+ const empty=data.refreshing?'正在发现用户目录…':data.error?'等待读取目录用量':'暂无可识别的用户目录';
+ return header+'<div class="storage-layout" data-mount="'+mount+'"><div class="storage-summary"><small>已统计目录用量</small><strong>'+(known.length?fmt(total):'—')+'</strong><span>'+known.length+' 位已有数据 · '+unavailable.length+' 位待确认</span><p>'+note+'</p></div><div class="storage-ranking"><ol class="storage-list" aria-label="/'+mount+' 用户存储排行">'+items+'</ol>'+(!rows.length?chartEmpty(empty):'')+pageControls('storagepage',storageView.index,rows.length,limit)+'</div></div>'+(data.error||errors.has(mount)?'<p class="feedback">'+esc(data.error||'更新暂时失败，将自动重试')+'</p>':'')+'<p class="usage-note">'+coverage+'</p>';
 }
 function refreshStorageCard(motion=''){
  const panel=$('storageUsage');if(page!==0||!panel)return;
