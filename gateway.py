@@ -24,6 +24,7 @@ from gpu_usage import live_gpu_sample
 from cpu_usage import live_cpu_sample
 import storage_usage
 import tianji
+import grus
 
 ROOT = Path(__file__).resolve().parent.parent.parent
 CURRENT = ROOT / 'current'
@@ -399,6 +400,11 @@ class Handler(BaseHTTPRequestHandler):
         if not path.startswith('/api/'):return self.reply(404,{'error':'页面不存在'})
         if self.command=='GET' and path=='/api/training-usage':
             body={'outcomes':{p.stem:json.loads(p.read_bytes()) for p in (PROFILES/'outcomes').glob('*.json')}}
+        if self.command=='GET' and path=='/api/checkpoint-sources':
+            try:
+                body = {'tianjiInventory': grus.checkpoints('Tianji')}
+            except (OSError, ValueError, subprocess.SubprocessError):
+                body = {'tianjiInventory': {'items': [], 'unavailable': True}}
         grant=None
         if self.command=='POST' and path=='/api/upload' and body.get('destination')=='Tianji':
             if worker.node!=DEFAULT_NODE:

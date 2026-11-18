@@ -558,43 +558,115 @@ def overview():
         if p.is_dir():
             u=shutil.disk_usage(p);mounts.append(dict(name=k,used=u.used,total=u.total,free=u.free))
     return dict(mounts=mounts,stamp=int(time.time()),user=H.name,home=str(H),checkpointUploadEnabled=nas.enabled(),roots=[str(p) for p in ROOTS if p.is_dir()],host=os.uname().nodename,zone=time.strftime('%Z'))
-def merge_grus_copies(rows, copies):
-    by_source = {}
-    destinations = {}
-    for copy in copies:
-        if copy.get('taskKey'):
-            destinations.setdefault(copy['taskKey'], set()).add(Path(copy['destination']).parent.name)
-    for row in rows.values():
-        path = Path(row['path'])
+def training_group(path):
+    parent = path.parent
+    while parent.name.casefold() in {'checkpoints', 'ckpts', 'output', 'outputs'} and any(
+            root in parent.parent.parents for root in ROOTS):
+        parent = parent.parent
+    return str(parent)
+
+
+def merge_checkpoint_locations(rows, grus_copies, tianji_copies, jobs):
+    from collections import defaultdict
+    names, task_keys = defaultdict(set), {}
+    by_source, by_step = {}, {}
+    receipts = defaultdict(set)
+    uploads = defaultdict(set)
+    for job in jobs:
+        if not job.get('verified') or job.get('state') != '完成' or not job.get('destination'):
+            continue
+        if job.get('action') not in ('upload-tianji','upload-grus'):
+            continue
+        source = Path(job['source'])
+        if not any(root in source.parents for root in ROOTS):
+            continue
+        uploads[job['destination']].add(str(source))
+        if job.get('grusSource'):
+            receipts[(job['grusSource'],job.get('grusPayload'),job['destination'])].add(job.get('grusStamp'))
+    # Prefer a present H800 path as the actionable row. Keep additional paths as replicas.
+    local_rows = sorted(rows.values(), key=lambda r:(not r['present'], r['path']))
+    original_sources = {}
+    for local in local_rows:
+        path = Path(local['path'])
+        group = training_group(path)
+        index = group, int(re.search(r'\d+$', path.name)[0])
+        row = by_step.setdefault(index, local)
+        if row is not local:
+            if local['present']:
+                row.setdefault('otherLocal', []).append(dict(path=str(path), bytes=local['bytes']))
+            row['copies'].extend(local['copies'])
+            row['updated'] = max(row['updated'],local['updated'])
+            del rows[str(path)]
+        row['group'] = group
+        names[Path(group).name].add(group)
         task_key, source_key = grus.source_keys(path)
-        known = destinations.get(task_key, set())
-        row['grusTask'] = next(iter(known)) if len(known) == 1 else ('' if known else grus.suggested_task(path, ROOTS))
+        task_keys[task_key] = group
         by_source[source_key] = row
-    receipts = {(j.get('grusSource'), j.get('grusPayload'), j.get('destination'), j.get('grusStamp'))
-                for j in nas.job_list() if j.get('grusSource') and j.get('verified') and j.get('state') == '完成'}
-    for copy in copies:
-        destination = Path(copy['destination'])
-        key = copy.get('sourceKey')
-        row = by_source.get(key)
-        if row and row['present']:
-            try:
-                stamp = grus.source_stamp(grus.inference_files(Path(row['path']), include_ctime=True))
-                if stamp != copy['sourceStamp'] and (key, copy['payload'], str(destination), stamp) not in receipts:
-                    row = None
-            except (OSError, ValueError, TypeError):
-                row = None
-        if row and not row.get('grus'):
-            copy = dict(copy, verified=True)
-            row['grusTask'] = destination.parent.name
-        else:
-            row = dict(path=str(destination), group=str(destination.parent), name=destination.name,
-                       present=False, bytes=copy['bytes'], updated=copy['updated'], copies=[])
-            rows[str(destination)] = row
-        row['grus'] = copy
-        row['updated'] = max(row['updated'], copy['updated'])
+        original_sources[str(path)] = row
+        if row is local:
+            row['grusTask'] = grus.suggested_task(path, ROOTS)
+
+    aliases = defaultdict(set)
+    for copy in grus_copies:
+        group = task_keys.get(copy.get('taskKey'))
+        if group:
+            aliases[group].add(Path(copy['destination']).parent.name)
+    for row in rows.values():
+        known = aliases[row['group']]
+        if known:
+            row['grusTask'] = next(iter(known)) if len(known)==1 else ''
+
+    for store, copies in [('grus', grus_copies), ('tianji', tianji_copies)]:
+        root = Path('/mnt/data0/arx_ckpts' if store=='grus' else '/WD/tianji/models')
+        for copy in copies:
+            dst = Path(copy['destination'])
+            step = int(re.search(r'\d+$', dst.name)[0])
+            row = by_source.get(copy.get('sourceKey'))
+            group = task_keys.get(copy.get('taskKey'))
+            sources = uploads.get(str(dst), set())
+            if row is None and not group and len(sources)==1 and not copy.get('hasSourceRecord') and not copy.get('taskKey'):
+                source = Path(next(iter(sources)))
+                row = original_sources.get(str(source))
+                group = training_group(source)
+            if row:
+                group = row['group']
+            if not group:
+                candidates = names[dst.parent.name]
+                named = dst.parent != root and grus.valid_task(dst.parent.name)
+                if named and len(candidates)==1 and len(sources)<=1 and not (copy.get('taskKey') or copy.get('hasSourceRecord')):
+                    group = next(iter(candidates))
+                else:
+                    group = str(dst if dst.parent==root else dst.parent)
+                    if named and not candidates:
+                        names[dst.parent.name].add(group)
+            if row is None:
+                row = by_step.get((group,step))
+            if row is None:
+                path = str(dst)
+                row = dict(path=path,group=group,name=dst.name,present=False,bytes=copy['bytes'],
+                           updated=copy['updated'],copies=[])
+                by_step[group,step] = rows[path] = row
+            verified = False
+            if copy.get('sourceKey') and row is by_source.get(copy['sourceKey']) and grus.source_keys(Path(row['path']))[1]==copy['sourceKey']:
+                verified = True
+                if row['present']:
+                    try:
+                        stamp = grus.source_stamp(grus.inference_files(Path(row['path']),include_ctime=True))
+                        verified = stamp==copy['sourceStamp'] or stamp in receipts[(copy['sourceKey'],copy['payload'],str(dst))]
+                    except (OSError,ValueError,TypeError):
+                        verified = False
+            location = dict(copy,verified=verified)
+            if store == 'tianji' and sources == {row['path']}:
+                location['previouslyVerified'] = True
+            row.setdefault(store+'Copies',[]).append(location)
+            if not row.get(store) or verified:
+                row[store] = location
+            row['updated'] = max(row['updated'],copy['updated'])
+            if store=='grus' and group==task_keys.get(copy.get('taskKey')):
+                row['grusTask'] = dst.parent.name
 
 
-def checkpoint_sources():
+def checkpoint_sources(tianji_inventory=None):
     rows={}
     for parent,names in checkpoint_groups(H).items():
         for name,size in names.items():
@@ -620,7 +692,11 @@ def checkpoint_sources():
         note = ' · '.join(filter(None, (note, '当前账号暂时无法读取 Grus')))
     if remote.get('partial'):
         note = ' · '.join(filter(None, (note, '部分 Grus 目录不可读取或缺少推理文件')))
-    merge_grus_copies(rows, remote['items'])
+    if tianji_inventory is None:
+        tianji_inventory = {'items': [], 'unavailable': True}
+    if tianji_inventory.get('unavailable') or tianji_inventory.get('partial'):
+        note = ' · '.join(filter(None,(note,'Tianji 目录暂时无法完整读取')))
+    merge_checkpoint_locations(rows,remote['items'],tianji_inventory['items'],nas.job_list())
     return dict(items=list(rows.values()),note=note)
 
 def route(method, target, body):
@@ -673,7 +749,7 @@ def route(method, target, body):
             meta['grusTask'] = task
         return 202,nas.enqueue(meta,action,grant)
     routes={'/api/job-command':lambda:lookup_command(q.get('id','')),'/api/nas':nas.catalog,'/api/uploads':nas.job_list,'/api/cluster':cluster,'/api/checkpoint-groups':lambda:checkpoint_index(H),'/api/checkpoints':lambda:checkpoint_detail(H,q.get('group',''),safe),'/api/size':lambda:measure(q),'/api/overview':overview,'/api/jobs':jobs,'/api/files':lambda:files(q),'/api/detail':lambda:detail(q.get('id',''),(q.get('metric'),q.get('axis')))}
-    routes['/api/checkpoint-sources']=checkpoint_sources
+    routes['/api/checkpoint-sources']=lambda:checkpoint_sources(body.get('tianjiInventory'))
     routes['/api/training-summary']=lambda:charts.training_summary(H,safe)
     routes['/api/profile-inventory']=profile_inventory
     if method=='GET' and u.path in ('/api/training-usage','/api/gpu-usage'):

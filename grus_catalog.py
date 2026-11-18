@@ -3,6 +3,7 @@ import hashlib
 import json
 import re
 import socket
+import sys
 from pathlib import Path
 
 
@@ -28,9 +29,13 @@ def read_checkpoint(folder):
     marker = folder / '.atlas-grus-source.json'
     row = dict(destination=str(folder), bytes=sum(v for k,v in files.items() if k != marker.name),
                updated=int(folder.stat().st_mtime))
+    task_file = folder.parent / '.atlas-grus-task'
+    if task_file.is_file() and not task_file.is_symlink():
+        row['taskKey'] = task_file.read_text().strip()
+    if marker.exists():
+        row['hasSourceRecord'] = True
     if not marker.is_file() or marker.is_symlink():
         return row
-    task_file = folder.parent / '.atlas-grus-task'
     try:
         record = json.loads(marker.read_text())
         manifest = record['files']
@@ -52,12 +57,13 @@ def read_checkpoint(folder):
     return row
 
 
-def inventory():
-    if socket.gethostname().split('.')[0].lower() != 'grus':
+def inventory(store='Grus'):
+    hostname, root = {'Grus': ('grus', ROOT), 'Tianji': ('marvin-thor', Path('/WD/tianji/models'))}[store]
+    if socket.gethostname().split('.')[0].lower() != hostname:
         raise ValueError('Unexpected host')
     rows = []
     partial = False
-    for parent in ROOT.iterdir():
+    for parent in root.iterdir():
         if parent.name.startswith('.') or parent.is_symlink() or not parent.is_dir():
             continue
         try:
@@ -78,4 +84,4 @@ def inventory():
 
 
 if __name__ == '__main__':
-    print(json.dumps(inventory()))
+    print(json.dumps(inventory(sys.argv[1] if len(sys.argv)>1 else 'Grus')))

@@ -217,10 +217,10 @@ def connection(target):
     return host, [*SSH, '-o', 'BatchMode=yes']
 
 
-def checkpoints():
-    host, ssh = connection('Grus')
+def checkpoints(store='Grus'):
+    host, ssh = connection(store)
     script = Path(__file__).with_name('grus_catalog.py').read_text()
-    result = subprocess.run(ssh + [host, 'python3 -'], input=script, capture_output=True,
+    result = subprocess.run(ssh + [host, 'python3 - '+shlex.quote(store)], input=script, capture_output=True,
                             text=True, timeout=12, check=True)
     return json.loads(result.stdout)
 

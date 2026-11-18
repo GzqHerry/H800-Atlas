@@ -209,7 +209,7 @@ html[data-theme=dark] .task-library{--task-blue:#8ebfff;--task-green:#78d5b7;--t
 .task-text small,.task-time small,.task-size small{display:block;color:var(--soft);font-size:11px;line-height:1.5;margin-top:3px}
 .task-text small{letter-spacing:.025em}.task-library .copy-path{margin:0;white-space:nowrap;font-size:11px;color:var(--soft)}
 .task-origins>div{display:flex;gap:4px;flex-wrap:wrap}.task-source{display:inline-flex;align-items:center;gap:5px;padding:3px 7px;border-radius:6px;color:var(--task-blue);background:color-mix(in srgb,currentColor 10%,var(--white));font-size:11px;font-weight:600;white-space:nowrap}
-.task-source.grus{color:var(--task-violet,var(--purple,#9461cd))}.task-source.nas{color:var(--task-green)}.task-source i{width:5px;height:5px;border-radius:50%;background:currentColor}.task-source b{border-left:1px solid color-mix(in srgb,currentColor 28%,transparent);padding-left:5px}
+.task-source.tianji{color:var(--amber,#ad752c)}.task-source.grus{color:var(--task-violet,var(--purple,#9461cd))}.task-source.nas{color:var(--task-green)}.task-source i{width:5px;height:5px;border-radius:50%;background:currentColor}.task-source b{border-left:1px solid color-mix(in srgb,currentColor 28%,transparent);padding-left:5px}
 .task-time,.task-count,.task-size{font-variant-numeric:tabular-nums;font-size:13px}.task-count b{font-size:16px}.task-count small{color:var(--soft);font-size:11px}
 .task-capacity{width:min(100%,92px);height:4px;margin-top:6px;border-radius:4px;background:var(--line);overflow:hidden}.task-capacity i{display:block;height:100%;border-radius:inherit;background:var(--task-violet)}.task-capacity:empty{background:none;border-top:1px dashed var(--line)}
 .task-library .pager{padding:12px 24px;margin:0}.task-library .empty{padding-inline:24px}
@@ -623,7 +623,7 @@ function datasetGraphics(rows){
 }
 function ckGraphics(groups){
  const top=[...groups].sort((a,b)=>b.bytes-a.bytes).slice(0,4);
- return '<div class="res-graphics"><section class="surface graphic"><h2>已登记 Checkpoints</h2><div class="metric-big">'+groups.reduce((s,x)=>s+x.count,0)+'</div><small>'+groups.length+' 个任务目录 · 已盘点 '+fmt(groups.reduce((s,x)=>s+x.bytes,0))+'</small></section>'+graphBars('占用最大的任务',top.map(g=>[groupLabel(g),g.bytes,fmt(g.bytes)]),'按盘点字节数','violet')+'</div>'
+ return '<div class="res-graphics"><section class="surface graphic"><h2>已登记 Checkpoints</h2><div class="metric-big">'+groups.reduce((s,x)=>s+x.count,0)+'</div><small>'+groups.length+' 个任务目录 · 已盘点 '+fmt(groups.reduce((s,x)=>s+x.bytes,0))+'</small></section>'+graphBars('占用最大的任务',top.map(g=>[groupLabel(g),g.bytes,fmt(g.bytes)]),ckStore==='all'?'每个 checkpoint 优先取 H800，其次取 NAS、Grus 或 Tianji':'按当前来源的盘点字节数','violet')+'</div>'
 }
 async function fetchNAS(){
  if(nasWhen&&Date.now()-nasWhen<30000)return;
@@ -694,12 +694,12 @@ function refreshTransferViews(){
   const dest=b.dataset.destination||'NAS',path=b.dataset.upload;
   const job=transferRows.find(t=>t.source===path&&t.action!=='remove'&&uploadTarget(t)===dest);
   const busy=job&&!transferDone(job);
-  const uploaded=!busy&&(b.hasAttribute('data-stored')||(dest!=='Grus'&&job?.state==='完成'));
+  const uploaded=!busy&&(b.hasAttribute('data-stored')||(dest==='NAS'&&job?.state==='完成'));
   b.disabled=!!busy||uploaded||b.hasAttribute('data-readonly');
   b.classList.toggle('is-uploaded',uploaded);
-  b.textContent=b.hasAttribute('data-grus-remote')?b.dataset.grusRemote:busy?dest+' · '+job.state:uploaded?'已上传至 '+dest:job?.state==='失败'?'重试上传到 '+dest:b.hasAttribute('data-unverified')?dest+' · 待校验':'上传到 '+dest;
+  b.textContent=busy?dest+' · '+job.state:uploaded?'已上传至 '+dest:b.hasAttribute('data-prior-check')?dest+' · 上传时已校验':b.hasAttribute('data-unverified')?dest+' · 副本待核验':job?.state==='失败'?'重试上传到 '+dest:'上传到 '+dest;
   const icon=b.nextElementSibling;
-  const copyPath=b.dataset.storedPath||(dest==='Grus'?'':job?.destination)||'';
+  const copyPath=b.dataset.storedPath||(dest==='NAS'?job?.destination:'')||'';
   if(icon.dataset.copy!==copyPath){
    if(pathAnchor===icon)hidePathTip();
    icon.dataset.copy=copyPath;
@@ -871,14 +871,14 @@ function taskRow(g,peak){
  const time=date?'<time datetime="'+date.toISOString()+'">'+esc(date.toLocaleDateString('zh-CN'))+'<small>'+esc(date.toLocaleTimeString('zh-CN',{hour12:false}))+'</small></time>':'时间未知';
  return '<tr><td class="task-main"><div class="task-identity"><i class="task-folder" aria-hidden="true"></i><div class="task-text">'+
   button('group',g.path,name,'task-name','title="'+attr(full)+'" aria-label="'+attr(full)+'"')+(id.context?'<small>'+esc(id.context)+'</small>':'')+'</div>'+copyButton(g.copyPath)+'</div></td>'+
-  '<td class="task-origins"><div>'+origin('H800',g.h800)+origin('NAS',g.nas)+origin('Grus',g.grus)+'</div></td><td class="task-time">'+time+'</td>'+
+  '<td class="task-origins"><div>'+origin('H800',g.h800)+origin('NAS',g.nas)+origin('Grus',g.grus)+origin('Tianji',g.tianji)+'</div></td><td class="task-time">'+time+'</td>'+
   '<td class="task-count"><b>'+g.count+'</b><small> 个</small></td><td class="task-size"><b>'+size+'</b><div class="task-capacity" aria-hidden="true">'+fill+'</div>'+
   (known&&g.unmeasured?'<small>另有 '+g.unmeasured+' 项待统计</small>':'')+'</td></tr>';
 }
 function taskList(groups,matching){
  const peak=Math.max(1,...groups.map(g=>g.bytes));
  const rows=matching.slice(groupIndex*12,groupIndex*12+12).map(g=>taskRow(g,peak)).join('');
- return '<section class="surface task-library"><div class="task-heading"><h2>训练任务</h2><small>'+matching.length+' 个目录</small></div>'+
+ return '<section class="surface task-library"><div class="task-heading"><h2>训练任务</h2><small>'+matching.length+' 个任务</small></div>'+
   (rows?'<table class="task-table"><thead><tr><th scope="col">训练输出目录</th><th scope="col">副本来源</th><th scope="col" aria-sort="descending">最近保存 ↓</th><th scope="col">Checkpoints</th><th scope="col">已盘点大小</th></tr></thead><tbody>'+rows+'</tbody></table>':'<p class="empty">没有匹配的训练任务。</p>')+
   pageControls('gpage',groupIndex,matching.length,12)+'</section>';
 }
@@ -891,21 +891,24 @@ function checkpointCopyIcon(target,path=''){
 function checkpointLocations(c){
  const local=c.present&&overview.roots.some(root=>c.path.startsWith(root+'/'));
  const nasCopy=[...c.copies].sort((a,b)=>Number(b.verified)-Number(a.verified)||b.updated-a.updated)[0];
- let localTools=c.present?'<span class="ck-target"><span class="ck-local-name">H800</span>'+checkpointCopyIcon('H800',c.path)+'</span>':'';
- if(local&&overview.checkpointUploadEnabled&&nasCopy?.verified)localTools+=button('removeck',c.path,'删除 H800 本地副本','outline ck-danger');
+ let localTools=c.present?'<span class="ck-target"><span class="ck-local-name">H800</span>'+checkpointCopyIcon('H800',c.path)+'<small>'+(c.localBytes==null?'待统计':fmt(c.localBytes))+'</small></span>':'';
+ for(const replica of c.otherLocal||[])localTools+='<span class="ck-target">H800 '+checkpointCopyIcon('H800',replica.path)+'</span>';
+ if(local&&overview.checkpointUploadEnabled&&c.copies.some(x=>x.verified&&x.source===c.path))localTools+=button('removeck',c.path,'删除 H800 本地副本','outline ck-danger');
  let targets='';
  for(const dest of ['NAS','Grus','Tianji']){
   const job=transferRows.find(t=>t.source===c.path&&t.action!=='remove'&&uploadTarget(t)===dest);
-  const copy=dest==='NAS'?nasCopy:dest==='Grus'?c.grus:null;
-  const stored=!!copy?.verified;
+  const copy=dest==='NAS'?nasCopy:dest==='Grus'?c.grus:c.tianji;
+  const stored=!!copy?.verified&&(dest!=='NAS'||!local||copy.source===c.path);
   const allowed=local&&(dest!=='NAS'||overview.checkpointUploadEnabled);
   if(!allowed&&!copy&&!job)continue;
   const path=copy?.destination||'';
-  const grusAttrs=dest==='Grus'?'data-grus-task="'+attr(c.grusTask||'')+'" '+(copy&&!local&&!stored?'data-grus-remote="'+(copy.sourceKey?'Grus 远端权重':'Grus · 来源待确认')+'" ':''):'';
+  const grusAttrs=dest==='Grus'?'data-grus-task="'+attr(c.grusTask||'')+'" ':'';
   const attributes=grusAttrs+'data-destination="'+dest+'" data-stored-path="'+attr(path)+'"'+(stored?' data-stored':'')+
-   (copy&&!stored?' data-unverified':'')+(allowed?'':' data-readonly')+' disabled';
+   (copy?.previouslyVerified?' data-prior-check':'')+(copy&&!stored?' data-unverified':'')+(allowed?'':' data-readonly')+' disabled';
   const hint=dest==='NAS'?(stored?'完整副本已校验':'完整 checkpoint 副本'):'推理权重、配置和 tokenizer';
-  targets+='<span class="ck-target">'+button('upload',c.path,'上传到 '+dest,'ck-destination',attributes+' title="'+hint+'"')+checkpointCopyIcon(dest,path||(dest==='Grus'?'':job?.destination))+'</span>';
+  const others=(dest==='NAS'?c.copies:c[dest.toLowerCase()+'Copies']||[]).filter(x=>x.destination!==path);
+  targets+='<span class="ck-target">'+button('upload',c.path,'上传到 '+dest,'ck-destination',attributes+' title="'+hint+'"')+checkpointCopyIcon(dest,path||(dest==='NAS'?job?.destination:''))+
+   (copy?'<small>'+fmt(copy.bytes)+'</small>':'')+others.map(x=>checkpointCopyIcon(dest,x.destination)+'<small>'+fmt(x.bytes)+'</small>').join('')+'</span>';
  }
  return '<div class="ck-toolbar">'+(localTools?'<div class="ck-band"><small>本地</small>'+localTools+'</div>':'')+
   (targets?'<div class="ck-band ck-actions"><small>远端</small>'+targets+'</div>':'')+'</div>'+
@@ -915,14 +918,12 @@ function sourceGroups(items){
  const grouped=new Map();
  for(const row of items){
   let g=grouped.get(row.group);
-  if(!g){g={path:row.group,name:row.group.split('/').pop(),count:0,bytes:0,unmeasured:0,updated:0,h800:0,nas:0,grus:0,copyPath:row.group};grouped.set(row.group,g)}
+  if(!g){g={path:row.group,name:row.group.split('/').pop(),count:0,bytes:0,unmeasured:0,updated:0,h800:0,nas:0,grus:0,tianji:0,copyPath:row.group};grouped.set(row.group,g)}
   g.count++;g.bytes+=row.bytes||0;if(row.bytes==null)g.unmeasured++;
   if(row.present)g.h800++;if(row.copies.length)g.nas++;
-  if(row.grus){
-   g.grus++;
-   if(ckStore==='Grus'||(!g.h800&&!g.nas))g.copyPath=row.grus.destination.slice(0,row.grus.destination.lastIndexOf('/'));
-  }
-  if(ckStore!=='Grus'&&(row.present||row.copies.length))g.copyPath=row.group;
+  if(row.grus)g.grus++;
+  if(row.tianji)g.tianji++;
+  if(ckStore!=='all'&&row.displayPath)g.copyPath=row.displayPath.slice(0,row.displayPath.lastIndexOf('/'));
   g.updated=Math.max(g.updated,row.updated);
  }
  return [...grouped.values()].sort((a,b)=>b.updated-a.updated||a.path.localeCompare(b.path));
@@ -948,19 +949,25 @@ async function resourceView(){
  return tabs+datasetGraphics(all)+locations+(nasIssue?'<p class="feedback">'+esc(nasIssue)+'</p>':'')+chooser+form+list+storage}
  if(!ckSources)ckSources=await api('checkpoint-sources');
  try{await readTransfers()}catch{}
- tabs+='<div class="tools" aria-label="Checkpoint 来源">'+button('openscan','1','按路径检索','outline')+[['all','全部来源'],['H800','H800'],['NAS','NAS'],['Grus','Grus']].map(([id,n])=>button('ckstore',id,n,'chip','aria-pressed="'+(ckStore===id)+'"')).join('')+'</div>'+(ckSources.note?'<p class="feedback">'+esc(ckSources.note)+'</p>':'');
- const items=ckStore==='Grus'
-  ?ckSources.items.filter(c=>c.grus).map(c=>({...c,bytes:c.grus.bytes,updated:c.grus.updated}))
-  :ckSources.items.filter(c=>ckStore==='all'||(ckStore==='H800'?c.present:c.copies.length));
+ tabs+='<div class="tools" aria-label="Checkpoint 来源">'+button('openscan','1','按路径检索','outline')+[['all','全部来源'],['H800','H800'],['NAS','NAS'],['Grus','Grus'],['Tianji','Tianji']].map(([id,n])=>button('ckstore',id,n,'chip','aria-pressed="'+(ckStore===id)+'"')).join('')+'</div>'+(ckSources.note?'<p class="feedback">'+esc(ckSources.note)+'</p>':'');
+ const items=ckSources.items.flatMap(c=>{
+  const nas=[...c.copies].sort((a,b)=>Number(b.verified)-Number(a.verified)||b.updated-a.updated)[0];
+  const local=c.present?{destination:c.path,bytes:c.bytes,updated:c.localUpdated}:null;
+  const sources={H800:local,NAS:nas,Grus:c.grus,Tianji:c.tianji};
+  const copy=ckStore==='all'?(local||nas||c.grus||c.tianji):sources[ckStore];
+  return copy?[{...c,localBytes:local?.bytes,displayPath:copy.destination,bytes:copy.bytes,updated:ckStore==='all'?c.updated:copy.updated}]:[];
+ });
  const groups=sourceGroups(items);
  if(chosen){
-  const g=groups.find(x=>x.path===chosen);
+  const oldGroup=items.find(c=>[c.path,...c.copies.map(x=>x.destination),c.grus?.destination,c.tianji?.destination].some(p=>p&&p.slice(0,p.lastIndexOf('/'))===chosen))?.group;
+  const g=groups.find(x=>x.path===chosen)||groups.find(x=>x.path===oldGroup);
   if(!g)return tabs+'<p class="empty">该来源中没有此任务的 checkpoint。</p>'+button('backgroups','1','返回任务列表');
-  const selected=items.filter(c=>c.group===chosen);
-  if(selected.some(c=>c.present)&&!groupDetails.has(chosen)){
-   groupDetails.set(chosen,await api('checkpoints',{group:chosen}));
-  }
-  const metrics=new Map((groupDetails.get(chosen)||[]).map(c=>[c.path,c]));
+  const selected=items.filter(c=>c.group===g.path);
+  const parents=[...new Set(selected.filter(c=>c.present).map(c=>c.path.slice(0,c.path.lastIndexOf('/'))))];
+  await Promise.all(parents.map(async parent=>{
+   if(!groupDetails.has(parent))groupDetails.set(parent,await api('checkpoints',{group:parent}));
+  }));
+  const metrics=new Map(parents.flatMap(parent=>groupDetails.get(parent)).map(c=>[c.path,c]));
   const rows=selected.map(c=>({step:Number(c.name.match(/[0-9]+$/)?.[0]),...metrics.get(c.path),...c})).sort((a,b)=>b.updated-a.updated||b.step-a.step);
   return tabs+groupDetailView(g,rows);
  }
