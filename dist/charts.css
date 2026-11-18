@@ -271,3 +271,13 @@ i.crew-portrait{background-color:#050505;background-image:var(--crew-sheet);back
 .week-stack button:hover,.week-stack button:focus-visible{filter:brightness(1.14)}
 .week-col .gpu-day-total{display:block;font:600 11px var(--mono);color:var(--ink);font-variant-numeric:tabular-nums}
 .hours-plot .axis-y{margin-bottom:34px}
+
+#storageUsage .studio-switch,#trainingUsage .studio-switch{position:relative;isolation:isolate;max-width:100%;flex-wrap:wrap}
+.ranking-switch::before{content:'';position:absolute;left:var(--pick-x);top:var(--pick-y);width:var(--pick-w);height:var(--pick-h);border-radius:8px;background:var(--white);box-shadow:0 1px 4px #0002;transform-origin:left center;pointer-events:none;z-index:-1}
+.ranking-switch .studio-pick[aria-pressed=true]{background:transparent;box-shadow:none}
+#storageUsage .studio-pick,#trainingUsage .studio-pick{transition:color 140ms ease,opacity 80ms ease}
+#storageUsage button:active,#trainingUsage button:active{opacity:.7}
+.ranking-result[aria-busy=true] .usage-list{opacity:.5}
+@media(prefers-reduced-motion:reduce){#storageUsage .studio-pick,#trainingUsage .studio-pick{transition:none}}
+
+@media(prefers-reduced-motion:reduce){.ranking-switch::before{display:none}.ranking-switch .studio-pick[aria-pressed=true]{background:var(--white);box-shadow:0 1px 4px #0002}}

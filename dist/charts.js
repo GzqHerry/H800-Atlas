@@ -136,7 +136,107 @@ function dashboardOverview(){
  }).join('');
  return '<div class="summary" aria-label="我的作业与权重">'+cards+'</div><section class="surface volume-panel"><div class="line"><h2>存储余量</h2><small>个人配额与共享卷余量</small></div><div class="volume-grid">'+(volumes||chartEmpty('暂未读取到存储卷容量'))+'</div></section>';
 }
-const usageView={days:7, metric:'gpu', all:false, cache:new Map(), pending:new Set(), errors:new Set()};
+
+// Keep controls and user rows alive while their contents change.
+function rankingKey(node){
+ if(node.nodeType!==1)return '';
+ if(node.hasAttribute('data-rank-user'))return 'user/'+node.dataset.rankUser;
+ if(node.matches('.studio-switch'))return 'switch/'+node.getAttribute('aria-label');
+ if(node.tagName==='BUTTON')return 'button/'+[...node.attributes].filter(a=>a.name.startsWith('data-')).map(a=>a.name+'='+a.value).join('/');
+ return '';
+}
+function patchRanking(parent,template){
+ const old=[...parent.childNodes], used=new Set();
+ const keyed=new Map(old.filter(n=>rankingKey(n)).map(n=>[rankingKey(n),n]));
+ let cursor=parent.firstChild;
+ for(const fresh of [...template.childNodes]){
+  const key=rankingKey(fresh);
+  let node=key?keyed.get(key):old.find(n=>!used.has(n)&&!rankingKey(n)&&n.nodeType===fresh.nodeType&&n.nodeName===fresh.nodeName);
+  if(!node)node=fresh.cloneNode(true);
+  else if(node.nodeType===1){
+   for(const a of [...node.attributes])if(!fresh.hasAttribute(a.name))node.removeAttribute(a.name);
+   for(const a of fresh.attributes)if(node.getAttribute(a.name)!==a.value)node.setAttribute(a.name,a.value);
+   patchRanking(node,fresh);
+  }else if(node.nodeValue!==fresh.nodeValue)node.nodeValue=fresh.nodeValue;
+  used.add(node);
+  if(node!==cursor)parent.insertBefore(node,cursor);
+  cursor=node.nextSibling;
+ }
+ for(const node of old)if(!used.has(node))node.remove();
+}
+function rankingSnapshot(panel){
+ return new Map([...panel.querySelectorAll('[data-rank-user],.studio-switch,.usage-list,.storage-list,.storage-layout,.storage-summary,.storage-files')].map(node=>{
+  const bar=node.querySelector('.usage-track i,.storage-bar i');
+  const active=node.matches('.studio-switch')?node.querySelector('[aria-pressed=true]'):null;
+  let selection=active?.getBoundingClientRect();
+  if(active&&node.classList.contains('ranking-switch')){
+   const style=getComputedStyle(node,'::before'),matrix=new DOMMatrixReadOnly(style.transform);
+   const rect=node.getBoundingClientRect();
+   selection={left:rect.left+parseFloat(style.left)+matrix.e,top:rect.top+parseFloat(style.top)+matrix.f,width:parseFloat(style.width)*matrix.a};
+  }
+  return [node,{rect:node.getBoundingClientRect(),bar:bar?.getBoundingClientRect().width,active:selection}];
+ }));
+}
+function rankingAnimate(node,frames,duration=200){
+ const animation=node.animate(frames,{duration,easing:'cubic-bezier(.2,.7,.2,1)'});
+ animation.finished.catch(()=>{});
+ return animation;
+}
+function updateRanking(panel,html,motion=''){
+ const reduce=matchMedia('(prefers-reduced-motion: reduce)').matches;
+ const before=rankingSnapshot(panel);
+ const focus=document.activeElement;
+ const scrollTop=window.scrollY;
+ // Read the current visual position before cancelling an interrupted transition.
+ panel.getAnimations({subtree:true}).filter(a=>a.effect?.target!==panel||panel.tagName!=='DIALOG').forEach(a=>a.cancel());
+ const template=document.createElement('template');template.innerHTML=html;
+ patchRanking(panel,template.content);
+ if(focus?.isConnected&&panel.contains(focus)&&document.activeElement!==focus)focus.focus({preventScroll:true});
+ if(reduce)return;
+ for(const group of panel.querySelectorAll('.studio-switch')){
+  const active=group.querySelector('[aria-pressed=true]');if(!active)continue;
+  const r=active.getBoundingClientRect(),g=group.getBoundingClientRect(),old=before.get(group)?.active;
+  group.classList.add('ranking-switch');
+  group.style.setProperty('--pick-x',(r.left-g.left)+'px');group.style.setProperty('--pick-y',(r.top-g.top)+'px');
+  group.style.setProperty('--pick-w',r.width+'px');group.style.setProperty('--pick-h',r.height+'px');
+  if(motion&&old&&Math.abs(old.top-r.top)<4){
+   const a=group.animate([{transform:'translate('+(old.left-r.left)+'px,0) scaleX('+(old.width/r.width)+')'},{transform:'none'}],
+    {duration:160,easing:'cubic-bezier(.2,.7,.2,1)',pseudoElement:'::before'});
+   a.finished.catch(()=>{});
+  }
+ }
+ if(!motion)return;
+ const fade=motion==='fade'||motion==='next'||motion==='previous';
+ const list=panel.querySelector('.usage-list,.storage-list,.storage-files');
+ if(list){
+  const old=before.get(list),height=list.getBoundingClientRect().height;
+  if(old&&Math.abs(old.rect.height-height)>1){
+   rankingAnimate(list,[{height:old.rect.height+'px',overflow:'hidden'},{height:height+'px',overflow:'hidden'}],motion==='expand'?220:160);
+  }
+  if(fade)rankingAnimate(list,[{opacity:.25,transform:'translateX('+(motion==='previous'?-6:motion==='next'?6:0)+'px)'},{opacity:1,transform:'none'}],160);
+ }
+ if(fade){
+  const summary=panel.querySelector('.storage-summary');
+  if(summary)rankingAnimate(summary,[{opacity:.35},{opacity:1}],160);
+ }else{
+  for(const row of panel.querySelectorAll('[data-rank-user]')){
+   const old=before.get(row),rect=row.getBoundingClientRect();
+   if(old){
+    const dy=old.rect.top-rect.top;
+    if(Math.abs(dy)>1)rankingAnimate(row,[{transform:'translateY('+dy+'px)'},{transform:'none'}],220);
+    const bar=row.querySelector('.usage-track i,.storage-bar i');
+    if(bar&&old.bar!=null)rankingAnimate(bar,[{width:old.bar+'px'},{width:bar.style.width}],200);
+   }else rankingAnimate(row,[{opacity:0},{opacity:1}],180);
+  }
+ }
+ // Keep the collapse control within reach when a long ranking contracts above the viewport.
+ if(motion==='expand'&&scrollTop>panel.getBoundingClientRect().top+window.scrollY){
+  const button=panel.querySelector('[data-usageall]');
+  if(button&&button.getBoundingClientRect().bottom<0)button.scrollIntoView({block:'center',behavior:'instant'});
+ }
+}
+
+const usageView={days:7, metric:'gpu', all:false, displayedDays:7, motion:'', cache:new Map(), pending:new Set(), errors:new Set()};
 const usageMetrics={gpu:'GPU 卡时', time:'作业时长', jobs:'作业数', success:'作业完成率'};
 const usageNumber=new Intl.NumberFormat('zh-CN',{maximumFractionDigits:1});
 
@@ -163,7 +263,7 @@ function usageRanking(data){
  const scale=metric==='success'?100:sorted[0]?.value||1;
  const rows=visible.map(r=>{
   const personal=r.user===me, value=usageFormat(r.value,metric);
-  return '<li class="usage-row'+(personal?' usage-mine':'')+'"><span class="usage-rank">'+r.rank+'</span><span class="usage-name" title="'+attr(r.user)+'">'+personLabel(r.user)+'</span>'+
+  return '<li class="usage-row'+(personal?' usage-mine':'')+'" data-rank-user="'+attr(r.user)+'"><span class="usage-rank">'+r.rank+'</span><span class="usage-name" title="'+attr(r.user)+'">'+personLabel(r.user)+'</span>'+
    '<span class="usage-track" aria-hidden="true"><i style="width:'+100*(r.value||0)/scale+'%"></i></span>'+
    '<span class="usage-value">'+value+(metric==='success'?'<small>'+r.completed+' / '+r.ended+' 已结束</small>':'')+'</span></li>';
  }).join('');
@@ -185,18 +285,20 @@ function rankIcon(kind){
 }
 function usageCard(){
  const {days,cache,errors}=usageView, data=cache.get(days), failed=errors.has(days);
+ if(data)usageView.displayedDays=days;
+ const previous=cache.get(usageView.displayedDays);
+ const waiting=!data&&previous;
+ const status=waiting?(failed?'读取近 '+days+' 天失败':'正在读取近 '+days+' 天')+' · 暂显示近 '+usageView.displayedDays+' 天':'';
  const period=[7,30].map(n=>control('usagedays',n,'近 '+n+' 天',days===n)).join('');
- const hint=failed?'暂时无法更新':data?'采样于 '+chartTime(data.stamp):'读取 Slurm 记账数据中…';
+ const hint=status|| (failed?'暂时无法更新':data?'采样于 '+chartTime(data.stamp):'读取 Slurm 记账数据中…');
  return '<div class="studio-heading"><div class="usage-title">'+rankIcon('gpu')+'<div><h2>GPU 用量排行</h2><small>当前账号可见的用户 · '+hint+'</small></div></div><div class="studio-switch" role="group" aria-label="统计周期">'+period+'</div></div>'+
-  (data?usageRanking(data):chartEmpty(failed?'Slurm 记账数据暂时不可用。':'正在汇总 GPU 作业…'))+
+  (data||waiting?'<div class="ranking-result" aria-busy="'+!!waiting+'">'+usageRanking(data||previous)+'</div>':chartEmpty(failed?'Slurm 记账数据暂时不可用。':'正在汇总 GPU 作业…'))+
   (failed?button('usageretry','1','重新读取','link'):'');
 }
-function refreshUsageCard(){
+function refreshUsageCard(motion=''){
  const panel=$('trainingUsage');if(page!==0||!panel)return;
- const active=document.activeElement;
- const key=panel.contains(active)?Object.entries(active.dataset).find(([k])=>k.startsWith('usage')):null;
- panel.innerHTML=usageCard();
- if(key)panel.querySelector('[data-'+key[0]+'="'+key[1]+'"]')?.focus({preventScroll:true});
+ updateRanking(panel,usageCard(),motion||usageView.motion);
+ if(usageView.cache.has(usageView.days)||usageView.errors.has(usageView.days))usageView.motion='';
 }
 async function loadUsage(){
  const {days,cache,pending,errors}=usageView;
@@ -232,10 +334,10 @@ async function loadStudio(){
 document.addEventListener('click',e=>{
  const b=e.target.closest('button');if(!b||page!==0)return;const d=b.dataset;
  if(d.usagedays||d.usagemetric||d.usageall||d.usageretry){
-  if(d.usagedays){usageView.days=Number(d.usagedays);usageView.all=false}
-  if(d.usagemetric)usageView.metric=d.usagemetric;
+  if(d.usagedays){if(usageView.days===Number(d.usagedays))return;usageView.days=Number(d.usagedays);usageView.all=false;usageView.motion='reorder'}
+  if(d.usagemetric){if(usageView.metric===d.usagemetric)return;usageView.metric=d.usagemetric}
   if(d.usageall)usageView.all=!usageView.all;
-  refreshUsageCard();if(d.usagedays||d.usageretry)loadUsage();return;
+  refreshUsageCard(d.usageall?'expand':d.usagemetric?'reorder':'fade');if(d.usagedays||d.usageretry)loadUsage();return;
  }
  if(d.metric==='ck'){ckStore='H800';setResource('ck');return}
  else if(d.metric){selectedState=d.metric==='all'?'':d.metric;selectedJob='';navigate(2);return}
@@ -252,4 +354,15 @@ document.addEventListener('click',e=>{
 document.addEventListener('change',e=>{
  if(e.target.id==='eval-set'){studio.evalSet=e.target.value;studio.evalPath=''}
  else return;render();
+});
+
+window.addEventListener('resize',()=>{
+ for(const panel of document.querySelectorAll('#storageUsage,#trainingUsage')){
+  for(const group of panel.querySelectorAll('.ranking-switch')){
+   const active=group.querySelector('[aria-pressed=true]');if(!active)continue;
+   const r=active.getBoundingClientRect(),g=group.getBoundingClientRect();
+   group.style.setProperty('--pick-x',(r.left-g.left)+'px');group.style.setProperty('--pick-y',(r.top-g.top)+'px');
+   group.style.setProperty('--pick-w',r.width+'px');group.style.setProperty('--pick-h',r.height+'px');
+  }
+ }
 });
