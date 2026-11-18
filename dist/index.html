@@ -249,7 +249,12 @@ html[data-theme=dark] .upload-meter.moving{--meter:#5599ff;--tip:#79c9ff}
  <p id="ckRemoveName"></p>
  <p>Atlas 会重新比对 NAS 和 H800 上的文件。校验通过后，将永久删除这个本地 checkpoint。</p>
  <div class="tools"><button id="ckRemoveCancel" class="outline" autofocus>取消</button><button id="ckRemoveConfirm" class="outline ck-danger">确认校验并删除</button></div>
-</dialog><dialog id="ckScanDialog" aria-labelledby="ckScanTitle"><form id="ckScanForm">
+</dialog><dialog id="grusUploadDialog" aria-labelledby="grusUploadTitle"><form id="grusUploadForm">
+<h2 id="grusUploadTitle">上传推理权重到 Grus</h2><small>H800 来源</small><code id="grusSourcePath"></code>
+<label for="grusTaskName">训练任务目录名</label><input id="grusTaskName" required autocomplete="off">
+<small>Grus 目标路径</small><code id="grusDestination" aria-live="polite"></code>
+<div class="tools"><button type="button" class="outline" id="grusCancel">取消</button><button class="outline">确认上传</button></div>
+</form></dialog><dialog id="ckScanDialog" aria-labelledby="ckScanTitle"><form id="ckScanForm">
 <h2 id="ckScanTitle">按路径检索 Checkpoint</h2><label for="ckScanPath">H800 训练输出目录</label>
 <input id="ckScanPath" required placeholder="/workspace/用户名/训练输出目录" autocomplete="off">
 <small>检索该目录及其子目录，按训练任务加入你的 Checkpoints。</small><p id="ckScanFeedback" role="status"></p>
@@ -689,12 +694,12 @@ function refreshTransferViews(){
   const dest=b.dataset.destination||'NAS',path=b.dataset.upload;
   const job=transferRows.find(t=>t.source===path&&t.action!=='remove'&&uploadTarget(t)===dest);
   const busy=job&&!transferDone(job);
-  const uploaded=!busy&&(b.hasAttribute('data-stored')||job?.state==='完成');
+  const uploaded=!busy&&(b.hasAttribute('data-stored')||(dest!=='Grus'&&job?.state==='完成'));
   b.disabled=!!busy||uploaded||b.hasAttribute('data-readonly');
   b.classList.toggle('is-uploaded',uploaded);
-  b.textContent=busy?dest+' · '+job.state:uploaded?'已上传至 '+dest:job?.state==='失败'?'重试上传到 '+dest:b.hasAttribute('data-unverified')?dest+' · 待校验':'上传到 '+dest;
+  b.textContent=b.hasAttribute('data-grus-remote')?b.dataset.grusRemote:busy?dest+' · '+job.state:uploaded?'已上传至 '+dest:job?.state==='失败'?'重试上传到 '+dest:b.hasAttribute('data-unverified')?dest+' · 待校验':'上传到 '+dest;
   const icon=b.nextElementSibling;
-  const copyPath=b.dataset.storedPath||job?.destination||'';
+  const copyPath=b.dataset.storedPath||(dest==='Grus'?'':job?.destination)||'';
   if(icon.dataset.copy!==copyPath){
    if(pathAnchor===icon)hidePathTip();
    icon.dataset.copy=copyPath;
@@ -741,9 +746,29 @@ $('ckRemoveConfirm').onclick=async()=>{
  }catch(e){removalNotices.set(path,'清理请求未确认：'+e.message)}
  finally{pendingRemovals.delete(path);refreshTransferViews()}
 };
-async function sendCheckpoint(b,path,destination='NAS'){
+function previewGrus(b){
+ const dialog=$('grusUploadDialog');
+ dialog.dataset.source=b.dataset.upload;
+ $('grusSourcePath').textContent=b.dataset.upload;
+ $('grusTaskName').value=b.dataset.grusTask||'';
+ $('grusTaskName').oninput();
+ dialog.showModal();
+}
+$('grusTaskName').oninput=()=>{
+ const task=$('grusTaskName').value.trim();
+ $('grusDestination').textContent='/mnt/data0/arx_ckpts/'+(task||'〈训练任务〉')+'/'+$('grusUploadDialog').dataset.source.split('/').pop()+'/';
+};
+$('grusCancel').onclick=()=>$('grusUploadDialog').close();
+$('grusUploadForm').onsubmit=e=>{
+ e.preventDefault();
+ const path=$('grusUploadDialog').dataset.source;
+ const button=document.querySelector('[data-destination="Grus"][data-upload="'+CSS.escape(path)+'"]');
+ $('grusUploadDialog').close();
+ if(button&&!button.disabled)sendCheckpoint(button,path,'Grus',$('grusTaskName').value.trim());
+};
+async function sendCheckpoint(b,path,destination='NAS',grusTask){
  b.disabled=true;b.dataset.submitting='1';b.textContent='正在提交…';
- try{const r=await atlasFetch('/api/upload',{method:'POST',headers:{'Content-Type':'application/json','X-Atlas-Action':'upload'},body:JSON.stringify({path,destination})});if(r.status===401){loginPage();return}const job=await r.json();if(!r.ok)throw Error(job.error||'提交失败');
+ try{const r=await atlasFetch('/api/upload',{method:'POST',headers:{'Content-Type':'application/json','X-Atlas-Action':'upload'},body:JSON.stringify({path,destination,grusTask})});if(r.status===401){loginPage();return}const job=await r.json();if(!r.ok)throw Error(job.error||'提交失败');
  transferRevision++;transferRows=[job,...transferRows.filter(t=>t.id!==job.id)];delete b.dataset.submitting;refreshTransferViews()
  }catch(e){b.textContent='重试上传到 '+destination;b.disabled=false;$('status').textContent=e.message}
  finally{delete b.dataset.submitting}
@@ -872,14 +897,15 @@ function checkpointLocations(c){
  for(const dest of ['NAS','Grus','Tianji']){
   const job=transferRows.find(t=>t.source===c.path&&t.action!=='remove'&&uploadTarget(t)===dest);
   const copy=dest==='NAS'?nasCopy:dest==='Grus'?c.grus:null;
-  const stored=dest==='NAS'?copy?.verified:!!copy;
+  const stored=!!copy?.verified;
   const allowed=local&&(dest!=='NAS'||overview.checkpointUploadEnabled);
   if(!allowed&&!copy&&!job)continue;
   const path=copy?.destination||'';
-  const attributes='data-destination="'+dest+'" data-stored-path="'+attr(path)+'"'+(stored?' data-stored':'')+
+  const grusAttrs=dest==='Grus'?'data-grus-task="'+attr(c.grusTask||'')+'" '+(copy&&!local&&!stored?'data-grus-remote="'+(copy.sourceKey?'Grus 远端权重':'Grus · 来源待确认')+'" ':''):'';
+  const attributes=grusAttrs+'data-destination="'+dest+'" data-stored-path="'+attr(path)+'"'+(stored?' data-stored':'')+
    (copy&&!stored?' data-unverified':'')+(allowed?'':' data-readonly')+' disabled';
   const hint=dest==='NAS'?(stored?'完整副本已校验':'完整 checkpoint 副本'):'推理权重、配置和 tokenizer';
-  targets+='<span class="ck-target">'+button('upload',c.path,'上传到 '+dest,'ck-destination',attributes+' title="'+hint+'"')+checkpointCopyIcon(dest,path||job?.destination)+'</span>';
+  targets+='<span class="ck-target">'+button('upload',c.path,'上传到 '+dest,'ck-destination',attributes+' title="'+hint+'"')+checkpointCopyIcon(dest,path||(dest==='Grus'?'':job?.destination))+'</span>';
  }
  return '<div class="ck-toolbar">'+(localTools?'<div class="ck-band"><small>本地</small>'+localTools+'</div>':'')+
   (targets?'<div class="ck-band ck-actions"><small>远端</small>'+targets+'</div>':'')+'</div>'+
@@ -1335,6 +1361,7 @@ document.addEventListener('click',async e=>{const b=e.target.closest('button');i
  else if(d.group)setResource('ck',d.group);
  else if(d.backgroups)setResource('ck');
  else if(d.gpage!==undefined){groupIndex=+d.gpage;render()}
+ else if(d.upload&&d.destination==='Grus')previewGrus(b);
  else if(d.upload)await sendCheckpoint(b,d.upload,d.destination||'NAS');
  else if(d.gputoggle){if(expandedGpus.has(d.gputoggle))expandedGpus.delete(d.gputoggle);else expandedGpus.add(d.gputoggle);paintGpu()}
  else if(d.cputoggle){if(expandedCpus.has(d.cputoggle))expandedCpus.delete(d.cputoggle);else expandedCpus.add(d.cputoggle);paintCpu()}

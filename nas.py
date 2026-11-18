@@ -154,6 +154,8 @@ def enqueue(checkpoint, action='upload', job_id=None):
         fcntl.flock(lock,fcntl.LOCK_EX)
         for j in job_list():
             if j['source']==checkpoint['path'] and j['state'] not in ('完成','失败'):
+                if action == j.get('action') == 'upload-grus' and checkpoint.get('grusTask') != j['meta'].get('grusTask'):
+                    raise ValueError('该 checkpoint 正在上传到另一个 Grus 任务目录')
                 if j.get('host','h800-node11')!=os.uname().nodename.lower():
                     if j.get('action','upload')==action:return j
                     raise ValueError('该 checkpoint 在其他节点已有操作')

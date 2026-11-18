@@ -558,6 +558,42 @@ def overview():
         if p.is_dir():
             u=shutil.disk_usage(p);mounts.append(dict(name=k,used=u.used,total=u.total,free=u.free))
     return dict(mounts=mounts,stamp=int(time.time()),user=H.name,home=str(H),checkpointUploadEnabled=nas.enabled(),roots=[str(p) for p in ROOTS if p.is_dir()],host=os.uname().nodename,zone=time.strftime('%Z'))
+def merge_grus_copies(rows, copies):
+    by_source = {}
+    destinations = {}
+    for copy in copies:
+        if copy.get('taskKey'):
+            destinations.setdefault(copy['taskKey'], set()).add(Path(copy['destination']).parent.name)
+    for row in rows.values():
+        path = Path(row['path'])
+        task_key, source_key = grus.source_keys(path)
+        known = destinations.get(task_key, set())
+        row['grusTask'] = next(iter(known)) if len(known) == 1 else ('' if known else grus.suggested_task(path, ROOTS))
+        by_source[source_key] = row
+    receipts = {(j.get('grusSource'), j.get('grusPayload'), j.get('destination'), j.get('grusStamp'))
+                for j in nas.job_list() if j.get('grusSource') and j.get('verified') and j.get('state') == '完成'}
+    for copy in copies:
+        destination = Path(copy['destination'])
+        key = copy.get('sourceKey')
+        row = by_source.get(key)
+        if row and row['present']:
+            try:
+                stamp = grus.source_stamp(grus.inference_files(Path(row['path']), include_ctime=True))
+                if stamp != copy['sourceStamp'] and (key, copy['payload'], str(destination), stamp) not in receipts:
+                    row = None
+            except (OSError, ValueError, TypeError):
+                row = None
+        if row and not row.get('grus'):
+            copy = dict(copy, verified=True)
+            row['grusTask'] = destination.parent.name
+        else:
+            row = dict(path=str(destination), group=str(destination.parent), name=destination.name,
+                       present=False, bytes=copy['bytes'], updated=copy['updated'], copies=[])
+            rows[str(destination)] = row
+        row['grus'] = copy
+        row['updated'] = max(row['updated'], copy['updated'])
+
+
 def checkpoint_sources():
     rows={}
     for parent,names in checkpoint_groups(H).items():
@@ -584,22 +620,7 @@ def checkpoint_sources():
         note = ' · '.join(filter(None, (note, '当前账号暂时无法读取 Grus')))
     if remote.get('partial'):
         note = ' · '.join(filter(None, (note, '部分 Grus 目录不可读取或缺少推理文件')))
-    parents = {}
-    for row in rows.values():
-        parent = Path(row['group'])
-        parents.setdefault(parent.name, set()).add(parent)
-    for copy in remote['items']:
-        destination = Path(copy['destination'])
-        candidates = parents.get(destination.parent.name, set()) if destination.parent != Path('/mnt/data0/arx_ckpts') else set()
-        if len(candidates) == 1:
-            group = next(iter(candidates))
-        else:
-            group = destination.parent
-        key = str(group / destination.name)
-        row = rows.setdefault(key, dict(path=key, group=str(group), name=destination.name,
-                                        present=False, bytes=copy['bytes'], updated=copy['updated'], copies=[]))
-        row['grus'] = copy
-        row['updated'] = max(row['updated'], copy['updated'])
+    merge_grus_copies(rows, remote['items'])
     return dict(items=list(rows.values()),note=note)
 
 def route(method, target, body):
@@ -644,7 +665,13 @@ def route(method, target, body):
         grant=body.get('tianjiGrant') if action=='upload-tianji' else None
         if action=='upload-tianji' and not re.fullmatch('[0-9a-f]{32}',grant or ''):
             return 403,dict(error='请通过 Atlas 登录后提交 Tianji 上传')
-        return 202,nas.enqueue(dict(name=path.name,group=str(path.parent),path=str(path),resolved=str(source),kind='checkpoint'),action,grant)
+        meta = dict(name=path.name,group=str(path.parent),path=str(path),resolved=str(source),kind='checkpoint')
+        if action == 'upload-grus':
+            task = body.get('grusTask', grus.suggested_task(path, ROOTS))
+            if not grus.valid_task(task):
+                return 400, dict(error='请指定明确的训练任务目录名，不能使用路径、公共目录名或 checkpoint 编号')
+            meta['grusTask'] = task
+        return 202,nas.enqueue(meta,action,grant)
     routes={'/api/job-command':lambda:lookup_command(q.get('id','')),'/api/nas':nas.catalog,'/api/uploads':nas.job_list,'/api/cluster':cluster,'/api/checkpoint-groups':lambda:checkpoint_index(H),'/api/checkpoints':lambda:checkpoint_detail(H,q.get('group',''),safe),'/api/size':lambda:measure(q),'/api/overview':overview,'/api/jobs':jobs,'/api/files':lambda:files(q),'/api/detail':lambda:detail(q.get('id',''),(q.get('metric'),q.get('axis')))}
     routes['/api/checkpoint-sources']=checkpoint_sources
     routes['/api/training-summary']=lambda:charts.training_summary(H,safe)

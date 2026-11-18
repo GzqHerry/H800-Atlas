@@ -1,4 +1,5 @@
 """Read inference checkpoint metadata on the Grus host. No weight tensors are read."""
+import hashlib
 import json
 import re
 import socket
@@ -24,7 +25,31 @@ def read_checkpoint(folder):
                 break
     else:
         return None
-    return dict(destination=str(folder), bytes=sum(files.values()), updated=int(folder.stat().st_mtime))
+    marker = folder / '.atlas-grus-source.json'
+    row = dict(destination=str(folder), bytes=sum(v for k,v in files.items() if k != marker.name),
+               updated=int(folder.stat().st_mtime))
+    if not marker.is_file() or marker.is_symlink():
+        return row
+    task_file = folder.parent / '.atlas-grus-task'
+    try:
+        record = json.loads(marker.read_text())
+        manifest = record['files']
+        if (record['schema'] != 1 or record['destination'] != str(folder)
+                or not task_file.is_file() or task_file.is_symlink()
+                or task_file.read_text() != record['taskKey']
+                or set(manifest) != set(files) - {marker.name}
+                or not all(re.fullmatch('[0-9a-f]{64}',record[k]) for k in ('sourceKey','payload','sourceStamp'))
+                or hashlib.sha256(json.dumps(manifest,sort_keys=True).encode()).hexdigest() != record['payload']):
+            return row
+        for name, item in manifest.items():
+            st = (folder / name).stat()
+            if (item['size'] != st.st_size or
+                    record['stats'][name] != [st.st_ino, st.st_size, st.st_mtime_ns, st.st_ctime_ns]):
+                return row
+        row.update({k:record[k] for k in ('taskKey','sourceKey','payload','sourceStamp')})
+    except (OSError, ValueError, KeyError, TypeError, AttributeError):
+        pass
+    return row
 
 
 def inventory():

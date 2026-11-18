@@ -16,6 +16,38 @@ SIDECARS = (
     'special_tokens_map.json', 'added_tokens.json', 'vocab.json', 'vocab.txt', 'merges.txt',
     'generation_config.json', 'preprocessor_config.json', 'processor_config.json',
 )
+CONTAINERS = {'checkpoints', 'checkpoint', 'ckpts', 'output', 'outputs', 'preflight', 'train_runs', 'enactive-runs'}
+
+
+def valid_task(name):
+    return (isinstance(name, str) and bool(name.strip()) and name == name.strip()
+            and not name.startswith('.') and '/' not in name and chr(92) not in name
+            and name.isprintable() and len(name.encode()) <= 200
+            and name.casefold() not in CONTAINERS and not re.fullmatch(r'(?:checkpoint-|global_step_)?[0-9]+', name))
+
+
+def suggested_task(source, roots):
+    parent = source.parent
+    while parent.name.casefold() in CONTAINERS:
+        parent = parent.parent
+    return parent.name if any(root in parent.parents for root in roots) and valid_task(parent.name) else ''
+
+
+def json_digest(value):
+    return hashlib.sha256(json.dumps(value, sort_keys=True).encode()).hexdigest()
+
+
+def source_keys(path):
+    # Scratch paths on different nodes identify different files.
+    node = os.uname().nodename if path.parts[1:2] == ('scratch',) else ''
+    task = json_digest(['H800', Path.home().name, node, str(path.parent)])
+    return task, json_digest([task, path.name])
+
+
+def source_stamp(inventory):
+    return json_digest({name: record[1:] for name, record in inventory.items()})
+
+
 REMOTE = """
 import fcntl, hashlib, json, os, pathlib, re, shutil, socket, sys
 q = json.load(sys.stdin)
@@ -38,7 +70,31 @@ for path in (root, parent, final, stage):
         raise ValueError('Unexpected link in checkpoint destination')
 if not root.is_dir():
     raise ValueError('Checkpoint volume unavailable on ' + label)
-parent.mkdir(exist_ok=True)
+proof_name = '.atlas-grus-source.json'
+if label == 'Grus':
+    owner = q['taskKey']
+    if not all(re.fullmatch('[0-9a-f]{64}', q[k]) for k in ('taskKey','sourceKey','payload')):
+        raise ValueError('Invalid source identity')
+    # Reserve a new task under the root lock. Never adopt an unmarked legacy directory.
+    fd = os.open(root, os.O_RDONLY)
+    try:
+        fcntl.flock(fd, fcntl.LOCK_EX)
+        task_file = parent / '.atlas-grus-task'
+        if not parent.exists():
+            import tempfile
+            tmp = pathlib.Path(tempfile.mkdtemp(prefix='.atlas-task-', dir=root))
+            try:
+                (tmp / task_file.name).write_text(owner)
+                tmp.chmod(0o755)
+                tmp.rename(parent)
+            finally:
+                if tmp.exists(): shutil.rmtree(tmp)
+        if task_file.is_symlink() or not task_file.is_file() or task_file.read_text() != owner:
+            raise ValueError('Grus 任务目录已存在，来源不同或待确认；请选择其他任务目录名')
+    finally:
+        os.close(fd)
+else:
+    parent.mkdir(exist_ok=True)
 files = q['files']
 if not files or any(not n or n in ('.','..') or pathlib.Path(n).name != n for n in files):
     raise ValueError('Invalid file list')
@@ -54,13 +110,32 @@ def verify(folder):
         if h.hexdigest() != record['sha256']:
             raise ValueError('Checksum differs: ' + n)
     extra = {p.name for p in folder.iterdir()} - set(files)
+    if label == 'Grus':
+        extra.discard(proof_name)
     if extra - {'checkpoint_validation.json','training_complete.json','SHA256SUMS'}:
         raise ValueError('Unexpected files at destination')
+def file_stamp(path):
+    st = path.stat()
+    return [st.st_ino, st.st_size, st.st_mtime_ns, st.st_ctime_ns]
+
+def proof(folder):
+    return dict(schema=1, taskKey=q['taskKey'], sourceKey=q['sourceKey'], payload=q['payload'],
+                destination=str(final), files=files, stats={n:file_stamp(folder/n) for n in files})
+
+def require_source():
+    if label != 'Grus': return
+    marker = final / proof_name
+    stored = json.loads(marker.read_text()) if marker.is_file() and not marker.is_symlink() else {}
+    stored.pop('sourceStamp', None)
+    if stored != proof(final):
+        raise ValueError('Grus 目标已存在，来源或内容不一致；已保留现有文件')
+
 if q['action'] == 'prepare':
+    if final.exists(): require_source()
     if not final.exists():
         stage.mkdir(mode=0o700, exist_ok=True)
         for child in stage.iterdir():
-            if child.name not in files or child.is_symlink() or not child.is_file():
+            if (child.name not in files and not (label == 'Grus' and child.name == proof_name)) or child.is_symlink() or not child.is_file():
                 raise ValueError('Unexpected staging file')
         needed = sum(max(0, rec['size'] - (stage/n).stat().st_size)
                      if (stage/n).exists() else rec['size'] for n, rec in files.items())
@@ -73,11 +148,14 @@ elif q['action'] == 'publish':
     try:
         fcntl.flock(fd, fcntl.LOCK_EX)
         if final.exists():
+            require_source()
             verify(final)
         else:
             mask = os.umask(0)
             os.umask(mask)
             stage.chmod(0o777 & ~mask)
+            if label == 'Grus':
+                (stage / proof_name).write_text(json.dumps(dict(proof(stage), sourceStamp=q['sourceStamp']),sort_keys=True))
             stage.rename(final)
     finally:
         os.close(fd)
@@ -87,7 +165,7 @@ print(json.dumps(dict(done=final.is_dir(), stage=str(stage), final=str(final))))
 """
 
 
-def inference_files(path, *, descriptor_view=False):
+def inference_files(path, *, descriptor_view=False, include_ctime=False):
     names = {'config.json'}
     for stem, suffix in (('model', '.safetensors'), ('pytorch_model', '.bin')):
         weight = stem + suffix
@@ -118,6 +196,8 @@ def inference_files(path, *, descriptor_view=False):
             raise ValueError('推理文件缺失或为链接：' + name)
         st = file.stat()
         result[name] = (st.st_dev, st.st_ino, st.st_size, st.st_mtime_ns)
+        if include_ctime:
+            result[name] += (st.st_ctime_ns,)
     return result
 
 
@@ -146,9 +226,17 @@ def checkpoints():
 
 
 def upload(path, job, update, transfer, target_name='Grus', *, source_fds=(), source_uid=None):
+    group = Path(job['meta']['group']).name
+    identity = {}
+    if target_name == 'Grus':
+        group = job['meta'].get('grusTask')
+        if not valid_task(group):
+            raise ValueError('请选择 Grus 训练任务目录后重新上传')
+        task_key, source_key = source_keys(Path(job['source']))
+        identity = dict(taskKey=task_key, sourceKey=source_key)
     host, ssh = connection(target_name)
     def inventory():
-        return inference_files(path, descriptor_view=bool(source_fds))
+        return inference_files(path, descriptor_view=bool(source_fds), include_ctime=bool(identity))
     source = inventory()
     size = sum(st[2] for st in source.values())
     files = {}
@@ -162,9 +250,12 @@ def upload(path, job, update, transfer, target_name='Grus', *, source_fds=(), so
     if inventory() != source:
         raise ValueError('校验期间推理文件发生变化，请重试')
     version = hashlib.sha256(json.dumps([job['source'], os.getuid() if source_uid is None else source_uid, files], sort_keys=True).encode()).hexdigest()[:32]
+    if identity:
+        version = json_digest([version, job['id']])[:32]
+        identity.update(payload=json_digest(files), sourceStamp=source_stamp(source))
     def remote(action):
-        request = dict(action=action, target=target_name, group=Path(job['meta']['group']).name, name=path.name,
-                       version=version, files=files)
+        request = dict(action=action, target=target_name, group=group, name=path.name,
+                       version=version, files=files, **identity)
         proc = subprocess.run(ssh + [host, 'python3 -c ' + shlex.quote(REMOTE)],
                               input=json.dumps(request), capture_output=True, text=True, timeout=3600)
         if proc.returncode:
@@ -187,4 +278,5 @@ def upload(path, job, update, transfer, target_name='Grus', *, source_fds=(), so
         raise ValueError('传输期间推理文件发生变化，请重试')
     update('校验中')
     remote('publish')
-    update('完成', percent=100, bytes=size, verified=True)
+    receipt = dict(grusSource=source_key, grusPayload=identity['payload'], grusStamp=source_stamp(source)) if identity else {}
+    update('完成', percent=100, bytes=size, verified=True, **receipt)

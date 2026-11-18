@@ -203,13 +203,13 @@ i.crew-portrait{background-color:#050505;background-image:var(--crew-sheet);back
 .profile-section{margin-top:16px;border-top:1px solid var(--line);padding-top:16px}.profile-heading{justify-content:space-between;flex-wrap:wrap;margin-bottom:13px}.profile-heading h3{font-size:17px;margin:0}
 .profile-metrics,#profileInventory{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
 #profileStats{min-height:92px}#profileInventory{min-height:40px;align-content:start}
-#ckScanDialog{box-sizing:border-box;width:min(480px,calc(100vw - 24px));border:1px solid var(--line);border-radius:18px;padding:24px;background:var(--white);color:var(--ink)}
-#ckScanDialog::backdrop{background:#080e1a66;backdrop-filter:blur(7px)}
+#ckScanDialog,#grusUploadDialog{box-sizing:border-box;width:min(480px,calc(100vw - 24px));border:1px solid var(--line);border-radius:18px;padding:24px;background:var(--white);color:var(--ink)}
+#ckScanDialog::backdrop,#grusUploadDialog::backdrop{background:#080e1a66;backdrop-filter:blur(7px)}
 #ckRemoveDialog{width:min(460px,calc(100vw - 24px));padding:24px}
 #ckRemoveDialog p{color:var(--soft);line-height:1.55}
 #ckRemoveName{overflow-wrap:anywhere;font-weight:600}
 #ckRemoveDialog .tools{justify-content:flex-end;margin-bottom:0}
-#ckScanForm{display:grid;gap:10px}#ckScanPath{width:100%;min-width:0;box-sizing:border-box}#ckScanFeedback{margin:0;color:var(--soft)}#ckScanForm .tools{justify-content:flex-end}
+#ckScanForm,#grusUploadForm{display:grid;gap:10px}#ckScanPath,#grusTaskName{width:100%;min-width:0;box-sizing:border-box}#ckScanFeedback{margin:0;color:var(--soft)}#ckScanForm .tools,#grusUploadForm .tools{justify-content:flex-end}
 .profile-metrics>div{padding:10px clamp(6px,2vw,13px);background:var(--paper);border-radius:10px}.profile-body small{color:var(--soft);font-size:12px}
 .profile-metrics strong,#profileInventory strong{display:block;font-size:clamp(15px,3.7vw,20px);font-weight:600;font-variant-numeric:tabular-nums}
 #profileInventory>small{grid-column:1/-1}#profileInventory>div+div{border-left:1px solid var(--line);padding-left:12px}
@@ -281,3 +281,5 @@ i.crew-portrait{background-color:#050505;background-image:var(--crew-sheet);back
 @media(prefers-reduced-motion:reduce){#storageUsage .studio-pick,#trainingUsage .studio-pick{transition:none}}
 
 @media(prefers-reduced-motion:reduce){.ranking-switch::before{display:none}.ranking-switch .studio-pick[aria-pressed=true]{background:var(--white);box-shadow:0 1px 4px #0002}}
+
+#grusUploadForm code{overflow-wrap:anywhere;font-size:13px}
