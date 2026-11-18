@@ -346,6 +346,13 @@ class Handler(BaseHTTPRequestHandler):
             data=data.replace(b'__ATLAS_TEAM_HTTP__',b'yes' if self.bearer else b'no')
             return self.reply(200,data.replace(b'__ATLAS_RELEASE__',current.version.encode()),'text/html;charset=utf-8')
         if not worker:return self.reply(401,{'error':'请先登录 H800'})
+        if self.command=='GET' and path=='/api/storage-detail':
+            query=parse_qs(urlsplit(self.path).query)
+            try:
+                data=storage_usage.detail_snapshot(query.get('mount',['home'])[0],query.get('user',[''])[0])
+            except ValueError as exc:
+                return self.reply(400,{'error':str(exc)})
+            return self.reply(200,data)
         if self.command=='GET' and path=='/api/storage-usage':
             mount=parse_qs(urlsplit(self.path).query).get('mount',['home'])[0]
             if mount not in storage_usage.MOUNTS:

@@ -86,7 +86,7 @@ install -m 644 h800-atlas-sample.service h800-atlas-sample.timer "$unitdir/"
 systemctl --user daemon-reload
 systemctl --user enable --now h800-atlas-tianji.socket
 systemctl --user enable h800-atlas.service
-if [ -f "$old/gateway.py" ] && cmp -s "$old/gateway.py" "$release/gateway.py"; then
+if [ -f "$old/gateway.py" ] && cmp -s "$old/gateway.py" "$release/gateway.py" && cmp -s "$old/storage_usage.py" "$release/storage_usage.py"; then
     systemctl --user start h800-atlas.service
 else
     systemctl --user restart h800-atlas.service
