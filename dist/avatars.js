@@ -289,14 +289,15 @@ async function loadMember(view){
   if(view.user===overview.user&&!view.inventory)refreshMyInventory();
  }catch{if(member===view){$('profileBio').innerHTML=button('retryprofile',1,'简介读取失败 · 重试','link');if(!view.inventory)$('profileInventory').textContent='暂时无法读取资源统计'}}
 }
+const profileTrainingCache=new Map();
 async function showProfileStats(view,days){
  view.days=days;
  const request=++view.request;
  $('profilePeriods').innerHTML=[7,30].map(n=>control('profiledays',n,'近 '+n+' 天',n===days)).join('');
  $('profileStats').textContent='正在读取 Slurm 记账…';
  try{
-  let data=usageView.cache.get(days);
-  if(!data||Date.now()/1000-data.stamp>=300){data=await api('training-usage',{days});usageView.cache.set(days,data)}
+  let data=profileTrainingCache.get(days);
+  if(!data||Date.now()/1000-data.stamp>=300){data=await api('training-usage',{days});profileTrainingCache.set(days,data)}
   if(member!==view||view.request!==request)return;
   const r=data.users.find(row=>row.user===view.user);
   if(!r){$('profileStats').innerHTML='<small>近 '+days+' 天没有可见的训练记录。</small>';return}
@@ -363,6 +364,6 @@ profileDialog.addEventListener('close',()=>{
 });
 setInterval(()=>{
  if(!member||document.hidden)return;
- const sample=usageView.cache.get(member.days);
+ const sample=profileTrainingCache.get(member.days);
  if(!sample||Date.now()/1000-sample.stamp>=300)showProfileStats(member,member.days);
 },60000);

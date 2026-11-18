@@ -649,11 +649,14 @@ def route(method, target, body):
     routes['/api/checkpoint-sources']=checkpoint_sources
     routes['/api/training-summary']=lambda:charts.training_summary(H,safe)
     routes['/api/profile-inventory']=profile_inventory
-    if method=='GET' and u.path=='/api/training-usage':
+    if method=='GET' and u.path in ('/api/training-usage','/api/gpu-usage'):
         days=int(q.get('days','7'))
-        outcomes=body.get('outcomes',{})
-        outcomes.setdefault(H.name,{}).update(training_results())
-        rows=charts.training_usage_rows(charts.usage_lines(days,int(time.monotonic()//300)),outcomes)
+        gpu_only=u.path=='/api/gpu-usage'
+        outcomes={}
+        if not gpu_only:
+            outcomes=body.get('outcomes',{})
+            outcomes.setdefault(H.name,{}).update(training_results())
+        rows=charts.usage_rows(charts.usage_lines(days,int(time.monotonic()//300)),outcomes,gpu_only=gpu_only)
         return 200,dict(users=rows,stamp=int(time.time()),days=days)
     routes['/api/training-charts']=lambda:charts.training_charts(H,safe)
     routes['/api/node-history']=charts.read_history

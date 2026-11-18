@@ -18,7 +18,7 @@ FINISHED = {'COMPLETED', 'FAILED', 'CANCELLED', 'TIMEOUT', 'OUT_OF_MEMORY', 'NOD
             'BOOT_FAIL', 'DEADLINE', 'PREEMPTED', 'REVOKED', 'SPECIAL_EXIT'}
 
 
-def training_usage_rows(lines, outcomes=None):
+def usage_rows(lines, outcomes=None, *, gpu_only=False):
     outcomes=outcomes or {}
     users = {}
     seen = set()
@@ -31,16 +31,18 @@ def training_usage_rows(lines, outcomes=None):
             continue
         labels = ' '.join([name, *SCRIPT_NAME.findall(submit)])
         phase=outcomes.get(user,{}).get(job)
-        if phase is None and (OTHER_WORK.search(labels) or not TRAINING_NAME.search(labels)):
+        if not gpu_only and phase is None and (OTHER_WORK.search(labels) or not TRAINING_NAME.search(labels)):
             continue
-        seen.add(job)
-        row = users.setdefault(user, dict(user=user, jobs=0, seconds=0, gpuSeconds=0, completed=0, ended=0))
         state = state.partition(' ')[0].rstrip('+')
         seconds = int(elapsed)
         allocation = dict(item.split('=', 1) for item in tres.split(',') if '=' in item)
         cards = allocation.get('gres/gpu')
         if cards is None:
             cards = sum(int(v) for k, v in allocation.items() if k.startswith('gres/gpu:') and v.isdigit())
+        if gpu_only and not int(cards):
+            continue
+        seen.add(job)
+        row = users.setdefault(user, dict(user=user, jobs=0, seconds=0, gpuSeconds=0, completed=0, ended=0))
         row['gpuSeconds'] += seconds * int(cards)
         row['seconds'] += seconds
         row['jobs'] += 1

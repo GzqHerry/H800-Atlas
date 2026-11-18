@@ -4,7 +4,7 @@ function storageCard(){
  const {mount,cache,errors}=storageView,data=cache.get(mount);
  const tabs=['home','workspace','data','scratch'].map(m=>control('storagemount',m,'/'+m,m===mount)).join('');
  const hint=data?.stamp?'统计完成于 '+chartTime(data.stamp):'等待首次统计';
- const header='<div class="studio-heading"><div class="storage-heading"><i class="storage-symbol" aria-hidden="true"></i><div><h2>存储用量排行</h2><small>'+hint+(data?.node?' · '+esc(data.node):'')+(data?.refreshing?' · 正在更新':'')+'</small></div></div><div class="studio-switch" role="group" aria-label="存储盘">'+tabs+'</div></div>';
+ const header='<div class="studio-heading"><div class="storage-heading">'+rankIcon('storage')+'<div><h2>存储用量排行</h2><small>'+hint+(data?.node?' · '+esc(data.node):'')+(data?.refreshing?' · 正在更新':'')+'</small></div></div><div class="studio-switch" role="group" aria-label="存储盘">'+tabs+'</div></div>';
  if(!data)return header+chartEmpty(errors.has(mount)?'暂时无法连接统计服务，稍后自动重试。':'正在读取用户目录用量…');
  const rows=[...data.rows].sort((a,b)=>(b.bytes!==null)-(a.bytes!==null)||(b.bytes??0)-(a.bytes??0)||a.user.localeCompare(b.user));
  const known=rows.filter(r=>r.bytes!==null),unavailable=rows.filter(r=>r.bytes===null&&r.status!=='absent');

@@ -1,7 +1,4 @@
 .storage-heading{display:flex;align-items:center;gap:12px}
-.storage-symbol{width:30px;height:32px;border:1.5px solid #7f96bc;border-radius:8px;background:linear-gradient(160deg,#b5cfff22,#a19af022);position:relative}
-.storage-symbol:before,.storage-symbol:after{content:'';position:absolute;left:5px;right:5px;height:5px;border-top:1.5px solid #7f96bc;border-bottom:1.5px solid #7f96bc;top:7px}
-.storage-symbol:after{top:19px;height:0;border-bottom:0}
 .storage-layout{--storage-color:#4b91ed;display:grid;grid-template-columns:minmax(180px,1fr) minmax(0,2.8fr);gap:30px;margin-top:20px}
 .storage-layout[data-mount=workspace]{--storage-color:#a184ec}.storage-layout[data-mount=data]{--storage-color:#36b7ad}
 .storage-layout[data-mount=scratch]{--storage-color:#e7a34d}
