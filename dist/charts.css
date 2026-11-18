@@ -240,7 +240,8 @@ i.crew-portrait{background-color:#050505;background-image:var(--crew-sheet);back
 .usage-summary>span,.usage-finish,.usage-note{font-size:13px;color:var(--soft)}.usage-finish{margin-top:14px;padding-top:14px;border-top:1px solid var(--line)}.usage-finish b{color:var(--ink)}.usage-finish small,.usage-value small{display:block;color:var(--soft);font-weight:400}
 .usage-finish>i{width:32px;height:32px;flex:none;border-radius:50%;background:conic-gradient(#26a994 var(--share),var(--line) 0);mask:radial-gradient(circle,transparent 49%,#000 52%)}
 .usage-plot{min-width:0}.usage-plot>.studio-switch{max-width:100%;flex-wrap:wrap}.usage-list{list-style:none;padding:0;margin:10px 0 6px}
-.usage-row{display:grid;grid-template-columns:2ch minmax(78px,1fr) minmax(36px,2.2fr) minmax(8ch,auto);align-items:center;gap:12px;padding:7px 9px;border-radius:8px;font-size:14px;line-height:1.35;font-variant-numeric:tabular-nums}
+.usage-row,.storage-row{box-sizing:border-box;min-height:38px;padding-block:2px}
+.usage-row{display:grid;grid-template-columns:2ch minmax(78px,1fr) minmax(36px,2.2fr) minmax(8ch,auto);align-items:center;gap:12px;padding-inline:9px;border-radius:8px;font-size:14px;line-height:1.35;font-variant-numeric:tabular-nums}
 .usage-rank{color:var(--soft);font-size:12px}.usage-name{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:550}.usage-value{text-align:right;white-space:nowrap}.usage-value small{font-size:11px}
 .usage-track{display:block;height:7px;border-radius:6px;background:var(--line);overflow:hidden}.usage-track i{display:block;height:100%;border-radius:inherit;background:linear-gradient(90deg,#73a8ed,#4e8cdc)}
 .usage-mine{background:color-mix(in srgb,#2ba995 10%,var(--white))}.usage-mine .usage-track i{background:linear-gradient(90deg,#62c9bf,#209e8c)}.usage-mine .usage-name:after{content:'我';font-size:10px;margin-left:5px;color:var(--soft)}
