@@ -47,7 +47,8 @@ loginForm.addEventListener('submit',async e=>{
    const {session,maxAge}=await response.json();
    localStorage.setItem('atlas-session',JSON.stringify({token:session,expires:Date.now()+maxAge*1000}));
   }
-  location.replace('/'+location.hash);
+  if(location.pathname==='/' && !location.search)location.reload();
+  else location.replace('/'+location.hash);
  }catch(err){error.textContent=err.name==='TimeoutError'?'H800 登录响应超时，请稍后重试。':err.message;password.focus();password.select()}
  finally{button.disabled=false;button.textContent='登录'}
 });
