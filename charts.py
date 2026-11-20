@@ -2,9 +2,12 @@
 import json
 import os
 import re
+import shlex
+import stat
 import time
 from bisect import bisect_right
 from functools import lru_cache
+from itertools import groupby
 from pathlib import Path
 from monitor import CK_NAME, checkpoint_groups, expand_nodes, number, read_state, slurm
 from insights import gpu_counts, discover
@@ -16,6 +19,118 @@ OTHER_WORK = re.compile(r'eval|benchmark|preflight|smoke|probe|debug|(?:^|[^a-z]
 SCRIPT_NAME = re.compile(r'''(?:^|[\s/"'])([^\s/"']+\.(?:sbatch|slurm|sh|py))(?=$|[\s"'])''', re.I)
 FINISHED = {'COMPLETED', 'FAILED', 'CANCELLED', 'TIMEOUT', 'OUT_OF_MEMORY', 'NODE_FAIL',
             'BOOT_FAIL', 'DEADLINE', 'PREEMPTED', 'REVOKED', 'SPECIAL_EXIT'}
+
+
+def command_program(words, variables):
+    """Identify one command's entry point without interpreting its arguments as tasks."""
+    args = iter(words)
+    launcher = ''
+    for arg in args:
+        if ref := re.fullmatch(r'\$\{?(\w+)\}?', arg):
+            arg = variables.get(ref[1], '')
+        if not arg:
+            return ''
+        if launcher:
+            if (launcher != 'srun' and arg in ('-c', '--command')) or (launcher in ('sh', 'bash') and re.fullmatch(r'-[a-z]*c[a-z]*', arg)):
+                return ''
+            if arg in ('-m', '--module'):
+                module = next(args, '')
+                if module == 'torch.distributed.run':
+                    launcher = 'torchrun'
+                    continue
+                return module
+            if arg in ('-n', '-N', '-p', '-A', '-c', '--gres', '--partition', '--account',
+                       '--ntasks', '--nodes', '--gpus', '--nproc-per-node', '--nproc_per_node',
+                       '--nnodes', '--master_port', '--num_processes', '-W', '-X'):
+                next(args, None)
+                continue
+            if arg.startswith('-') or (launcher == 'accelerate' and arg == 'launch'):
+                continue
+        if arg in ('exec', 'env', 'export', 'then', 'do', 'if', 'elif', 'while', 'until', 'command'):
+            continue
+        if assignment := re.fullmatch(r'(\w+)=(.*)', arg):
+            variables[assignment[1]] = assignment[2]
+            continue
+        name = Path(arg).name
+        if name in ('srun', 'torchrun', 'accelerate', 'bash', 'sh') or re.fullmatch(r'python[\d.]*', name):
+            launcher = name
+            continue
+        # Shell conditions such as "test -f model" are not test workloads.
+        return '' if name == 'test' else name
+    return ''
+
+
+def script_programs(source):
+    programs = set()
+    variables = {}
+    heredoc = None
+    for line in source.replace('\\\n', ' ').splitlines():
+        if heredoc:
+            if line.strip() == heredoc:
+                heredoc = None
+            continue
+        if line.lstrip().startswith('#'):
+            continue
+        if match := re.search(r"""(?<!<)<<-?\s*['"]?(\w+)""", line):
+            heredoc = match[1]
+            continue
+        try:
+            lexer = shlex.shlex(line, posix=True, punctuation_chars=';&|')
+            lexer.whitespace_split = True
+            for separator, group in groupby(lexer, lambda w: w in (';', '&&', '||', '|', '&')):
+                if not separator:
+                    name = command_program(group, variables)
+                    if re.fullmatch(r'[\w.+-]{1,128}', name) and not name.isdigit():
+                        programs.add(name)
+        except ValueError:
+            continue
+    return sorted(programs)
+
+
+@lru_cache(maxsize=256)
+def file_programs(path, mtime_ns, size):
+    with path.open('rb') as stream:
+        return script_programs(stream.read(128 * 1024).decode(errors='replace'))
+
+
+def launch_labels(submit, workdir, submitted, safe):
+    try:
+        words = shlex.split(submit)
+    except ValueError:
+        return {}
+    if not words:
+        return {}
+    if Path(words[0]).name != 'sbatch':
+        return dict(programs=script_programs(submit))
+    args = iter(words[1:])
+    for arg in args:
+        if arg == '--wrap' or arg.startswith('--wrap='):
+            return dict(programs=script_programs(arg[7:] if '=' in arg else next(args, '')))
+        if arg in ('-J', '-o', '-e', '-D', '-A', '-p', '-N', '-n', '-t', '-c', '-C', '-d', '-a',
+                   '--job-name', '--output', '--error', '--chdir', '--account', '--partition',
+                   '--nodes', '--ntasks', '--time', '--gres', '--gpus', '--export', '--mem',
+                   '--constraint', '--dependency', '--array', '--qos', '--reservation',
+                   '--cpus-per-task', '--mem-per-cpu', '--ntasks-per-node', '--gpus-per-node'):
+            next(args, None)
+            continue
+        if arg.startswith('-'):
+            continue
+        path = Path(arg)
+        if path.suffix.lower() not in ('', '.sbatch', '.slurm', '.sh', '.bash', '.py'):
+            return {}
+        labels = dict(script=path.name)
+        try:
+            if not path.is_absolute() and not Path(workdir).is_absolute():
+                return labels
+            path = safe(Path(workdir) / path)
+            info = path.stat()
+            if (submitted and stat.S_ISREG(info.st_mode) and info.st_size <= 128 * 1024
+                    and int(info.st_mtime) <= submitted and path.suffix.lower() != '.py'):
+                labels['programs'] = file_programs(path, info.st_mtime_ns, info.st_size)
+        except (ValueError, OSError, RuntimeError):
+            pass
+        return labels
+    return {}
 
 
 def usage_rows(lines, outcomes=None, *, gpu_only=False):

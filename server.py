@@ -54,9 +54,14 @@ def training_results():
     return results
 
 def jobs():
-    cols='JobID,JobName%200,State,ExitCode,Elapsed,NodeList,Start,End,Submit,AllocTRES,TimelimitRaw'
+    cols='JobID,JobName%200,State,ExitCode,Elapsed,NodeList,Start,End,Submit,AllocTRES,TimelimitRaw,WorkDir,SubmitLine'
     args=['sacct','-u',H.name,'-S','2000-01-01','-X','-n','-P','-o',cols]
-    rows=[dict(zip(['id','name','state','exit','elapsed','node','start','end','submit','allocation','limitMinutes'],l.split('|'))) for l in command(args).splitlines() if l.strip()]
+    fields=['id','name','state','exit','elapsed','node','start','end','submit','allocation','limitMinutes','workdir','submitLine']
+    rows=[]
+    for line in command(args).splitlines():
+        values=line.split('|',len(fields)-1)
+        if len(values)==len(fields) and re.match(r'^\d',values[0]):
+            rows.append(dict(zip(fields,values)))
     try:
         queue=command(['squeue','--me','-h','-o','%i|%T|%R|%S|%b|%j|%M|%N|%V'])
         active={}
@@ -70,11 +75,16 @@ def jobs():
         rows.extend(v for k,v in active.items() if k not in accounted)
     except (OSError,subprocess.SubprocessError,ValueError):pass
     outcomes=training_results()
+    recent=time.time()-7*86400
     for row in rows:
         if row['id'] in outcomes:row['trainingPhase']=outcomes[row['id']]
         for key in ('submit','start','end','estimate'):
             try:row[key+'Ts']=int(datetime.fromisoformat(row[key]).timestamp())
             except (KeyError,ValueError,OverflowError):row[key+'Ts']=None
+        workdir,submit=row.pop('workdir',''),row.pop('submitLine','')
+        if (submit and row['startTs'] and (row['endTs'] is None or row['endTs']>=recent)
+                and 'gres/gpu' in row.get('allocation','')):
+            row['launchLabels']=charts.launch_labels(submit,workdir,row['submitTs'],safe)
     rows.sort(key=lambda j:int(re.match(r'\d+',j['id'])[0]),reverse=True);return rows
 # Keep units and the actual logged horizontal coordinate with each independent series.
 RUN_METRICS={

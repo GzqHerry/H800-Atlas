@@ -15,12 +15,32 @@ function chipLegend(color,label){return '<span><i style="background:'+color+'"><
 function studioPanel(title,subtitle,tools,body,wide=false){
  return '<section class="surface studio-card'+(wide?' studio-wide':'')+'"><div class="studio-heading"><div><h2>'+esc(title)+'</h2><small>'+esc(subtitle)+'</small></div>'+tools+'</div>'+body+'</section>';
 }
-function taskType(j){
- const n=j.name.toLowerCase();
+function labelType(label){
+ const n=label.toLowerCase();
  if(/eval|benchmark|评测/.test(n))return 1;
  if(/test|probe|smoke|debug|preflight|测试/.test(n))return 2;
  if(/infer(?:ence)?|serving|vllm|sglang|推理/.test(n))return 3;
- if(/train|finetune|sft|(?:^|[-_])rlt|训练/.test(n)||j.trainingPhase||studio.trainingJobs.has(j.id))return 0;
+ if(/train|finetune|sft|(?:^|[-_])rlt|训练/.test(n))return 0;
+ return 4;
+}
+function taskType(j){
+ const named=labelType(j.name);
+ if(named!==4)return named;
+ if(j.trainingPhase||studio.trainingJobs.has(j.id))return 0;
+ const labels=j.launchLabels;
+ if(!labels)return 4;
+ const script=entryType(labels.script||'');
+ if(script!==4)return script;
+ const types=new Set((labels.programs||[]).map(entryType).filter(type=>type!==4));
+ return types.size===1?[...types][0]:4;
+}
+function entryType(name){
+ // Match task words in entry points, e.g. direct_packet_train.py, without treating "latest" as a test.
+ const tokens=name.toLowerCase().split(/[._+-]+/);
+ for(const [i,pattern] of [[1,/^(?:eval|benchmark|评测)/],[2,/^(?:test|pytest|unittest|probe|smoke|debug|preflight|测试)/],
+                          [3,/^(?:infer|serving|vllm|sglang|推理)/],[0,/^(?:train|pretrain|finetun|sft|rlt|训练)/]]){
+  if(tokens.some(t=>pattern.test(t)))return i;
+ }
  return 4;
 }
 let timelinePage=0;
