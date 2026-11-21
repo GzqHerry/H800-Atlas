@@ -11,7 +11,7 @@ import job_artifacts
 import training_eta
 from datetime import datetime
 from insights import DATASET_ROOTS
-from monitor import lookup_command, cluster, checkpoint_index, checkpoint_detail, checkpoint_groups, number, read_state, scan_checkpoints
+from monitor import CK_NAME, lookup_command, cluster, checkpoint_index, checkpoint_detail, checkpoint_groups, number, read_state, scan_checkpoints
 H=Path.home(); W=Path('/workspace')/H.name; D=Path('/data')/H.name; S=Path('/scratch')/H.name
 ROOTS=[H,W,D,S,Path('/data/share/bodypipeline/runtime-'+H.name)]; SITE=Path(__file__).parent
 MOUNTS={'home':H,'workspace':W,'data':D,'scratch':S}
@@ -676,6 +676,19 @@ def merge_checkpoint_locations(rows, grus_copies, tianji_copies, jobs):
                 row['grusTask'] = dst.parent.name
 
 
+def archived_checkpoint_metrics(group):
+    parent=Path(group)
+    if not parent.is_absolute() or parent.resolve()!=parent or not any(parent==r or r in parent.parents for r in ROOTS):
+        raise PermissionError('超出个人目录范围')
+    try:
+        with os.scandir(parent) as entries:
+            present=[e.name for e in entries if CK_NAME.fullmatch(e.name)]
+    except FileNotFoundError:
+        present=[]
+    if not nas.enabled():raise OSError('NAS 未配置')
+    return nas.remote('checkpoint-metrics',group=str(parent),exclude=present)
+
+
 def checkpoint_sources(tianji_inventory=None):
     rows={}
     for parent,names in checkpoint_groups(H).items():
@@ -760,6 +773,7 @@ def route(method, target, body):
         return 202,nas.enqueue(meta,action,grant)
     routes={'/api/job-command':lambda:lookup_command(q.get('id','')),'/api/nas':nas.catalog,'/api/uploads':nas.job_list,'/api/cluster':cluster,'/api/checkpoint-groups':lambda:checkpoint_index(H),'/api/checkpoints':lambda:checkpoint_detail(H,q.get('group',''),safe),'/api/size':lambda:measure(q),'/api/overview':overview,'/api/jobs':jobs,'/api/files':lambda:files(q),'/api/detail':lambda:detail(q.get('id',''),(q.get('metric'),q.get('axis')))}
     routes['/api/checkpoint-sources']=lambda:checkpoint_sources(body.get('tianjiInventory'))
+    routes['/api/checkpoint-archive-metrics']=lambda:archived_checkpoint_metrics(q.get('group',''))
     routes['/api/training-summary']=lambda:charts.training_summary(H,safe)
     routes['/api/profile-inventory']=profile_inventory
     if method=='GET' and u.path in ('/api/training-usage','/api/gpu-usage'):

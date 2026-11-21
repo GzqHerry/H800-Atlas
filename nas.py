@@ -39,7 +39,10 @@ from pathlib import Path
 q=json.load(sys.stdin)
 root=Path(q['root'])
 if root.resolve()!=root:raise ValueError('Invalid NAS root')
-if q['action']=='checkpoints':
+if q['action'] in ('checkpoints','checkpoint-metrics'):
+    metrics=q['action']=='checkpoint-metrics'
+    group=Path(q['group']) if metrics else None
+    exclude=set(q.get('exclude',()))
     rows=[]
     def receipt(path):
         try:
@@ -47,22 +50,25 @@ if q['action']=='checkpoints':
             return json.loads(path.read_text())
         except (OSError,ValueError):return {}
     def add(src,p,size,verified):
+        if metrics and (not verified or src.parent!=group or src.name in exclude):return
         if not re.fullmatch(r'(?:checkpoint-|global_step_)?[0-9]+',p.name) or p.name!=src.name:return
         if not src.is_absolute() or '..' in src.parts or not p.is_dir() or p.resolve()!=p:return
         # An in-progress archive can create the full directory tree before copying files.
-        if not any(files for _,_,files in os.walk(p,followlinks=False)):return
+        if not metrics and not any(files for _,_,files in os.walk(p,followlinks=False)):return
         rows.append(dict(source=str(src),destination=str(p),bytes=size,verified=bool(verified),updated=int(p.stat().st_mtime)))
     for manifest in (root/'checkpoints').glob('*/*/*/.atlas-checkpoint.json'):
         if manifest.parent.name.startswith('.') or not re.fullmatch('[a-f0-9]{24}',manifest.parent.name):continue
         data=receipt(manifest)
         if data.get('kind')=='checkpoint':
             src=Path(data['path'])
+            if metrics and data.get('source',str(src))!=str(src):continue
             if src.name==manifest.parents[1].name:add(src,manifest.parent/src.name,data.get('bytes'),True)
     for archive in root.glob('h800-*'):
         if not archive.is_dir() or archive.resolve()!=archive:continue
         inv=receipt(archive/'inventory.json').get('checkpoint_dirs',{})
         for original,entry in inv.items():
             src=Path(original)
+            if metrics and (src.parent!=group or src.name in exclude):continue
             if not src.is_absolute() or '..' in src.parts:continue
             dest=archive/src.relative_to('/')
             if not dest.is_dir() or not re.fullmatch(r'(?:checkpoint-|global_step_)?[0-9]+',src.name):continue
@@ -74,6 +80,22 @@ if q['action']=='checkpoints':
                     verified=True
                     break
             add(src,dest,entry[1],verified)
+    if metrics:
+        result={}
+        def archive_file(path):
+            if root not in path.parents or path.resolve()!=path:raise ValueError('Invalid archive path')
+            return path
+        for row in sorted(rows,key=lambda r:(-r['updated'],r['destination'])):
+            source=row['source']
+            if source in result:continue
+            dest=Path(row['destination'])
+            step=int(re.search(r'[0-9]+$',dest.name)[0])
+            state=read_state(dest/'trainer_state.json',archive_file)
+            if state.get('global_step') not in (None,step):continue
+            values=checkpoint_metrics(state,step,True)
+            if any(values[key] is not None for key in ('epoch','epochs','loss','lr')):
+                result[source]=dict(path=source,**values)
+        rows=list(result.values())
     print(json.dumps(rows))
 elif q['action']=='list':
     rows=[]
@@ -118,7 +140,10 @@ else:
 """
 
 def remote(action, **params):
-    r=subprocess.run(SSH+[HOST,'python3 -c '+shlex.quote(REMOTE)],input=json.dumps(dict(action=action,root=NAS_ROOT,**params)),
+    script=REMOTE
+    if action=='checkpoint-metrics':
+        script=Path(__file__).with_name('checkpoint_state.py').read_text()+'\n'+script
+    r=subprocess.run(SSH+[HOST,'python3 -c '+shlex.quote(script)],input=json.dumps(dict(action=action,root=NAS_ROOT,**params)),
                      capture_output=True,text=True,timeout=45,check=True)
     return json.loads(r.stdout)
 

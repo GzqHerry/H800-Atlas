@@ -8,7 +8,7 @@ from scheduler import scheduling, command_details
 from cpu_usage import add_cpu_usage
 from gpu_usage import add_gpu_usage
 from insights import gpu_counts, queue_forecasts, saved_time
-import math
+from checkpoint_state import checkpoint_metrics, number, read_state
 import re
 import subprocess
 import threading
@@ -188,25 +188,6 @@ def checkpoint_index(home):
     return sorted(items,key=lambda row:(-row["updated"],row["path"]))
 
 
-def number(v):
-    if isinstance(v,(int,float)) and not isinstance(v,bool) and math.isfinite(v):
-        return v
-    return None
-
-
-def read_state(path, safe):
-    try:
-        checked=safe(path)
-        if checked.stat().st_size<=64*1024*1024:
-            with checked.open() as stream:
-                value=json.load(stream)
-                if isinstance(value,dict):
-                    return value
-    except (ValueError,OSError):
-        pass
-    return {}
-
-
 def checkpoint_detail(home, group, safe):
     parent=Path(group)
     groups=checkpoint_groups(home)
@@ -230,20 +211,8 @@ def checkpoint_detail(home, group, safe):
                 parent_state=read_state(source,metadata_path)
             state=parent_state
         own_state=source.parent==path
-        if own_state and number(state.get('global_step')) is not None:
-            step=state['global_step']
-        history=[r for r in state.get('log_history',[]) if isinstance(r,dict)
-                 and number(r.get('step')) is not None and r['step']<=step]
-        epoch=number(state.get('epoch')) if state.get('global_step')==step or own_state else None
-        exact=next((r for r in reversed(history) if r['step']==step and number(r.get('epoch')) is not None),{})
-        if epoch is None:
-            epoch=exact.get('epoch')
-        sampled=max((r for r in history if number(r.get('loss')) is not None),key=lambda r:r['step'],default={})
-        lr=max((r for r in history if number(r.get('learning_rate')) is not None),key=lambda r:r['step'],default={})
-        rows.append(dict(updated=saved_time(path),name=name,path=str(path),bytes=size,present=path.is_dir(),step=step,epoch=epoch,
-                         epochs=number(state.get('num_train_epochs')),loss=sampled.get('loss'),
-                         lossStep=sampled.get('step'),lr=lr.get('learning_rate'),lrStep=lr.get('step'),
-                         source=str(source) if state else None))
+        rows.append(dict(updated=saved_time(path),name=name,path=str(path),bytes=size,present=path.is_dir(),
+                         source=str(source) if state else None,**checkpoint_metrics(state,step,own_state)))
     return sorted(rows,key=lambda row:(row['updated'],row['step']),reverse=True)
 
 def lookup_command(job_id):
