@@ -1,8 +1,14 @@
-# H800 Atlas · 个人训练工作台
+# H800 Atlas
 
-H800 Atlas 把个人训练记录、文件、权重和 Slurm 队列放在同一个网页里。团队共用一套服务，每位同事用自己的 H800 SSH 账号登录。服务部署在 H800-node11，日常使用只需要浏览器和能到达节点的网络。
+面向 Slurm GPU 集群的个人训练工作台。在浏览器里查看作业队列、跟踪训练曲线，并管理每次训练留下的 checkpoint。
+
+![H800 Atlas 深色工作台：月面封面下展示 Slurm 作业、Checkpoint 数量和四个存储卷的余量](docs/images/atlas-dark.png)
+
+*深色模式下的工作台，使用演示账号与示例数据。*
 
 ## 同事怎么登录
+
+团队共用部署在 H800-node11 的服务，每位同事通过内网或 VPN，用自己的 H800 SSH 账号登录。
 
 1. 连上能访问 H800 的内网或 VPN，打开 [Atlas 域名登录页](https://atlas.int.mintibot.com/login)。也可以使用[原有 IP 入口](http://100.64.0.71:18771/login)或[节点 HTTPS 入口](https://h800-node1.int.mintibot.com:18770/)。
 2. 输入**自己的 H800 SSH 用户名和密码**。在「登录节点」选择 node11 至 node16。Atlas 用所选节点的 SSH 服务验证身份，再以该 Linux 用户启动工作进程。右上角显示实际连接的主机名。退出登录可以重新选节点，浏览器会记住上次成功的选择。网页入口和 Tianji 上传服务部署在 node11。浏览器到服务器的 HTTP 连接会明文传输登录信息；需要加密时使用 HTTPS 或下面的 SSH 隧道。
