@@ -11,7 +11,7 @@ Slurm 作业记录资源分配的起止时间，训练过程则产生指标序�
 
 ![深色工作台，展示作业数量、checkpoint 清单及四个存储卷的可用容量](docs/images/atlas-dark.png)
 
-*图 1　个人工作台。上方汇总当前账号的作业与 checkpoint，下方展示各存储卷的可用容量。全文配图均取自 Atlas 实际界面，使用演示数据。*
+*图 1　个人工作台。上方汇总当前账号的作业与 checkpoint，下方展示各存储卷的可用容量。两版配图取自相同界面并使用相同数据。图 1–3 和图 5 使用演示数据，图 4 为集群实测快照。*
 
 ## 训练过程分析
 
@@ -31,13 +31,29 @@ Atlas 每五分钟采集一次 Slurm 节点状态。空闲窗口热图覆盖最�
 
 *图 3　左图给出各节点在采样时刻的空闲 GPU 数。右图给出训练、评测、测试、推理及用途待识别作业的每日分配卡时。*
 
+### 调度策略、节点分配与待调度作业
+
+以下三个面板来自同一次集群采样，采样时间为北京时间 2026 年 11 月 21 日 13:03。账号名与作业名在公开配图中以代号展示。
+
+![Slurm 调度策略面板，展示回填调度、多因子优先级权重和 train 分区](docs/images/atlas-cluster-policy-zh.png)
+
+*图 4a　调度策略。等待时间、公平份额与 QoS 的配置权重均为 1,000。分区选择器用于查看该分区内待调度作业的优先级排名。*
+
+![六个 H800 节点的 GPU 与 CPU 分配、运行作业、逐卡利用率及显存用量](docs/images/atlas-cluster-nodes-zh.png)
+
+*图 4b　节点资源分配。采样时 node11 尚有 1 张未分配的 GPU，其余五个节点的 GPU 均已分配。逐卡读数展示分配期间的利用率和显存用量。*
+
+![待调度作业列表，展示分区、资源请求、申请时限及排队原因](docs/images/atlas-cluster-queue-zh.png)
+
+*图 4c　排队明细。图中展示当时 18 个待调度作业中的前 5 个。排队原因列可区分等待资源、依赖未完成和用户暂停等情况。*
+
 ## Checkpoint 目录与存储管理
 
 资源目录以训练任务和步数组织 checkpoint。同一步数在 H800、NAS、Grus 和 Tianji 上存在多个副本时，目录中合并为一个条目，详情页列出各物理位置。NAS 用于保存完整 checkpoint，Grus 和 Tianji 用于存放推理文件。操作记录提供目标路径和校验结果；清理 H800 本地权重前，系统要求先核验完整的 NAS 副本。
 
 ![按训练任务分组的 H800 权重存储占用矩形树图](docs/images/atlas-checkpoints.png)
 
-*图 4　示例中的六个训练任务在 H800 上共占用 424 GiB。每个矩形的面积与该任务已统计的 checkpoint 容量成正比。切换存储位置可查看 NAS 上的分布。*
+*图 5　示例中的六个训练任务在 H800 上共占用 424 GiB。每个矩形的面积与该任务已统计的 checkpoint 容量成正比。切换存储位置可查看 NAS 上的分布。*
 
 ## 系统架构与访问
 
@@ -64,7 +80,7 @@ A Slurm job records a resource allocation. A training run produces a sequence of
 
 ![Dark workspace with job counts, checkpoint inventory, and free capacity on four volumes](docs/images/atlas-dark-en.png)
 
-*Figure 1. Personal workspace. The upper panel summarizes the account’s jobs and checkpoints. The lower panel reports available storage on each volume. All four figures use the same demonstration data as the Chinese edition, with interface labels localized for this documentation.*
+*Figure 1. Personal workspace. The upper panel summarizes the account’s jobs and checkpoints. The lower panel reports available storage on each volume. Both editions use matching data and views. Figures 1–3 and 5 use demonstration data. Figure 4 records a cluster snapshot. English interface labels are localized for this documentation.*
 
 ## Training analysis
 
@@ -84,13 +100,29 @@ Purpose labels use the job name, associated training records, submitted script n
 
 *Figure 3. The left panel reports free GPUs at sampled times. The right panel reports allocated GPU-hours for training, evaluation, testing, inference, and unclassified work.*
 
+### Scheduling policy, node allocation, and pending jobs
+
+The following panels share a single snapshot taken on 21 November 2026 at 13:03 CST (UTC+8). Account and job names are replaced by aliases.
+
+![Slurm policy showing backfill scheduling, multifactor priority weights and the train partition](docs/images/atlas-cluster-policy-en.png)
+
+*Figure 4a. Scheduling policy. Age, fair share, and QoS each have a configured weight of 1,000. The partition selector scopes the priority ranking to pending jobs in the selected partition.*
+
+![Six H800 nodes with GPU and CPU allocations, running jobs, per-device utilization and memory readings](docs/images/atlas-cluster-nodes-en.png)
+
+*Figure 4b. Node allocation. At capture time, node11 had one unallocated GPU and the other five nodes had none. The per-device readings show utilization and memory use within an allocation.*
+
+![Pending jobs with partition, resource requests, time limits, and scheduling reasons](docs/images/atlas-cluster-queue-en.png)
+
+*Figure 4c. Queue detail. Five of the 18 pending jobs are shown. The reason column distinguishes resource waits, dependencies, and user holds.*
+
 ## Checkpoint catalog and storage
 
 The catalog groups checkpoints by training run and step. A step with replicas on H800, NAS, Grus, and Tianji appears once, with the physical locations available in its detail view. NAS supports full checkpoint backups. Grus and Tianji receive inference artifacts. Transfer records expose destination paths and verification results, and local cleanup requires a verified full NAS copy.
 
 ![Treemap of H800 checkpoint storage grouped by training run](docs/images/atlas-checkpoints-en.png)
 
-*Figure 4. The six example runs occupy 424 GiB on H800. Tile area is proportional to the recorded size of each run’s checkpoints. The storage selector also exposes the NAS inventory.*
+*Figure 5. The six example runs occupy 424 GiB on H800. Tile area is proportional to the recorded size of each run’s checkpoints. The storage selector also exposes the NAS inventory.*
 
 ## Architecture and access
 
