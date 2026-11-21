@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="134" height="28" viewBox="0 0 134 28" role="img" aria-label="简体中文">
+  <title>简体中文</title>
+  <path fill="#343a43" d="M0 0h34v28H0z"/>
+  <path fill="#126893" d="M34 0h100v28H34z"/>
+  <g fill="#fff" font-family="system-ui, sans-serif" font-weight="600" text-anchor="middle">
+    <text x="17" y="18.5" font-size="10" letter-spacing="1">ZH</text>
+    <text x="84.0" y="18.5" font-size="12" letter-spacing="1">简体中文</text>
+  </g>
+</svg>
