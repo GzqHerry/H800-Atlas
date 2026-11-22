@@ -25,6 +25,9 @@ document.addEventListener('pointerdown',e=>{if(!e.target.closest('.account-area'
 document.addEventListener('focusin',e=>{if(!e.target.closest('.account-area'))closeAccountMenu()});
 $('menuProfile').onclick=()=>{closeAccountMenu();if(overview.user)openMember($('account'))};
 $('menuEdit').onclick=()=>{closeAccountMenu();if(overview.user)openMember($('account'),true)};
+$('menuSettings').onclick=()=>{closeAccountMenu(true);$('settingsDialog').showModal();$('theme').focus()};
+$('settingsClose').onclick=()=>$('settingsDialog').close();
+$('settingsDialog').onclose=()=>menuOpener.focus({preventScroll:true});
 accountMenu.querySelector('a').onclick=()=>{closeAccountMenu();if(location.hash==='#guide')renderGuide(true)};
 
 let guideObserver=null,guideFrame=0;

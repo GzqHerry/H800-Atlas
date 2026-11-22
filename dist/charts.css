@@ -34,7 +34,6 @@
 .atlas-home .head .right{align-self:flex-start;z-index:1;color:#e2e9f6;flex-wrap:wrap;gap:8px}
 .atlas-home .head .dot{background:#6ee9a7}
 .atlas-home .head .dot.off{background:#ffbd70}
-.atlas-home .head :is(#refresh,#theme){background:#202e43;color:#f3f6fc;border:1px solid #5d728a;box-shadow:none}
 .atlas-home .summary{
  grid-template-columns:repeat(4,minmax(0,1fr));gap:0;margin:0 0 18px;padding:18px 0;background:var(--white);
  border:1px solid var(--line);border-top:0;border-radius:0 0 24px 24px;
@@ -203,8 +202,9 @@ i.crew-portrait{background-color:#050505;background-image:var(--crew-sheet);back
 .profile-section{margin-top:16px;border-top:1px solid var(--line);padding-top:16px}.profile-heading{justify-content:space-between;flex-wrap:wrap;margin-bottom:13px}.profile-heading h3{font-size:17px;margin:0}
 .profile-metrics,#profileInventory{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
 #profileStats{min-height:92px}#profileInventory{min-height:40px;align-content:start}
-#ckScanDialog,#grusUploadDialog{box-sizing:border-box;width:min(480px,calc(100vw - 24px));border:1px solid var(--line);border-radius:18px;padding:24px;background:var(--white);color:var(--ink)}
-#ckScanDialog::backdrop,#grusUploadDialog::backdrop{background:#080e1a66;backdrop-filter:blur(7px)}
+#settingsDialog,#ckScanDialog,#grusUploadDialog{box-sizing:border-box;width:min(480px,calc(100vw - 24px));border:1px solid var(--line);border-radius:18px;padding:24px;background:var(--white);color:var(--ink)}
+#settingsDialog h2{margin:0}#settingsDialog .line+.line{margin-top:20px}
+#settingsDialog::backdrop,#ckScanDialog::backdrop,#grusUploadDialog::backdrop{background:#080e1a66;backdrop-filter:blur(7px)}
 #ckRemoveDialog{width:min(460px,calc(100vw - 24px));padding:24px}
 #ckRemoveDialog p{color:var(--soft);line-height:1.55}
 #ckRemoveName{overflow-wrap:anywhere;font-weight:600}
