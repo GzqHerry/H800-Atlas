@@ -9,6 +9,7 @@ import swan_history
 import wandb_runs
 import job_artifacts
 import training_eta
+import task_metadata
 from datetime import datetime
 from insights import DATASET_ROOTS
 from monitor import CK_NAME, lookup_command, cluster, checkpoint_index, checkpoint_detail, checkpoint_groups, number, read_state, scan_checkpoints
@@ -698,7 +699,7 @@ def checkpoint_sources(tianji_inventory=None):
                 rows[str(path)]=dict(path=str(path),group=str(parent),name=name,present=True,bytes=size,localUpdated=int(path.stat().st_mtime),updated=int(path.stat().st_mtime),copies=[])
     note=''
     try:
-        if nas.enabled():copies=nas.remote('checkpoints')
+        if nas.enabled():copies=nas.remote('checkpoints',identities=True)
         else:copies=[];note='此账号尚未配置 NAS'
     except (OSError,ValueError,subprocess.SubprocessError):
         copies=[];note='NAS 暂时无法读取'
@@ -720,7 +721,21 @@ def checkpoint_sources(tianji_inventory=None):
     if tianji_inventory.get('unavailable') or tianji_inventory.get('partial'):
         note = ' · '.join(filter(None,(note,'Tianji 目录暂时无法完整读取')))
     merge_checkpoint_locations(rows,remote['items'],tianji_inventory['items'],nas.job_list())
-    return dict(items=list(rows.values()),note=note)
+    groups={}
+    for row in rows.values():groups.setdefault(row['group'],[]).append(row)
+    identities={}
+    dataset_roots=[*ROOTS,Path('/jfs/datasets/share/bodypipeline')/('runtime-'+H.name)]
+    def dataset_safe(path):
+        resolved=path.resolve(strict=True)
+        if not any(resolved==r or r in resolved.parents for r in dataset_roots):
+            raise PermissionError('超出数据集目录范围')
+        return resolved
+    for group,entries in groups.items():
+        identity=task_metadata.describe(group,[Path(c['path']) for c in entries if c.get('present')],safe,dataset_safe)
+        for copy in sorted((copy for c in entries for copy in c['copies'] if copy.get('verified') and copy.get('identity')),key=lambda c:-c['updated']):
+            identity=task_metadata.merge(identity,copy['identity'])
+        identities[group]=identity
+    return dict(items=list(rows.values()),note=note,identities=identities)
 
 def route(method, target, body):
     if method == 'GET' and urlsplit(target).path == '/api/cpu-live':

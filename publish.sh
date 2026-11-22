@@ -18,7 +18,7 @@ if ! "$tb_reader/bin/python" -I -c 'from tensorboard.compat.proto import event_p
     "$tb_reader/bin/python" -m pip install 'tensorboard==2.20.0'
 fi
 files="storage_usage.py dist/storage.js dist/storage.css job_artifacts.py training_eta.py swan_history.py wandb_history.py wandb_runs.py charts.py gateway.py server.py monitor.py insights.py cpu_usage.py gpu_usage.py nas.py grus.py scheduler.py dist/index.html dist/login.html dist/charts.js dist/charts.css dist/avatars.js dist/crew.webp dist/lunar-cover.webp dist/login-landscape.webp dist/guide.js dist/guide.css dist/guide.html dist/guide-images/*.webp"
-files="$files gpu_efficiency.py checkpoint_state.py tianji.py grus_catalog.py login_nodes.known_hosts"
+files="$files gpu_efficiency.py checkpoint_state.py task_metadata.py tianji.py grus_catalog.py login_nodes.known_hosts"
 version=$(sha256sum $files | sha256sum | cut -c1-16)
 release="$root/releases/$version"
 stage=$(mktemp -d "$root/releases/.stage-XXXXXXXX")

@@ -900,18 +900,21 @@ document.addEventListener('close',hidePathTip,true);
 window.addEventListener('resize',placePathTip);document.addEventListener('scroll',placePathTip,true);
 function groupLabel(g){if(g.path==='/mnt/data0/arx_ckpts')return 'Grus 根目录';const parts=g.path.split('/');return ['preflight','checkpoints','ckpts','output','outputs'].includes(g.name)?parts.slice(-2).join(' / '):g.name}
 function taskIdentity(g){
- const full=groupLabel(g), tokens=full.replace(/^train_/,'').split('_');
+ const full=groupLabel(g),m=g.identity||{},ids=m.datasetIds||[],tokens=full.replace(/^train_/,'').split('_');
+ // Legacy directory spelling only supplies a short title, never training facts.
  const code=tokens.findIndex(t=>/^[a-f0-9]{8}$/i.test(t)&&! /^(?:19|20)\d{6}$/.test(t));
- if(code<1)return {title:full,context:'',code:''};
- const tail=tokens.slice(code+1).filter(t=>!/^\d{8}$/.test(t));
- const settings=tail.filter(t=>/^[egb]\d+$/i.test(t));
- const variant=tail.filter(t=>!settings.includes(t)).join(' · ');
- const family=tokens.slice(0,code).join(' ').toUpperCase();
- return {title:variant||family,code:tokens[code],context:[variant&&family,settings.join(' · ').toUpperCase()].filter(Boolean).join('　·　')};
+ const variant=code>0?tokens.slice(code+1).filter(t=>!/^\d{8}$/.test(t)&&! /^[egb]\d+$/i.test(t)).join(' · '):'';
+ const parts=[m.base,m.method,m.rlt===true&&'RLT',m.rtc===true&&'RTC',m.mem===true&&'MEM',
+  m.epochs>0&&'E'+m.epochs,m.gpus>0&&'G'+m.gpus,m.batch>0&&'B'+m.batch,...(m.robots||[])].filter(Boolean);
+ const hint=[m.basePath&&'初始化权重：'+m.basePath,m.epochs>0&&'E：总训练轮数 '+m.epochs,
+  m.gpus>0&&'G：训练 GPU 总数 '+m.gpus,m.batch>0&&'B：每卡 batch '+m.batch,
+  m.accumulation>0&&'梯度累积：'+m.accumulation,m.globalBatch>0&&'全局 batch：'+m.globalBatch,
+  ids.length&&'数据集：'+ids.join('、'),...(m.sources||[])].filter(Boolean).join('\n');
+ return {title:variant||full,code:ids.slice(0,2).map(id=>id.slice(0,8)).join(' · ')+(ids.length>2?' +'+(ids.length-2):''),codeHint:ids.join('\n'),context:parts.join(' · '),hint};
 }
 function taskRow(g,peak){
  const id=taskIdentity(g),full=groupLabel(g);
- const name='<span>'+esc(id.title)+'</span>'+(id.code?'<code>'+esc(id.code)+'</code>':'');
+ const name='<span>'+esc(id.title)+'</span>'+(id.code?'<code title="'+attr('数据集：'+id.codeHint)+'">'+esc(id.code)+'</code>':'');
  const origin=(label,n)=>n?'<span class="task-source '+label.toLowerCase()+'"><i></i>'+label+'<b>'+n+'</b></span>':'';
  const known=g.unmeasured<g.count;
  const size=known?fmt(g.bytes):'待统计';
@@ -919,7 +922,7 @@ function taskRow(g,peak){
  const date=g.updated?new Date(g.updated*1000):null;
  const time=date?'<time datetime="'+date.toISOString()+'">'+esc(date.toLocaleDateString('zh-CN'))+'<small>'+esc(date.toLocaleTimeString('zh-CN',{hour12:false}))+'</small></time>':'时间未知';
  return '<tr><td class="task-main"><div class="task-identity"><i class="task-folder" aria-hidden="true"></i><div class="task-text">'+
-  button('group',g.path,name,'task-name','title="'+attr(full)+'" aria-label="'+attr(full)+'"')+(id.context?'<small>'+esc(id.context)+'</small>':'')+'</div>'+copyButton(g.copyPath)+'</div></td>'+
+  button('group',g.path,name,'task-name','title="'+attr(full)+'" aria-label="'+attr(full)+'"')+(id.context?'<small title="'+attr(id.hint)+'">'+esc(id.context)+'</small>':'')+'</div>'+copyButton(g.copyPath)+'</div></td>'+
   '<td class="task-origins"><div>'+origin('H800',g.h800)+origin('NAS',g.nas)+origin('Grus',g.grus)+origin('Tianji',g.tianji)+'</div></td><td class="task-time">'+time+'</td>'+
   '<td class="task-count"><b>'+g.count+'</b><small> 个</small></td><td class="task-size"><b>'+size+'</b><div class="task-capacity" aria-hidden="true">'+fill+'</div>'+
   (known&&g.unmeasured?'<small>另有 '+g.unmeasured+' 项待统计</small>':'')+'</td></tr>';
@@ -967,7 +970,7 @@ function sourceGroups(items){
  const grouped=new Map();
  for(const row of items){
   let g=grouped.get(row.group);
-  if(!g){g={path:row.group,name:row.group.split('/').pop(),count:0,bytes:0,unmeasured:0,updated:0,h800:0,nas:0,grus:0,tianji:0,copyPath:row.group};grouped.set(row.group,g)}
+  if(!g){g={path:row.group,name:row.group.split('/').pop(),identity:ckSources?.identities?.[row.group],count:0,bytes:0,unmeasured:0,updated:0,h800:0,nas:0,grus:0,tianji:0,copyPath:row.group};grouped.set(row.group,g)}
   g.count++;g.bytes+=row.bytes||0;if(row.bytes==null)g.unmeasured++;
   if(row.present)g.h800++;if(row.copies.length)g.nas++;
   if(row.grus)g.grus++;

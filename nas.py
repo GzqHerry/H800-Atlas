@@ -96,6 +96,18 @@ if q['action'] in ('checkpoints','checkpoint-metrics'):
             if any(values[key] is not None for key in ('epoch','epochs','loss','lr')):
                 result[source]=dict(path=source,**values)
         rows=list(result.values())
+    if not metrics and q.get('identities'):
+        identities={}
+        def identity_file(path):
+            if root not in path.parents or path.resolve()!=path:raise ValueError('Invalid archive path')
+            return path
+        for row in sorted(rows,key=lambda r:-r['updated']):
+            if not row['verified']:continue
+            group=str(Path(row['source']).parent)
+            if group not in identities:
+                dest=Path(row['destination'])
+                identities[group]=describe(dest.parent,[dest],identity_file,source_group=group)
+            row['identity']=identities[group]
     print(json.dumps(rows))
 elif q['action']=='list':
     rows=[]
@@ -141,6 +153,8 @@ else:
 
 def remote(action, **params):
     script=REMOTE
+    if action=='checkpoints' and params.get('identities'):
+        script=Path(__file__).with_name('task_metadata.py').read_text()+'\n'+script
     if action=='checkpoint-metrics':
         script=Path(__file__).with_name('checkpoint_state.py').read_text()+'\n'+script
     r=subprocess.run(SSH+[HOST,'python3 -c '+shlex.quote(script)],input=json.dumps(dict(action=action,root=NAS_ROOT,**params)),
