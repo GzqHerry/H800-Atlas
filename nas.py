@@ -178,18 +178,20 @@ def enqueue(checkpoint, action='upload', job_id=None):
     with (JOBS/'submit.lock').open('a') as lock:
         fcntl.flock(lock,fcntl.LOCK_EX)
         for j in job_list():
-            if j['source']==checkpoint['path'] and j['state'] not in ('完成','失败'):
-                if action == j.get('action') == 'upload-grus' and checkpoint.get('grusTask') != j['meta'].get('grusTask'):
-                    raise ValueError('该 checkpoint 正在上传到另一个 Grus 任务目录')
-                if j.get('host','h800-node11')!=os.uname().nodename.lower():
-                    if j.get('action','upload')==action:return j
-                    raise ValueError('该 checkpoint 在其他节点已有操作')
+            same_source=j.get('meta',{}).get('resolved',j['source'])==checkpoint.get('resolved',checkpoint['path'])
+            if not same_source or j['state'] in ('完成','失败'):continue
+            if j.get('host','h800-node11')==os.uname().nodename.lower():
                 try:os.kill(j.get('pid',0) or -99999999,0)
                 except ProcessLookupError:
                     j.update(state='失败',error='上传进程已退出，可重新上传');write_job(j)
-                else:
-                    if j.get('action','upload')!=action:raise ValueError('该 checkpoint 已有任务在执行')
-                    return j
+                    continue
+            previous=j.get('action','upload')
+            if action==previous:
+                if action=='upload-grus' and checkpoint.get('grusTask')!=j['meta'].get('grusTask'):
+                    raise ValueError('该 checkpoint 正在上传到另一个 Grus 任务目录')
+                return j
+            if 'remove' in (action,previous):
+                raise ValueError('该 checkpoint 已有上传或清理任务，请完成后再清理或上传')
         job=dict(id=job_id or uuid.uuid4().hex,host=os.uname().nodename.lower(),source=checkpoint['path'],meta=checkpoint,action=action,started=int(time.time()),state='等待复核' if action=='remove' else '待传输',percent=0)
         # Worker takes this same lock before reading the submitted record.
         child=subprocess.Popen([sys.executable,__file__,job['id']],start_new_session=True,
@@ -303,8 +305,13 @@ def worker(jid):
     def update(state,**extra):
         job.update(state=state,**extra);write_job(job)
     try:
-        with (JOBS/'transfer.lock').open('a') as lock:
+        # Keep the NAS lock name compatible with already running workers.
+        target={'upload-grus':'grus','upload-tianji':'tianji'}.get(job.get('action'),'nas')
+        lock_name='transfer.lock' if target=='nas' else 'transfer-'+target+'.lock'
+        source_key=hashlib.sha256(os.fsencode(job['meta']['resolved'])).hexdigest()
+        with (JOBS/lock_name).open('a+') as lock, (JOBS/('source-'+source_key+'.lock')).open('a+') as source_lock:
             fcntl.flock(lock,fcntl.LOCK_EX)
+            fcntl.flock(source_lock,fcntl.LOCK_EX if job.get('action')=='remove' else fcntl.LOCK_SH)
             update('清点文件')
             original=Path(job['source'])
             if original.is_symlink():raise ValueError('不能操作链接目录')

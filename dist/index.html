@@ -698,13 +698,13 @@ function transferPanel(){
  const shown=transfersExpanded?rows:rows.slice(0,4);
  const counts=running.length+' 项执行中 · '+waiting.length+' 项等待';
  return '<section class="surface transfer-panel" aria-labelledby="transferTitle"><div class="line"><h2 id="transferTitle">传输任务</h2><small>'+counts+'</small></div>'+
- '<p class="disk-note">当前账号的上传、校验与本地清理共用执行通道。等待任务按提交时间展示，获得执行通道后开始处理。</p>'+
+ '<p class="disk-note">NAS、Grus 与 Tianji 分别排队，可同时传输。同一目标每次执行一项，NAS 校验与本地清理共用 NAS 队列。等待项按提交时间展示。</p>'+
  (transfersUnavailable?'<p class="feedback" role="status">传输状态暂时无法更新，当前显示上次读取的记录。</p>':'')+
  (shown.length?'<div class="transfer-list">'+shown.map(t=>{
   const group=t.meta?.group||t.source.slice(0,t.source.lastIndexOf('/'));
   const name=t.meta?.name||t.source.split('/').pop();
   const waiting=transferWaiting(t),done=t.state==='完成',failed=t.state==='失败';
-  const operation=t.action==='remove'?'本地清理':'H800 → '+uploadTarget(t);
+  const operation=t.action==='remove'?'本地清理 · NAS 队列':'H800 → '+uploadTarget(t);
   const age=Math.max(0,Math.floor(Date.now()/1000-t.started));
   const elapsed=age>=3600?Math.floor(age/3600)+' 小时 '+Math.floor(age%3600/60)+' 分钟':Math.floor(age/60)+' 分钟';
   const state=waiting?'排队中':done?'已完成':t.state;
