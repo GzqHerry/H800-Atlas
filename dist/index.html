@@ -989,7 +989,7 @@ async function resourceView(){
  if(!ckSources)ckSources=await api('checkpoint-sources');
  try{await readTransfers()}catch{transfersUnavailable=true}
  tabs+='<div class="tools" aria-label="Checkpoint 来源">'+button('openscan','1','按路径检索','outline')+[['all','全部来源'],['H800','H800'],['NAS','NAS'],['Grus','Grus'],['Tianji','Tianji']].map(([id,n])=>button('ckstore',id,n,'chip','aria-pressed="'+(ckStore===id)+'"')).join('')+'</div>'+(ckSources.note?'<p class="feedback">'+esc(ckSources.note)+'</p>':'');
- tabs+='<div id="transferPanel">'+transferPanel()+'</div>';
+ const transfers='<div id="transferPanel">'+transferPanel()+'</div>';
  const items=ckSources.items.flatMap(c=>{
   const nas=[...c.copies].sort((a,b)=>Number(b.verified)-Number(a.verified)||b.updated-a.updated)[0];
   const local=c.present?{destination:c.path,bytes:c.bytes,updated:c.localUpdated}:null;
@@ -1001,7 +1001,7 @@ async function resourceView(){
  if(chosen){
   const oldGroup=items.find(c=>[c.path,...c.copies.map(x=>x.destination),c.grus?.destination,c.tianji?.destination].some(p=>p&&p.slice(0,p.lastIndexOf('/'))===chosen))?.group;
   const g=groups.find(x=>x.path===chosen)||groups.find(x=>x.path===oldGroup);
-  if(!g)return tabs+'<p class="empty">该来源中没有此任务的 checkpoint。</p>'+button('backgroups','1','返回任务列表');
+  if(!g)return tabs+'<p class="empty">该来源中没有此任务的 checkpoint。</p>'+button('backgroups','1','返回任务列表')+transfers;
   const selected=items.filter(c=>c.group===g.path);
   const requests=new Map(),metricKeys=new Map(),metrics=new Map();
   let nasUnavailable=false;
@@ -1025,11 +1025,11 @@ async function resourceView(){
    }
   }));
   const rows=selected.map(c=>({step:Number(c.name.match(/[0-9]+$/)?.[0]),...metrics.get(c.path),...c})).sort((a,b)=>b.updated-a.updated||b.step-a.step);
-  return tabs+(nasUnavailable?'<p class="feedback">NAS 训练状态暂时无法读取，可刷新重试。</p>':'')+groupDetailView(g,rows);
+  return tabs+(nasUnavailable?'<p class="feedback">NAS 训练状态暂时无法读取，可刷新重试。</p>':'')+groupDetailView(g,rows)+transfers;
  }
  const matching=groups.filter(g=>g.path.toLowerCase().includes(assetQuery.toLowerCase()));
  groupIndex=Math.min(groupIndex,Math.max(0,Math.ceil(matching.length/12)-1));
- return tabs+ckGraphics(groups)+form+taskList(groups,matching)+storage
+ return tabs+ckGraphics(groups)+form+taskList(groups,matching)+transfers+storage
 }
 const expandedGpus=new Set(),expandedCpus=new Set(),selectedCpuGroup=new Map();
 let cpuSnapshot=null,cpuRequest=false,cpuLastPoll=-Infinity;
