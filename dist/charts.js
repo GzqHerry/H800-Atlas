@@ -130,15 +130,36 @@ function storageMap(){
  const selected=groups.get(studio.pickedGroup);
  return '<div class="storage-total">'+fmt(total)+' <small>已盘点 · '+groups.size+' 个任务'+(unknown?' · '+unknown+' 项大小未知':'')+'</small></div>'+(leaves.length?'<div class="tree-map">'+tile(leaves,0,0,100,100)+'</div>':chartEmpty(ckSources?.note||'没有已盘点的副本'))+(selected?'<div class="chart-detail">'+esc(treeLabel(studio.pickedGroup))+' '+copyButton(studio.pickedGroup)+button('treeopen',studio.pickedGroup,'查看 checkpoints →','link')+'</div>':'');
 }
-function resultPanel(){
- const list=studio.evaluations,sets=[...new Set(list.map(v=>v.dataset))],dataset=sets.includes(studio.evalSet)?studio.evalSet:sets[0];
- if(!sets.length){const rows=(ckSources?.items||[]).filter(c=>c.present).sort((a,b)=>b.localUpdated-a.localUpdated).slice(0,4);
- return studioPanel('最近保存的 checkpoint','按本地保存时间排序','',rows.length?rows.map(c=>'<div class="latest-save">'+button('treeopen',c.group,esc(shortName(c.group)),'name')+'<small>'+esc(c.name)+' · '+chartTime(c.localUpdated)+(c.copies.some(x=>x.verified)?' · NAS 已校验':'')+'</small></div>').join(''):chartEmpty('暂无已登记的本地权重'))}
- const rows=list.filter(v=>v.dataset===dataset),max=Math.max(1,...rows.map(v=>v.step));
- const points=rows.map(v=>'<button class="save-dot" style="left:'+(2+96*v.step/max)+'%;top:'+(95-90*v.success/v.total)+'%;--dot:'+colors[1]+'" data-evalpath="'+attr(v.path)+'" title="'+attr(shortName(v.path)+' · '+v.success+'/'+v.total)+'"></button>').join('');
- const v=rows.find(v=>v.path===studio.evalPath)||rows[0];
- return studioPanel('Checkpoint 评测','同一评测集 · 机器人任务成功率','<select aria-label="评测集" id="eval-set">'+sets.map(s=>'<option '+(s===dataset?'selected':'')+'>'+esc(s)+'</option>').join('')+'</select>','<div class="curve-window"><div class="axis-y"><span>100%</span><span>0%</span></div><div class="curve-body eval-plot">'+points+'</div></div><div class="curve-scale"><span>0</span><span>step</span><span>'+max+'</span></div><div class="chart-detail">'+esc(shortName(v.path))+' · 成功 '+v.success+' / '+v.total+' 次 '+button('treeopen',v.group,'查看权重','link')+'</div>');
+let efficiencyData=null,efficiencyExpanded=false,efficiencyCell='';
+function gpuEfficiencyPanel(){
+ const d=efficiencyData;
+ if(!d||d.error)return studioPanel('GPU 利用概况','近 24 小时 · 全集群','',chartEmpty(d?.error||'正在读取 GPU 历史监测…'));
+ const pct=v=>v==null?'—':numeric(v,1)+'%';
+ const hours=v=>d.mean==null?'—':numeric(v,1);
+ const metric=(value,label)=>'<div><strong>'+value+'</strong><small>'+label+'</small></div>';
+ const summary='<div class="eff-summary">'+metric(pct(d.mean),'平均 GPU 利用率')+metric(hours(d.lowHours),'低利用卡时')+metric(hours(d.allocatedLowHours),'其中已分配卡时')+'</div>';
+ const color=v=>v==null?'missing':v<10?'low':v<50?'medium':'busy';
+ let heat='<div class="eff-heat" role="group" aria-label="节点逐小时平均 GPU 利用率">';
+ for(const node of d.nodes){
+  heat+='<div class="eff-node"><span>'+esc(node.name.replace('H800-',''))+'</span><div>';
+  node.hours.forEach((h,i)=>{
+   const time=chartTime(d.start+i*3600);
+   const title=node.name+' · '+time+' · '+pct(h.mean)+' · 覆盖 '+pct(h.coverage*100);
+   heat+=button('effcell',node.name+'|'+i,'','eff-cell '+color(h.mean)+(h.coverage<.9?' partial':''),'aria-label="'+attr(title)+'" title="'+attr(title)+'" aria-pressed="'+(efficiencyCell===node.name+'|'+i)+'"');
+  });
+  heat+='</div></div>';
+ }
+ heat+='</div><div class="eff-scale"><span>'+chartTime(d.start)+'</span><span>'+chartTime(d.end)+'</span></div>';
+ const [picked,index]=efficiencyCell.split('|'),cell=d.nodes.find(n=>n.name===picked)?.hours[Number(index)];
+ const selected=cell?'<p class="eff-selection">'+esc(picked)+' · '+chartTime(d.start+Number(index)*3600)+' · 平均 '+pct(cell.mean)+' · 覆盖 '+pct(cell.coverage*100)+'</p>':'';
+ const legend='<div class="eff-legend"><span><i class="low"></i>低于 10%</span><span><i class="medium"></i>10–50%</span><span><i class="busy"></i>50–100%</span><span><i class="missing"></i>无采样</span></div>';
+ const ordered=[...d.cards].sort((a,b)=>b.longestLowSeconds-a.longestLowSeconds||a.node.localeCompare(b.node)||a.index-b.index);
+ const detail=efficiencyExpanded?'<div class="scroll eff-table">'+tableMarkup(['GPU','平均利用率','最长连续低利用','已分配低利用卡时','覆盖率'],ordered.map(c=>'<tr><td>'+esc(c.node.replace('H800-',''))+' / '+c.index+'</td><td>'+pct(c.mean)+'</td><td>'+(c.coverage?numeric(c.longestLowSeconds/60,0)+' 分钟':'—')+'</td><td>'+(c.coverage?numeric(c.allocatedLowHours,1):'—')+'</td><td>'+pct(c.coverage*100)+'</td></tr>'))+'</div>':'';
+ const note='<div class="eff-note"><span>'+d.cardCount+' 张卡 · 数据覆盖 '+pct(d.coverage*100)+'</span><span>'+(d.mean==null?'—':d.sustainedCards)+' 张曾连续低利用 ≥ 30 分钟</span></div>';
+ const method='<details class="eff-method"><summary>计算口径</summary><p>每 30 秒按物理 GPU 去重采样。平均利用率 = 有效采样利用率之和 ÷ 有效采样数。低利用卡时 = 利用率低于 10% 的采样数 × 30 秒 ÷ 3600。已分配依据监测中的作业标记。连续低利用时长按采样估算，遇到缺测即中断。</p><p>按当前节点卡数计算覆盖率，缺测时段单独标记。热图每格为一小时均值，斜纹表示覆盖不足 90%。当前观测 '+hours(d.observedHours)+' 卡时，内核活跃等效 '+hours(d.activeHours)+' 卡时。</p><p>GPU 利用率反映内核运行时间比例。数据加载、通信与保存权重都可能造成低利用，需结合具体作业分析。峰值算力效率需结合模型 FLOPs 测量。</p></details>';
+ return studioPanel('GPU 利用概况','近 24 小时 · 全集群',button('effexpand','1',efficiencyExpanded?'收起明细':'逐卡明细','link','aria-expanded="'+efficiencyExpanded+'"'),(d.stale?'<p class="feedback">历史监测更新失败，显示上次统计至 '+chartTime(d.end)+' 的数据。</p>':'')+summary+note+heat+legend+selected+detail+method);
 }
+
 function dashboardOverview(){
  const jobs=jobsAvailable?jobList:null;
  const count=groupList?.reduce((total,g)=>total+g.count,0);
@@ -336,18 +357,19 @@ function dashboard(){
  studioPanel('节点空闲窗口','近 12 小时 · 每小时最后一次采样','',heatmap())+
  studioPanel('我的 GPU 卡时','近 7 天 · 每日分配用量','',gpuHours())+
  studioPanel('权重占用分布','各训练任务的存储占比','<div class="studio-switch">'+['H800','NAS'].map(s=>control('treestore',s,s,studio.store===s)).join('')+'</div>',storageMap())+
- resultPanel()+'</div><section id="storageUsage" class="surface studio-card below" aria-label="存储用量排行">'+storageCard()+'</section><section id="trainingUsage" class="surface studio-card below" aria-label="GPU 用量排行">'+usageCard()+'</section>';
+ gpuEfficiencyPanel()+'</div><section id="storageUsage" class="surface studio-card below" aria-label="存储用量排行">'+storageCard()+'</section><section id="trainingUsage" class="surface studio-card below" aria-label="GPU 用量排行">'+usageCard()+'</section>';
 }
 async function loadStudio(){
  if(studio.ready&&Date.now()-studioUpdated<50000&&ckSources)return;
  if(studioRequest)return studioRequest;
  studioRequest=(async()=>{
-  const names=['节点历史','训练摘要','权重清单'];
-  const results=await Promise.allSettled([api('node-history'),api('training-summary'),ckSources||api('checkpoint-sources')]);
+  const names=['节点历史','训练摘要','权重清单','GPU 利用率'];
+  const results=await Promise.allSettled([api('node-history'),api('training-summary'),ckSources||api('checkpoint-sources'),api('gpu-efficiency')]);
   studio.issues=results.flatMap((r,i)=>r.status==='rejected'?[names[i]+'暂时无法读取']:[]);
   if(results[0].status==='fulfilled')studio.history=results[0].value;
   if(results[1].status==='fulfilled'){studio.trainingJobs=new Set(results[1].value.jobs);studio.evaluations=results[1].value.evaluations}
   if(results[2].status==='fulfilled')ckSources=results[2].value;
+  efficiencyData=results[3].status==='fulfilled'?results[3].value:efficiencyData?{...efficiencyData,stale:true}:{error:'GPU 历史监测暂时不可用'};
   studioUpdated=Date.now();studio.ready=true;
  })().finally(()=>{studioRequest=null});return studioRequest;
 }
@@ -359,6 +381,8 @@ document.addEventListener('click',e=>{
   if(d.usageall)usageView.all=!usageView.all;
   refreshUsageCard(d.usageall?'expand':d.usagemetric?'reorder':'fade');if(d.usagedays||d.usageretry)loadUsage();return;
  }
+ if(d.effexpand){efficiencyExpanded=!efficiencyExpanded;render();return}
+ if(d.effcell){efficiencyCell=efficiencyCell===d.effcell?'':d.effcell;render();return}
  if(d.metric==='ck'){ckStore='H800';setResource('ck');return}
  else if(d.metric){selectedState=d.metric==='all'?'':d.metric;selectedJob='';navigate(2);return}
  else if(d.heat)studio.sample=d.heat;

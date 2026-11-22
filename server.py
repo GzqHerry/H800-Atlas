@@ -786,6 +786,8 @@ def route(method, target, body):
         rows=charts.usage_rows(charts.usage_lines(days,int(time.monotonic()//300)),outcomes,gpu_only=gpu_only)
         return 200,dict(users=rows,stamp=int(time.time()),days=days)
     routes['/api/training-charts']=lambda:charts.training_charts(H,safe)
+    from gpu_efficiency import snapshot as gpu_efficiency
+    routes['/api/gpu-efficiency']=gpu_efficiency
     routes['/api/node-history']=charts.read_history
     routes['/api/assets']=assets
     if method!='GET' or u.path not in routes:return 404,{'error':'接口不存在'}

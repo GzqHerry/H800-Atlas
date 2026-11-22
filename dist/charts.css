@@ -297,3 +297,27 @@ i.crew-portrait{background-color:#050505;background-image:var(--crew-sheet);back
 .transfer-meta{display:flex;flex-wrap:wrap;gap:6px 18px;margin-top:6px;color:var(--soft);font-size:12px}
 .transfer-row .upload-meter{margin-top:10px}
 .transfer-row>.line{align-items:start;flex-wrap:nowrap}
+
+.eff-summary{display:grid;grid-template-columns:1.25fr 1fr 1fr;gap:16px;margin:20px 0}
+.eff-summary strong{display:block;font-size:clamp(23px,2.4vw,36px);font-weight:650;letter-spacing:-1px;font-variant-numeric:tabular-nums}
+.eff-summary>div:first-child strong{color:var(--blue,#387fd7)}
+.eff-summary small{display:block;color:var(--soft);margin-top:4px;font-size:12px}
+.eff-note{display:flex;flex-wrap:wrap;gap:5px 16px;color:var(--soft);font-size:11px;margin-bottom:18px}
+.eff-node{display:grid;grid-template-columns:65px minmax(0,1fr);align-items:center;gap:8px;margin:6px 0;font-size:11px;color:var(--soft)}
+.eff-node>div{display:grid;grid-template-columns:repeat(24,minmax(0,1fr));gap:3px}
+.eff-cell{padding:0;min-width:0;height:22px;border:0;border-radius:3px}
+.eff-cell.low,.eff-legend .low{background:#dfab64}
+.eff-cell.medium,.eff-legend .medium{background:#9abce9}
+.eff-cell.busy,.eff-legend .busy{background:#397fd4}
+.eff-cell.missing,.eff-legend .missing{background:var(--line)}
+.eff-cell.partial{background-image:repeating-linear-gradient(135deg,transparent 0 4px,#ffffff66 4px 6px)}
+.eff-cell[aria-pressed=true]{outline:2px solid var(--ink);outline-offset:1px}
+.eff-scale{display:flex;justify-content:space-between;padding-left:73px;font-size:10px;color:var(--soft);margin-top:8px}
+.eff-legend{display:flex;gap:8px 14px;flex-wrap:wrap;margin-top:14px;font-size:11px;color:var(--soft)}
+.eff-legend i{display:inline-block;width:8px;height:8px;border-radius:2px;margin-right:5px}
+.eff-selection{font-size:12px;color:var(--soft)}
+.eff-method{margin-top:18px;border-top:1px solid var(--line);padding-top:12px;color:var(--soft);font-size:11px;line-height:1.7}
+.eff-method summary{cursor:pointer}
+.eff-table{max-height:320px;overflow:auto;margin-top:16px}
+.eff-table table{font-size:11px}.eff-table th{position:sticky;top:0}
+@media(max-width:520px){.eff-summary{gap:8px}.eff-summary strong{font-size:24px}.eff-summary small{font-size:10px}.eff-node{grid-template-columns:57px minmax(0,1fr);gap:5px}.eff-node>div{gap:2px}.eff-cell{height:20px}.eff-scale{padding-left:62px}}
