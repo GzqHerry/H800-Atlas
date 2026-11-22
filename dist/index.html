@@ -687,7 +687,37 @@ function checkpointProgress(path){
  const notice=removalNotices.get(path);
  return (notice?'<p class="feedback">'+esc(notice)+'</p>':'')+(removal?(removal.state==='完成'?'<small>本地已清理'+(removal.bytes?' · '+fmt(removal.bytes):'')+'</small>':cleanupMeter(removal)):'')+[...latest.values()].filter(t=>['传输中','校验中','重新校验','失败'].includes(t.state)).map(uploadMeter).join('');
 }
+let transfersExpanded=false,transfersUnavailable=false;
+const transferWaiting=t=>['待传输','等待复核'].includes(t.state);
+function transferPanel(){
+ const active=transferRows.filter(t=>!transferDone(t));
+ const running=active.filter(t=>!transferWaiting(t)).sort((a,b)=>a.started-b.started);
+ const waiting=active.filter(transferWaiting).sort((a,b)=>a.started-b.started);
+ const recent=transferRows.filter(transferDone).sort((a,b)=>(b.updated||b.started)-(a.updated||a.started));
+ const rows=active.length?[...running,...waiting]:recent.slice(0,4);
+ const shown=transfersExpanded?rows:rows.slice(0,4);
+ const counts=running.length+' 项执行中 · '+waiting.length+' 项等待';
+ return '<section class="surface transfer-panel" aria-labelledby="transferTitle"><div class="line"><h2 id="transferTitle">传输任务</h2><small>'+counts+'</small></div>'+
+ '<p class="disk-note">当前账号的上传、校验与本地清理共用执行通道。等待任务按提交时间展示，获得执行通道后开始处理。</p>'+
+ (transfersUnavailable?'<p class="feedback" role="status">传输状态暂时无法更新，当前显示上次读取的记录。</p>':'')+
+ (shown.length?'<div class="transfer-list">'+shown.map(t=>{
+  const group=t.meta?.group||t.source.slice(0,t.source.lastIndexOf('/'));
+  const name=t.meta?.name||t.source.split('/').pop();
+  const waiting=transferWaiting(t),done=t.state==='完成',failed=t.state==='失败';
+  const operation=t.action==='remove'?'本地清理':'H800 → '+uploadTarget(t);
+  const age=Math.max(0,Math.floor(Date.now()/1000-t.started));
+  const elapsed=age>=3600?Math.floor(age/3600)+' 小时 '+Math.floor(age%3600/60)+' 分钟':Math.floor(age/60)+' 分钟';
+  const state=waiting?'排队中':done?'已完成':t.state;
+  return '<article class="transfer-row"><div class="line"><div class="transfer-name">'+button('transfergroup',group,esc(group.split('/').pop()),'link')+'<strong>'+esc(name)+'</strong></div><span class="badge '+(waiting?'pending':done?'completed':failed?'failed':'running')+'">'+esc(state)+'</span></div>'+
+  '<div class="transfer-meta"><span>'+esc(operation)+'</span><span>'+esc(t.host||'')+'</span><span>提交于 '+esc(displayTime(t.started))+'</span>'+(waiting?'<span>已等待 '+elapsed+'</span>':'')+'</div>'+
+  (waiting?'':t.action==='remove'?cleanupMeter(t):uploadMeter(t))+'</article>';
+ }).join('')+'</div>':'<p class="empty">暂无传输任务。</p>')+
+ (rows.length>4?button('transferexpand','1',transfersExpanded?'收起':'展开全部 '+rows.length+' 项','link','aria-expanded="'+transfersExpanded+'"'):'')+'</section>';
+}
 function refreshTransferViews(){
+ const panel=document.getElementById('transferPanel');
+ if(panel)panel.innerHTML=transferPanel();
+
  for(const el of document.querySelectorAll('[data-progress-for]')){
   el.innerHTML=checkpointProgress(el.dataset.progressFor);
  }
@@ -720,7 +750,7 @@ let transferRevision=0;
 async function readTransfers(){
  const revision=++transferRevision,rows=await api('uploads');
  if(revision!==transferRevision)return false;
- transferRows=rows;
+ transferRows=rows;transfersUnavailable=false;
  return true;
 }
 async function pollTransfers(){
@@ -730,7 +760,7 @@ async function pollTransfers(){
  const finished=transferRows.some(n=>transferDone(n)&&!old.some(o=>o.id===n.id&&o.state===n.state));
  refreshTransferViews();
  if(finished){ckSources=null;groupDetails.clear();groupList=null;await render()}
- }catch{}finally{uploadPolling=false}
+ }catch{transfersUnavailable=true;refreshTransferViews()}finally{uploadPolling=false}
 }
 const removalNotices=new Map(),pendingRemovals=new Set();
 function confirmRemoval(path){
@@ -957,8 +987,9 @@ async function resourceView(){
  const list=nasEmpty?'<section class="surface"><h2>NAS 数据集</h2><p class="empty">当前 NAS 目录中没有检索到数据集。</p>'+button('nascheckpoints','1','查看 NAS Checkpoints →','link')+'</section>':datasetList(byStore.filter(d=>!robotFilter||d.robot===robotFilter),tones);
  return tabs+datasetGraphics(all)+locations+(nasIssue?'<p class="feedback">'+esc(nasIssue)+'</p>':'')+chooser+form+list+storage}
  if(!ckSources)ckSources=await api('checkpoint-sources');
- try{await readTransfers()}catch{}
+ try{await readTransfers()}catch{transfersUnavailable=true}
  tabs+='<div class="tools" aria-label="Checkpoint 来源">'+button('openscan','1','按路径检索','outline')+[['all','全部来源'],['H800','H800'],['NAS','NAS'],['Grus','Grus'],['Tianji','Tianji']].map(([id,n])=>button('ckstore',id,n,'chip','aria-pressed="'+(ckStore===id)+'"')).join('')+'</div>'+(ckSources.note?'<p class="feedback">'+esc(ckSources.note)+'</p>':'');
+ tabs+='<div id="transferPanel">'+transferPanel()+'</div>';
  const items=ckSources.items.flatMap(c=>{
   const nas=[...c.copies].sort((a,b)=>Number(b.verified)-Number(a.verified)||b.updated-a.updated)[0];
   const local=c.present?{destination:c.path,bytes:c.bytes,updated:c.localUpdated}:null;
@@ -1416,6 +1447,8 @@ document.addEventListener('click',async e=>{const b=e.target.closest('button');i
      if(matchMedia('(max-width:700px)').matches)$('runDetail').scrollIntoView({block:'start'});
    }
  }
+ else if(d.transferexpand){transfersExpanded=!transfersExpanded;refreshTransferViews()}
+ else if(d.transfergroup){setResource('ck',d.transfergroup)}
  else if(d.state!==undefined){selectedState=d.state;render()}
  else if(d.root)openDir(d.root);
  else if(d.offset!==undefined){offset=+d.offset;render()}
