@@ -321,3 +321,10 @@ i.crew-portrait{background-color:#050505;background-image:var(--crew-sheet);back
 .eff-table{max-height:320px;overflow:auto;margin-top:16px}
 .eff-table table{font-size:11px}.eff-table th{position:sticky;top:0}
 @media(max-width:520px){.eff-summary{gap:8px}.eff-summary strong{font-size:24px}.eff-summary small{font-size:10px}.eff-node{grid-template-columns:57px minmax(0,1fr);gap:5px}.eff-node>div{gap:2px}.eff-cell{height:20px}.eff-scale{padding-left:62px}}
+
+.studio-card:has(>.storage-total){display:flex;flex-direction:column;min-width:0}
+.studio-card>.tree-map{flex:1 0 260px;height:auto;min-height:260px;margin-top:16px}
+.studio-card>.tree-map .tree-tile{padding:10px}
+.studio-card>.tree-map .tree-tile b{white-space:normal;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow-wrap:anywhere;line-height:1.4}
+.studio-card>.tree-map .tree-tile small{margin-top:4px}
+@media(max-width:800px){.studio-card>.tree-map{flex-basis:280px;min-height:280px}}
