@@ -139,8 +139,9 @@ if q['action'] == 'prepare':
                 raise ValueError('Unexpected staging file')
         needed = sum(max(0, rec['size'] - (stage/n).stat().st_size)
                      if (stage/n).exists() else rec['size'] for n, rec in files.items())
-        if shutil.disk_usage(root).free < needed:
-            raise ValueError('Insufficient space on ' + label)
+        free = shutil.disk_usage(root).free
+        if free < needed:
+            raise ValueError(label + ' 可用空间不足，需要 %.2f GiB，当前剩余 %.2f GiB' % (needed / 1024**3, free / 1024**3))
 elif q['action'] == 'publish':
     if not final.exists():
         verify(stage)

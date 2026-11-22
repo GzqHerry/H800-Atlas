@@ -641,6 +641,10 @@ async function fetchNAS(){
 }
 const uploadTarget=t=>({'upload-grus':'Grus','upload-tianji':'Tianji'})[t.action]||'NAS';
 const transferDone=t=>t.state==='完成'||t.state==='失败';
+function transferError(job){
+ const error=job.error||'传输失败，请查看任务详情。';
+ return /Insufficient space on/.test(error)?uploadTarget(job)+' 可用空间不足，无法继续上传。':error;
+}
 function uploadMeter(t){
  const done=t.state==='完成',failed=t.state==='失败',moving=t.state==='传输中';
  const percent=done?100:moving&&Number.isFinite(t.percent)?Math.max(0,Math.min(100,t.percent)):null;
@@ -654,7 +658,7 @@ function uploadMeter(t){
  const bar=!showBar?'':'<div class="upload-track" role="progressbar" aria-label="'+label+'" aria-valuemin="0" aria-valuemax="100" '+
   (percent===null?'aria-valuetext="'+attr(phase)+'"':'aria-valuenow="'+percent+'"')+'><i style="--filled:'+(percent===null?'25':percent)+'%"></i></div>';
  return '<div class="upload-meter '+tone+(percent===null?' indeterminate':'')+'"><div class="upload-caption"><span><i aria-hidden="true"></i>'+esc(stale?uploadTarget(t)+' · 等待进度更新':uploadTarget(t))+'</span><span>'+
-  (total?'<small>'+esc(total)+'</small>':'')+(percent===null?'':'<b>'+percent+'%</b>')+'</span></div>'+bar+sampled+(failed&&t.error?'<small class="feedback">'+esc(t.error)+'</small>':'')+'</div>';
+  (total?'<small>'+esc(total)+'</small>':'')+(percent===null?'':'<b>'+percent+'%</b>')+'</span></div>'+bar+sampled+(failed?'<small class="feedback" role="alert">'+esc(transferError(t))+'</small>':'')+'</div>';
 }
 function cleanupMeter(job){
  const done=job.state==='完成',failed=job.state==='失败',checking=job.state==='重新校验';
@@ -694,9 +698,15 @@ function transferPanel(){
  const running=active.filter(t=>!transferWaiting(t)).sort((a,b)=>a.started-b.started);
  const waiting=active.filter(transferWaiting).sort((a,b)=>a.started-b.started);
  const recent=transferRows.filter(transferDone).sort((a,b)=>(b.updated||b.started)-(a.updated||a.started));
- const rows=active.length?[...running,...waiting]:recent.slice(0,4);
+ const latest=new Map();
+ for(const t of [...transferRows].sort((a,b)=>b.started-a.started||(b.updated||0)-(a.updated||0))){
+  const key=JSON.stringify([t.source,t.action||'upload']);
+  if(!latest.has(key))latest.set(key,t);
+ }
+ const failed=[...latest.values()].filter(t=>t.state==='失败').sort((a,b)=>(b.updated||b.started)-(a.updated||a.started));
+ const rows=active.length||failed.length?[...failed,...running,...waiting]:recent.slice(0,4);
  const shown=transfersExpanded?rows:rows.slice(0,4);
- const counts=running.length+' 项执行中 · '+waiting.length+' 项等待';
+ const counts=running.length+' 项执行中 · '+waiting.length+' 项等待'+(failed.length?' · '+failed.length+' 项失败':'');
  return '<section class="surface transfer-panel" aria-labelledby="transferTitle"><div class="line"><h2 id="transferTitle">传输任务</h2><small>'+counts+'</small></div>'+
  '<p class="disk-note">NAS、Grus 与 Tianji 分别排队，可同时传输。同一目标每次执行一项，NAS 校验与本地清理共用 NAS 队列。等待项按提交时间展示。</p>'+
  (transfersUnavailable?'<p class="feedback" role="status">传输状态暂时无法更新，当前显示上次读取的记录。</p>':'')+
